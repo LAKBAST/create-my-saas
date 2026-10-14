@@ -10,6 +10,7 @@ export class Invitation {
  @Column({ name: 'token_hash' }) tokenHash!: string;
  @Column({ name: 'expires_at', type: dateType }) expiresAt!: Date;
  @Column({ name: 'accepted_at', type: dateType, nullable: true }) acceptedAt!: Date | null;
+ @Column({ name: 'delivered_at', type: dateType, nullable: true }) deliveredAt!: Date | null;
  @Column({ name: 'created_at', type: dateType, default: () => 'CURRENT_TIMESTAMP' }) createdAt!: Date;
  @BeforeInsert() assignId(): void { this.id ??= randomUUID(); }
 }
