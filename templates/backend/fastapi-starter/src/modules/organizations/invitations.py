@@ -75,11 +75,12 @@ async def invite(
             )
         ).scalar_one()
         invitation_id = invitation.id
-        if invitation.expires_at <= now:
+        if invitation.expires_at <= now or invitation.delivered_at is None:
             invitation.role = payload.role.value
             invitation.token_hash = values["token_hash"]
             invitation.expires_at = values["expires_at"]
             invitation.invited_by_id = user.id
+            invitation.delivered_at = None
             deliver = True
 
     if deliver:
@@ -105,6 +106,18 @@ async def invite(
             subject="Organization invitation",
             body=f"Use this one-time invitation token: {raw_token}",
         )
+        # A concurrent retry may already have replaced this token. Only mark
+        # the token actually sent as delivered if it is still current.
+        await db.execute(
+            update(Invitation)
+            .where(Invitation.id == invitation_id, Invitation.token_hash == values["token_hash"])
+            .values(delivered_at=utc_now())
+        )
+        try:
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
     return {"id": str(invitation_id), "accepted": False}
 
 

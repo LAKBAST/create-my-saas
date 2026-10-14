@@ -52,9 +52,15 @@ export class OrganizationsService {
      .where('invitation.organization_id = :organizationId AND invitation.email = :email AND invitation.accepted_at IS NULL', { organizationId, email: normalizedEmail });
     if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
     const existing = await query.getOne();
-    if (existing && existing.expiresAt > new Date()) return null;
+    if (existing && existing.expiresAt > new Date() && existing.deliveredAt) return null;
+    if (existing && !existing.deliveredAt) {
+     existing.role = role;
+     existing.tokenHash = this.hash(raw);
+     existing.expiresAt = new Date(Date.now() + 7 * 86_400_000);
+     return invitations.save(existing);
+    }
     if (existing) await invitations.remove(existing);
-    const invitation = await invitations.save(invitations.create({ organizationId, email: normalizedEmail, role, tokenHash: this.hash(raw), acceptedAt: null, expiresAt: new Date(Date.now() + 7 * 86_400_000) }));
+    const invitation = await invitations.save(invitations.create({ organizationId, email: normalizedEmail, role, tokenHash: this.hash(raw), acceptedAt: null, deliveredAt: null, expiresAt: new Date(Date.now() + 7 * 86_400_000) }));
     await this.audit.record({
      organizationId, actorUserId, action: 'organization.invitation.created', targetType: 'invitation', targetId: invitation.id,
      metadata: { email: normalizedEmail, role },
@@ -63,11 +69,24 @@ export class OrganizationsService {
    });
   } catch (error) {
    if (!this.isUniqueViolation(error)) throw error;
-   const existing = await this.invitations.findOneBy({ organizationId, email: normalizedEmail, acceptedAt: IsNull() });
-   if (!existing || existing.expiresAt <= new Date()) throw error;
-   created = null;
+   created = await this.dataSource.transaction(async (manager) => {
+    const invitations = manager.getRepository(Invitation);
+    const query = invitations.createQueryBuilder('invitation')
+     .where('invitation.organization_id = :organizationId AND invitation.email = :email AND invitation.accepted_at IS NULL', { organizationId, email: normalizedEmail });
+    if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
+    const existing = await query.getOne();
+    if (!existing || existing.expiresAt <= new Date()) throw error;
+    if (existing.deliveredAt) return null;
+    existing.role = role;
+    existing.tokenHash = this.hash(raw);
+    existing.expiresAt = new Date(Date.now() + 7 * 86_400_000);
+    return invitations.save(existing);
+   });
   }
-  if (created) await this.secureEmail.send(normalizedEmail, 'Organization invitation', `Use this one-time invitation token: ${raw}`);
+  if (created) {
+   await this.secureEmail.send(normalizedEmail, 'Organization invitation', `Use this one-time invitation token: ${raw}`);
+   await this.invitations.update({ id: created.id, tokenHash: this.hash(raw) }, { deliveredAt: new Date() });
+  }
  }
  async acceptInvitation(user: User, token: string): Promise<Membership> {
   const email = this.normalizeEmail(user.email);

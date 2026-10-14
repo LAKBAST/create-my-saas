@@ -1,5 +1,5 @@
 import { AppError } from '../common/errors/app.error';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { SecureEmailService } from '../auth/secure-email.service';
 import { User } from '../users/user.entity';
 import { Invitation } from './invitation.entity';
@@ -51,6 +51,7 @@ describe('OrganizationsService', () => {
       stored = { id: 'invitation-1', ...values } as Invitation;
       return stored;
     });
+    invitations.update.mockImplementation(async () => { if (stored) stored.deliveredAt = new Date(); });
 
     await service.invite('organization-1', user.id, 'Member@Example.com', 'member');
     await service.invite('organization-1', user.id, 'member@example.com', 'member');
@@ -68,14 +69,38 @@ describe('OrganizationsService', () => {
 
   it('treats a concurrent active-invitation constraint conflict as an idempotent retry', async () => {
     const { service, invitations, secureEmail } = setup();
-    const activeInvitation = { id: 'invitation-1', organizationId: 'organization-1', email: 'member@example.com', acceptedAt: null, expiresAt: new Date(Date.now() + 60_000) } as Invitation;
-    invitations.createQueryBuilder.mockReturnValue({ where: jest.fn().mockReturnThis(), getOne: jest.fn(async () => null) });
+    const activeInvitation = { id: 'invitation-1', organizationId: 'organization-1', email: 'member@example.com', acceptedAt: null, deliveredAt: new Date(), expiresAt: new Date(Date.now() + 60_000) } as Invitation;
+    invitations.createQueryBuilder.mockReturnValue({ where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(activeInvitation) });
     invitations.save.mockRejectedValue({ code: '23505' });
-    invitations.findOneBy.mockResolvedValue(activeInvitation);
 
     await expect(service.invite('organization-1', user.id, 'member@example.com', 'member')).resolves.toBeUndefined();
 
     expect(secureEmail.send).not.toHaveBeenCalled();
+  });
+
+  it('rotates the token and sends again after delivery fails without creating another invitation', async () => {
+    const { service, invitations, secureEmail, audit } = setup();
+    let stored: Invitation | undefined;
+    invitations.createQueryBuilder.mockReturnValue({ where: jest.fn().mockReturnThis(), getOne: jest.fn(async () => stored) });
+    invitations.save.mockImplementation(async (values) => {
+      stored = { id: 'invitation-1', ...values } as Invitation;
+      return stored;
+    });
+    (secureEmail.send as jest.Mock).mockRejectedValueOnce(new Error('mail unavailable'));
+    invitations.update.mockImplementation(async () => { if (stored) stored.deliveredAt = new Date(); });
+
+    await expect(service.invite('organization-1', user.id, 'member@example.com', 'member')).rejects.toThrow('mail unavailable');
+    const firstHash = (stored as Invitation | undefined)?.tokenHash;
+    await service.invite('organization-1', user.id, 'member@example.com', 'member');
+    await service.invite('organization-1', user.id, 'member@example.com', 'member');
+
+    expect((stored as Invitation | undefined)?.tokenHash).not.toBe(firstHash);
+    const deliveredToken = (secureEmail.send as jest.Mock).mock.calls[1][2].split(': ')[1];
+    expect((stored as Invitation | undefined)?.tokenHash).toBe(createHash('sha256').update(deliveredToken).digest('hex'));
+    expect(invitations.save).toHaveBeenCalledTimes(2);
+    expect(secureEmail.send).toHaveBeenCalledTimes(2);
+    expect(invitations.update).toHaveBeenCalledTimes(1);
+    expect(audit.record).toHaveBeenCalledTimes(1);
   });
 
   it('returns the established membership when an invitation acceptance is retried', async () => {
