@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { generateProject } from '../src/generator.js';
-import { versionSatisfies } from '../src/extensions.js';
+import { extensionTargetFiles, versionSatisfies } from '../src/extensions.js';
 
 const { version: packageVersion } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
 
@@ -65,6 +65,46 @@ test('matches only documented extension version constraints', () => {
   assert.equal(versionSatisfies('0.1.4', '^0.1.3'), true);
   assert.equal(versionSatisfies('0.2.0', '^0.1.3'), false);
   assert.equal(versionSatisfies('1.2.4-beta.1', '^1.2.3'), false);
+});
+
+test('rejects external overlays linked at the root or an ancestor before generating', (t) => {
+  for (const linkedComponent of ['backend', 'overlays']) {
+    const { root, templates, extensions } = fixture();
+    t.after(() => rmSync(root, { recursive: true, force: true }));
+    const source = join(extensions, 'linked');
+    const outside = join(root, 'outside');
+    mkdirSync(join(outside, 'backend'), { recursive: true });
+    writeFileSync(join(outside, 'backend', 'private.txt'), 'outside extension\n');
+    addExtension(extensions, 'linked', extensionManifest('community:linked', {
+      targets: [{ template: 'backend:test', overlay: 'overlays/backend', replace: [], environment: [], migrations: [] }],
+    }));
+    if (linkedComponent === 'backend') {
+      mkdirSync(join(source, 'overlays'));
+      symlinkSync(join(outside, 'backend'), join(source, 'overlays', 'backend'), 'dir');
+    } else {
+      symlinkSync(outside, join(source, 'overlays'), 'dir');
+    }
+
+    const destination = join(root, 'generated');
+    assert.throws(
+      () => generateProject({ destination, backendId: 'test', frontendId: 'test', featureIds: ['community:linked'], templatesDirectory: templates, extensionsDirectories: [extensions] }),
+      /Extension overlays cannot contain symbolic links: community:linked\/overlays\/backend\./,
+    );
+    assert.equal(existsSync(destination), false);
+  }
+});
+
+test('rejects a linked extension source directory before enumerating its overlay', (t) => {
+  const root = workspace();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const source = join(root, 'source');
+  mkdirSync(join(source, 'backend'), { recursive: true });
+  const linkedSource = join(root, 'linked-source');
+  symlinkSync(source, linkedSource, 'dir');
+  assert.throws(
+    () => extensionTargetFiles({ id: 'community:linked', sourceDirectory: linkedSource }, { overlay: 'backend' }),
+    /Extension overlays cannot contain symbolic links: community:linked\/backend\./,
+  );
 });
 
 test('validates extension CLI requirements against the published package version', (t) => {

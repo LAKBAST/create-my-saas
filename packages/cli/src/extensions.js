@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, realpathSync, readdirSync, readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 // The namespace belongs to the extension author. Keeping it unconstrained lets
@@ -227,7 +227,25 @@ export function resolveExtensions(selectedExtensions, { backend, frontend, cliVe
 export function extensionTargetFiles(extension, target) {
   const overlayDirectory = resolve(extension.sourceDirectory, target.overlay);
   const overlayRelative = relative(extension.sourceDirectory, overlayDirectory);
-  if (!overlayRelative || isAbsolute(overlayRelative) || overlayRelative === '..' || overlayRelative.startsWith(`..${sep}`) || !existsSync(overlayDirectory)) {
+  if (!overlayRelative || isAbsolute(overlayRelative) || overlayRelative === '..' || overlayRelative.startsWith(`..${sep}`)) {
+    throw new Error(`Extension overlay not found: ${extension.id}/${target.overlay}.`);
+  }
+  let component = extension.sourceDirectory;
+  for (const segment of [null, ...overlayRelative.split(sep)]) {
+    if (segment !== null) component = join(component, segment);
+    let stats;
+    try {
+      stats = lstatSync(component);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      throw new Error(`Extension overlay not found: ${extension.id}/${target.overlay}.`);
+    }
+    if (stats.isSymbolicLink()) throw new Error(`Extension overlays cannot contain symbolic links: ${extension.id}/${target.overlay}.`);
+    if (!stats.isDirectory()) throw new Error(`Extension overlay not found: ${extension.id}/${target.overlay}.`);
+  }
+  const realSource = realpathSync(extension.sourceDirectory);
+  const realOverlayRelative = relative(realSource, realpathSync(overlayDirectory));
+  if (!realOverlayRelative || isAbsolute(realOverlayRelative) || realOverlayRelative === '..' || realOverlayRelative.startsWith(`..${sep}`)) {
     throw new Error(`Extension overlay not found: ${extension.id}/${target.overlay}.`);
   }
   const files = [];
