@@ -190,10 +190,25 @@ export class BillingService {
     await manager.getRepository(Organization).findOne({ where: { id: organizationId }, lock: { mode: 'pessimistic_write' } });
     const subscriptions = manager.getRepository(Subscription);
     let subscription = await subscriptions.findOneBy({ organizationId });
-    if (subscription?.providerSubscriptionId && subscription.providerSubscriptionId !== eventSubscription.id) throw new AppError('BILLING_SUBSCRIPTION_MISMATCH', 'Organization already has a different Stripe subscription.', 400);
     // Event timestamps can tie; read the current state while holding the lock.
     const stripeSubscription = await this.stripe().subscriptions.retrieve(eventSubscription.id);
     if (this.objectId(stripeSubscription.customer) !== customerId) throw new AppError('BILLING_CUSTOMER_MISMATCH', 'Stripe subscription customer changed.', 400);
+    if (subscription?.providerSubscriptionId && subscription.providerSubscriptionId !== eventSubscription.id) {
+      const previous = await this.stripe().subscriptions.retrieve(subscription.providerSubscriptionId);
+      if (this.objectId(previous.customer) !== customerId) throw new AppError('BILLING_CUSTOMER_MISMATCH', 'Stripe subscription customer changed.', 400);
+      if (!Number.isInteger(stripeSubscription.created) || !Number.isInteger(previous.created)) {
+        throw new AppError('INVALID_BILLING_WEBHOOK', 'Stripe subscription creation time is missing.', 400);
+      }
+      const previousIds = subscription.previousSubscriptionIds ?? [];
+      if (previousIds.includes(eventSubscription.id)) return; // Delayed event from a known subscription.
+      if (stripeSubscription.created < previous.created ||
+          (stripeSubscription.created === previous.created && !['active', 'trialing'].includes(stripeSubscription.status)) ||
+          !['canceled', 'incomplete_expired'].includes(subscription.status) ||
+          !['canceled', 'incomplete_expired'].includes(previous.status)) {
+        throw new AppError('BILLING_SUBSCRIPTION_MISMATCH', 'Organization already has a different Stripe subscription.', 400);
+      }
+      subscription.previousSubscriptionIds = [...previousIds, subscription.providerSubscriptionId];
+    }
     if (!customer) await this.upsertCustomer(manager, organizationId, customerId);
 
     const priceId = stripeSubscription.items.data[0]?.price.id;

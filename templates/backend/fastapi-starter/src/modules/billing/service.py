@@ -213,19 +213,38 @@ class BillingService:
         subscription = (await self.db.execute(
             select(Subscription).where(Subscription.organization_id == organization_id).execution_options(populate_existing=True)
         )).scalar_one_or_none()
+        if subscription and subscription.provider_customer_id and subscription.provider_customer_id != customer_id:
+            raise AppError("Stripe customer belongs to another organization.", code="BILLING_CUSTOMER_MISMATCH", status_code=400)
         subscription_id = self._object_id(self._value(stripe_subscription, "id"))
         if not subscription_id:
             raise AppError("Stripe subscription ID is missing.", code="INVALID_BILLING_WEBHOOK", status_code=400)
-        if subscription and subscription.provider_subscription_id and subscription.provider_subscription_id != subscription_id:
-            raise AppError("Organization already has a different Stripe subscription.", code="BILLING_SUBSCRIPTION_MISMATCH", status_code=400)
         # Event timestamps can tie; the current Stripe object is the source of truth.
         try:
             self._configure_stripe()
             stripe_subscription = stripe.Subscription.retrieve(subscription_id)
+            previous = (stripe.Subscription.retrieve(subscription.provider_subscription_id)
+                        if subscription and subscription.provider_subscription_id != subscription_id and subscription.provider_subscription_id else None)
         except stripe.StripeError as error:
             raise AppError("The billing provider could not retrieve the subscription.", code="BILLING_PROVIDER_ERROR", status_code=502) from error
         if self._object_id(self._value(stripe_subscription, "customer")) != customer_id:
             raise AppError("Stripe subscription customer changed.", code="BILLING_CUSTOMER_MISMATCH", status_code=400)
+        if previous:
+            if self._object_id(self._value(previous, "customer")) != customer_id:
+                raise AppError("Stripe subscription customer changed.", code="BILLING_CUSTOMER_MISMATCH", status_code=400)
+            previous_ids = (getattr(subscription, "metadata_", None) or {}).get("previous_subscription_ids", [])
+            if subscription_id in previous_ids:
+                return
+            # Only recorded predecessors may be acknowledged as delayed events.
+            previous_created = self._value(previous, "created")
+            incoming_created = self._value(stripe_subscription, "created")
+            if not isinstance(previous_created, int) or not isinstance(incoming_created, int):
+                raise AppError("Stripe subscription creation time is missing.", code="INVALID_BILLING_WEBHOOK", status_code=400)
+            if (incoming_created < previous_created
+                    or (incoming_created == previous_created and self._value(stripe_subscription, "status") not in {"active", "trialing"})
+                    or subscription.status not in {"canceled", "incomplete_expired"}
+                    or self._value(previous, "status") not in {"canceled", "incomplete_expired"}):
+                raise AppError("Organization already has a different Stripe subscription.", code="BILLING_SUBSCRIPTION_MISMATCH", status_code=400)
+            subscription.metadata_ = {**(getattr(subscription, "metadata_", None) or {}), "previous_subscription_ids": [*previous_ids, subscription.provider_subscription_id]}
         if not subscription:
             subscription = Subscription(organization_id=organization_id, provider="stripe", provider_customer_id=customer_id)
             self.db.add(subscription)

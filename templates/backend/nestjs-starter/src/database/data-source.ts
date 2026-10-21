@@ -22,6 +22,7 @@ import { AddAuditLogs1773139600000 } from './migrations/1773139600000-add-audit-
 import { AddOAuthAccounts1773139700000 } from './migrations/1773139700000-add-oauth-accounts';
 import { AddReferentialIntegrity1773139800000 } from './migrations/1773139800000-add-referential-integrity';
 import { AddInvitationDelivery1773139900000 } from './migrations/1773139900000-add-invitation-delivery';
+import { TrackPreviousSubscriptions1773140000000 } from './migrations/1773140000000-track-previous-subscriptions';
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -33,6 +34,6 @@ export default new DataSource({
   url: databaseUrl,
   ssl: ['1', 'true', 'yes', 'on'].includes(process.env.DATABASE_SSL?.trim().toLowerCase() ?? '') ? { rejectUnauthorized: true } : false,
   entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog],
-  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000],
+  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000, TrackPreviousSubscriptions1773140000000],
   synchronize: false,
 });
