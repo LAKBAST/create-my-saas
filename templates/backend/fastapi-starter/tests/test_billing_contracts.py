@@ -84,3 +84,67 @@ class BillingContractTests(unittest.TestCase):
         portal_event = db.added[-1]
         self.assertEqual(portal_event.metadata_, {"provider": "stripe"})
         self.assertNotIn("bps_secret", repr(portal_event.__dict__))
+
+    def test_subscription_replacement_rejects_foreign_or_active_and_ignores_old_events(self):
+        organization_id = uuid4()
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans='{"price_allowed":{"name":"pro","entitlements":{"api_calls":100}}}')
+        old = {"id": "sub_old", "customer": "cus_ours", "created": 20, "status": "canceled"}
+        new = {"id": "sub_new", "customer": "cus_ours", "created": 20, "status": "active",
+               "items": {"data": [{"price": {"id": "price_allowed"}}]}}
+
+        async def sync(local, incoming, provider):
+            db = AsyncMock()
+            db.execute.side_effect = [
+                SimpleNamespace(scalar_one_or_none=lambda: local if incoming["customer"] == local.provider_customer_id else None),
+                SimpleNamespace(),
+                SimpleNamespace(scalar_one_or_none=lambda: local),
+            ]
+            service = BillingService(db, config)
+            service._configure_stripe = lambda: None
+            service._replace_entitlements = AsyncMock()
+            with patch("src.modules.billing.service.stripe.Subscription.retrieve", side_effect=lambda sid: provider[sid]):
+                await service._sync_subscription(incoming)
+            return service
+
+        local = SimpleNamespace(organization_id=organization_id, provider_customer_id="cus_ours",
+                                provider_subscription_id="sub_old", status="canceled")
+        event = {**new, "metadata": {"organization_id": str(organization_id)}}
+        service = asyncio.run(sync(local, event, {"sub_old": old, "sub_new": new}))
+        self.assertEqual((local.provider_subscription_id, local.plan, local.status), ("sub_new", "pro", "active"))
+        self.assertEqual(local.metadata_["previous_subscription_ids"], ["sub_old"])
+        service._replace_entitlements.assert_awaited_once()
+
+        old_event = {**old, "metadata": {"organization_id": str(organization_id)}}
+        service = asyncio.run(sync(local, old_event, {"sub_old": old, "sub_new": new}))
+        self.assertEqual(local.provider_subscription_id, "sub_new")
+        service._replace_entitlements.assert_not_awaited()
+
+        # Both subscriptions were created in the same second, and the new one
+        # has since become terminal. Only the recorded old ID is stale.
+        tied_old = {**old, "created": 20}
+        terminal_new = {**new, "status": "canceled"}
+        local.status = "canceled"
+        service = asyncio.run(sync(local, {**tied_old, "metadata": {"organization_id": str(organization_id)}},
+                                   {"sub_old": tied_old, "sub_new": terminal_new}))
+        self.assertEqual(local.provider_subscription_id, "sub_new")
+        service._replace_entitlements.assert_not_awaited()
+        foreign = {**tied_old, "id": "sub_foreign"}
+        with self.assertRaises(AppError) as error:
+            asyncio.run(sync(local, {**foreign, "metadata": {"organization_id": str(organization_id)}},
+                             {"sub_foreign": foreign, "sub_new": terminal_new}))
+        self.assertEqual(error.exception.code, "BILLING_SUBSCRIPTION_MISMATCH")
+
+        local.provider_subscription_id, local.status = "sub_old", "active"
+        with self.assertRaises(AppError) as error:
+            asyncio.run(sync(local, event, {"sub_old": {**old, "status": "active"}, "sub_new": new}))
+        self.assertEqual(error.exception.code, "BILLING_SUBSCRIPTION_MISMATCH")
+
+        local.status = "canceled"
+        with self.assertRaises(AppError) as error:
+            asyncio.run(sync(local, event, {"sub_old": old, "sub_new": {**new, "customer": "cus_foreign"}}))
+        self.assertEqual(error.exception.code, "BILLING_CUSTOMER_MISMATCH")
+
+        with self.assertRaises(AppError) as error:
+            asyncio.run(sync(local, {**event, "customer": "cus_foreign"}, {"sub_old": old, "sub_new": new}))
+        self.assertEqual(error.exception.code, "BILLING_CUSTOMER_MISMATCH")
