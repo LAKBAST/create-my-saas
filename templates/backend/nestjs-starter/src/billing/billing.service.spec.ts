@@ -11,9 +11,9 @@ import { Organization } from '../organizations/organization.entity';
 
 describe('BillingService', () => {
   function setup(values: Record<string, unknown> = {}) {
-    const repository = () => ({ findOneBy: jest.fn(), find: jest.fn(), save: jest.fn(), create: jest.fn((value) => value), delete: jest.fn(), createQueryBuilder: jest.fn() });
+    const repository = () => ({ findOneBy: jest.fn(), findOne: jest.fn(), find: jest.fn(), save: jest.fn(), create: jest.fn((value) => value), delete: jest.fn(), createQueryBuilder: jest.fn() });
     const customers = repository(); const subscriptions = repository(); const entitlements = repository(); const usage = repository(); const events = repository(); const organizations = repository();
-    const manager = { getRepository: jest.fn((entity) => entity === BillingWebhookEvent ? events : repository()) };
+    const manager = { getRepository: jest.fn((entity) => entity === BillingWebhookEvent ? events : entity === BillingCustomer ? customers : entity === Subscription ? subscriptions : entity === BillingEntitlement ? entitlements : repository()) };
     const dataSource = { manager, transaction: jest.fn(async (callback) => callback(manager)) };
     const config = {
       get: jest.fn((key: string, fallback?: unknown) => values[key] ?? fallback),
@@ -31,7 +31,7 @@ describe('BillingService', () => {
         config as unknown as ConfigService,
         audit as never,
       ),
-      events, config, audit, customers,
+      events, config, audit, customers, subscriptions, entitlements, manager,
     };
   }
 
@@ -118,5 +118,54 @@ describe('BillingService', () => {
 
     await expect(service.handleStripeWebhook(Buffer.from(payload), signature)).resolves.toEqual({ accepted: true, duplicate: true });
     expect(events.findOneBy).toHaveBeenNthCalledWith(2, { provider: 'stripe', providerEventId: 'evt_same' });
+  });
+
+  it('replaces a canceled subscription and ignores delayed events from it', async () => {
+    const { service, customers, subscriptions, entitlements, manager } = setup({ STRIPE_PRICE_PLANS: '{"price_allowed":{"name":"pro","entitlements":{"api_calls":100}}}' });
+    const local = { organizationId: 'organization-1', providerSubscriptionId: 'sub_old', status: 'canceled' };
+    const old = { id: 'sub_old', customer: 'cus_ours', created: 20, status: 'canceled', metadata: { organization_id: 'organization-1' } };
+    const current = { id: 'sub_new', customer: 'cus_ours', created: 20, status: 'active', metadata: { organization_id: 'organization-1' }, cancel_at_period_end: false, items: { data: [{ price: { id: 'price_allowed' } }] } };
+    customers.findOneBy.mockResolvedValue({ organizationId: 'organization-1', providerCustomerId: 'cus_ours' });
+    subscriptions.findOneBy.mockResolvedValue(local);
+    subscriptions.save.mockImplementation(async (value) => value);
+    const stripe = { subscriptions: { retrieve: jest.fn(async (id: string) => id === 'sub_old' ? old : id === 'sub_foreign' ? { ...old, id } : current) } };
+    (service as unknown as { stripe: () => unknown }).stripe = jest.fn(() => stripe);
+    const sync = (event: unknown) => (service as unknown as { syncStripeSubscription: (manager: unknown, event: unknown) => Promise<void> }).syncStripeSubscription(manager, event);
+
+    await sync(current);
+    expect(local.providerSubscriptionId).toBe('sub_new');
+    expect(local.status).toBe('active');
+    expect(local).toMatchObject({ previousSubscriptionIds: ['sub_old'] });
+    expect(entitlements.save).toHaveBeenCalledWith([expect.objectContaining({ source: 'pro', key: 'api_calls', limit: 100 })]);
+
+    subscriptions.save.mockClear(); entitlements.save.mockClear();
+    await sync(old);
+    expect(subscriptions.save).not.toHaveBeenCalled();
+    expect(entitlements.save).not.toHaveBeenCalled();
+
+    // A tie remains safe after the replacement itself reaches a terminal state.
+    local.status = 'canceled'; current.status = 'canceled';
+    await sync(old);
+    expect(subscriptions.save).not.toHaveBeenCalled();
+    expect(entitlements.save).not.toHaveBeenCalled();
+    await expect(sync({ ...old, id: 'sub_foreign' })).rejects.toMatchObject({ code: 'BILLING_SUBSCRIPTION_MISMATCH' });
+  });
+
+  it('rejects an active second subscription or a foreign Stripe customer', async () => {
+    const { service, customers, subscriptions, manager } = setup();
+    const local = { organizationId: 'organization-1', providerSubscriptionId: 'sub_old', status: 'active' };
+    const old = { id: 'sub_old', customer: 'cus_ours', created: 10, status: 'active' };
+    const current = { id: 'sub_new', customer: 'cus_ours', created: 20, status: 'active', metadata: { organization_id: 'organization-1' } };
+    customers.findOneBy.mockResolvedValue({ organizationId: 'organization-1', providerCustomerId: 'cus_ours' });
+    subscriptions.findOneBy.mockResolvedValue(local);
+    const stripe = { subscriptions: { retrieve: jest.fn(async (id: string) => id === 'sub_old' ? old : current) } };
+    (service as unknown as { stripe: () => unknown }).stripe = jest.fn(() => stripe);
+    const sync = (event: unknown) => (service as unknown as { syncStripeSubscription: (manager: unknown, event: unknown) => Promise<void> }).syncStripeSubscription(manager, event);
+
+    await expect(sync(current)).rejects.toMatchObject({ code: 'BILLING_SUBSCRIPTION_MISMATCH' });
+    local.status = 'canceled'; old.status = 'canceled';
+    stripe.subscriptions.retrieve.mockImplementation(async (id: string) => id === 'sub_old' ? old : { ...current, customer: 'cus_foreign' });
+    await expect(sync(current)).rejects.toMatchObject({ code: 'BILLING_CUSTOMER_MISMATCH' });
+    expect(subscriptions.save).not.toHaveBeenCalled();
   });
 });
