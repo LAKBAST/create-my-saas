@@ -257,9 +257,7 @@ function developmentCompose(backend, frontend) {
   }
   return `services:
 ${services.join('\n\n')}
-
-volumes:
-${backend ? '  postgres-data:\n  redis-data:\n' : ''}`;
+${backend ? '\nvolumes:\n  postgres-data:\n  redis-data:\n' : ''}`;
 }
 
 function mergeEnvironmentContents(contents, variables, extensionId, scope) {
@@ -317,16 +315,39 @@ function deploymentGuide(backend, frontend) {
       : `La API seleccionada es **${backend.displayName}**. Compose publica su puerto en \`127.0.0.1:8000\` por defecto; configura \`API_BIND_ADDRESS\` y \`API_PORT\` si necesitas otro enlace.`
     : 'No se seleccionó API; el gateway sólo sirve el frontend estático.';
   const frontendLine = frontend ? `El frontend seleccionado es **${frontend.displayName}**.` : 'No se seleccionó frontend; coloca un gateway TLS externo delante de la API enlazada a loopback.';
-  const migration = backend
-    ? `docker compose --env-file .env --profile migrate run --rm migrate\n\n${frontend ? 'docker compose --env-file .env --profile production up -d --build' : 'docker compose --env-file .env up -d --build api'}`
-    : 'docker compose --env-file .env --profile production up -d --build';
   const tlsStep = frontend
     ? 'Entrega el certificado y la clave TLS en \`certs/fullchain.pem\` y \`certs/privkey.pem\` con permiso de lectura para Docker. El gateway publica 80/443, elimina las cabeceras \`X-Forwarded-*\` entrantes y reconstruye las suyas. Mantén \`GATEWAY_IP\` y \`TRUSTED_PROXY_IPS\` iguales para que la API sólo confíe en ese proxy fijo.'
     : 'Configura un gateway TLS externo que reenvíe las peticiones a la API publicada en loopback. Si el gateway está en otro host, configura \`API_BIND_ADDRESS\` y restringe el acceso a ese puerto; ajusta \`TRUSTED_PROXY_IPS\` a la IP del proxy de confianza.';
   const readiness = frontend
     ? 'Compose comprueba \`/ready\` y el gateway no empieza a enrutar hasta que PostgreSQL y, cuando el rate limiting está activo, Redis estén disponibles. Comprueba \`https://app.example.com/ready\` tras el arranque; \`/health\` sólo confirma que el proceso sigue vivo.'
     : 'Compose comprueba \`/ready\`. Comprueba \`http://127.0.0.1:8000/ready\` en el host con el enlace predeterminado, o el puerto configurado con \`API_PORT\`; tras configurar el gateway TLS externo, comprueba también su URL pública \`/ready\`. \`/health\` sólo confirma que el proceso sigue vivo.';
+  const productionSteps = backend
+    ? `1. Provisiona PostgreSQL y Redis **gestionados con TLS**. No se publican contenedores de datos en esta receta: el contrato fail-closed exige una URL de PostgreSQL con certificado verificable y una \`REDIS_URL\` con esquema \`rediss://\`.
+2. Copia \`.env.production.example\` a \`.env\`, reemplaza todos los secretos y configura email, OAuth y Stripe si se usan. El archivo \`.env\` es un secreto de runtime; nunca se añade a la imagen ni al repositorio.
+3. ${tlsStep}
+4. Ejecuta la migración como un trabajo de release, una vez por versión, antes de iniciar réplicas de la API:
+
+\`\`\`sh
+docker compose --env-file .env --profile migrate run --rm migrate
+${frontend ? 'docker compose --env-file .env --profile production up -d --build' : 'docker compose --env-file .env up -d --build api'}
+\`\`\`
+
+No automatices \`migrate\` dentro del arranque de cada réplica: permite revisar el resultado y evita carreras entre despliegues simultáneos. ${readiness}`
+    : `1. Copia \`.env.production.example\` a \`.env\` y ajusta \`FRONTEND_URL\` al dominio público del sitio.
+2. Entrega el certificado y la clave TLS en \`certs/fullchain.pem\` y \`certs/privkey.pem\` con permiso de lectura para Docker. El gateway publica 80/443.
+3. Inicia el frontend y el gateway:
+
+\`\`\`sh
+docker compose --env-file .env --profile production up -d --build
+\`\`\`
+
+Comprueba \`https://app.example.com/\` tras el arranque (sustituye el dominio por el configurado en \`FRONTEND_URL\`).`;
   const localServices = frontend ? 'api frontend' : 'api';
+  const localCommands = backend
+    ? `docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d postgres redis
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env --profile migrate run --rm migrate
+docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ${localServices}`
+    : 'docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build frontend';
   return `# Despliegue reproducible
 
 ${apiLine}
@@ -335,29 +356,22 @@ ${frontendLine}
 
 ## Producción
 
-1. Provisiona PostgreSQL y Redis **gestionados con TLS**. No se publican contenedores de datos en esta receta: el contrato fail-closed exige una URL de PostgreSQL con certificado verificable y una \`REDIS_URL\` con esquema \`rediss://\`.
-2. Copia \`.env.production.example\` a \`.env\`, reemplaza todos los secretos y configura email, OAuth y Stripe si se usan. El archivo \`.env\` es un secreto de runtime; nunca se añade a la imagen ni al repositorio.
-3. ${tlsStep}
-4. Ejecuta la migración como un trabajo de release, una vez por versión, antes de iniciar réplicas de la API:
+Desde la raíz del proyecto generado, entra en \`deployment\` antes de ejecutar los comandos siguientes.
 
-\`\`\`sh
-${migration}
-\`\`\`
-
-No automatices \`migrate\` dentro del arranque de cada réplica: permite revisar el resultado y evita carreras entre despliegues simultáneos. ${readiness}
+${productionSteps}
 
 ## Comprobación local integrada
 
-\`compose.dev.yaml\` levanta PostgreSQL y Redis sin TLS exclusivamente para desarrollo. Conserva \`APP_ENV=development\`; no representa una topología de producción.
+${backend ? '\`compose.dev.yaml\` levanta PostgreSQL y Redis sin TLS exclusivamente para desarrollo. Conserva \`APP_ENV=development\`; no representa una topología de producción.' : '\`compose.dev.yaml\` publica el frontend en loopback para comprobarlo sin certificados TLS.'}
 
 \`\`\`sh
 cp .env.production.example .env
-docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d postgres redis
-docker compose -f compose.yaml -f compose.dev.yaml --env-file .env --profile migrate run --rm migrate
-docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ${localServices}
+${localCommands}
 \`\`\`
 
-Usa \`docker compose ... down -v\` sólo para descartar deliberadamente los datos locales de esa comprobación. En producción realiza copias de seguridad, pruebas de restauración y rotación de secretos en los servicios gestionados.
+${frontend ? 'Abre \`http://localhost:3000/\` para comprobar el sitio.' : 'Comprueba \`http://localhost:8000/ready\` para verificar la API.'}
+
+${backend ? 'Usa \`docker compose ... down -v\` sólo para descartar deliberadamente los datos locales de esa comprobación. En producción realiza copias de seguridad, pruebas de restauración y rotación de secretos en los servicios gestionados.' : ''}
 `;
 }
 
