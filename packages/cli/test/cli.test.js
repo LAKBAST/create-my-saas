@@ -197,11 +197,14 @@ test('generates selected templates and omits local artifacts', (t) => {
   assert.match(deploymentCompose, /gateway/);
   assert.match(deploymentCompose, /healthcheck:[\s\S]*\/ready/);
   assert.match(deploymentCompose, /api:\n\s+condition: service_healthy/);
+  assert.doesNotMatch(deploymentCompose.split('  migrate:\n')[0], /^    ports:/m);
   const gateway = readFileSync(join(destination, 'deployment', 'nginx.conf'), 'utf8');
   assert.match(gateway, /location = \/health/);
   assert.match(gateway, /location = \/ready[\s\S]*proxy_pass http:\/\/api:8000/);
   const deploymentGuide = readFileSync(join(destination, 'deployment', 'README.md'), 'utf8');
   assert.match(deploymentGuide, /app\.example\.com\/ready/);
+  assert.match(deploymentGuide, /API seleccionada.*escucha sólo en la red privada de Compose/);
+  assert.match(deploymentGuide, /up --build api frontend/);
   const productionEnvironment = readFileSync(join(destination, 'deployment', '.env.production.example'), 'utf8');
   assert.match(productionEnvironment, /^APP_ENV=production$/m);
   assert.match(productionEnvironment, /^DATABASE_SSL=true$/m);
@@ -219,6 +222,31 @@ test('generates selected templates and omits local artifacts', (t) => {
   });
   assert.deepEqual(readdirSync(workspace), ['demo']);
 });
+
+for (const backendId of ['fastapi', 'nestjs', 'fastify']) {
+  test(`publishes the ${backendId} API port without a frontend`, (t) => {
+    const workspace = temporaryDirectory();
+    const destination = join(workspace, 'api-only');
+    t.after(() => rmSync(workspace, { recursive: true, force: true }));
+
+    generateProject({ destination, backendId, templatesDirectory: defaultTemplatesDirectory });
+
+    const compose = readFileSync(join(destination, 'deployment', 'compose.yaml'), 'utf8');
+    const [, api, migrate] = compose.split(/^  (?:api|migrate):\n/m);
+    assert.match(api, /^    ports:\n      - "\$\{API_BIND_ADDRESS:-127\.0\.0\.1\}:\$\{API_PORT:-8000\}:8000"$/m);
+    assert.match(api, /\/ready/);
+    assert.doesNotMatch(migrate, /^    ports:/m);
+    assert.doesNotMatch(compose, /^  gateway:$/m);
+
+    const guide = readFileSync(join(destination, 'deployment', 'README.md'), 'utf8');
+    assert.match(guide, /Compose publica su puerto en `127\.0\.0\.1:8000` por defecto/);
+    assert.match(guide, /`API_BIND_ADDRESS` y `API_PORT`/);
+    assert.match(guide, /http:\/\/127\.0\.0\.1:8000\/ready/);
+    assert.match(guide, /up -d --build api/);
+    assert.match(guide, /up --build api\n/);
+    assert.doesNotMatch(guide, /escucha sólo en la red privada de Compose|up --build api frontend|--profile production|certs\/fullchain\.pem/);
+  });
+}
 
 test('refuses to overwrite a destination directory', (t) => {
   const workspace = temporaryDirectory();
