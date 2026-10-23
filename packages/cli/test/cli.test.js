@@ -187,6 +187,9 @@ test('generates selected templates and omits local artifacts', (t) => {
   assert.equal(existsSync(join(destination, 'frontend', 'AGENTS.md')), false);
   assert.equal(existsSync(join(destination, 'frontend', 'CLAUDE.md')), false);
   assert.equal(existsSync(join(destination, 'backend', 'Dockerfile')), true);
+  // Extensions add migrations on their own Alembic branches, so a single
+  // "head" target would fail as soon as two of them are selected.
+  assert.match(readFileSync(join(destination, 'backend', 'Dockerfile'), 'utf8'), /^FROM builder AS migrate\r?\nCMD \["\.\/\.venv\/bin\/alembic", "upgrade", "heads"\]\r?$/m);
   assert.equal(existsSync(join(destination, 'frontend', 'Dockerfile')), true);
   assert.equal(existsSync(join(destination, 'deployment', 'compose.yaml')), true);
   assert.equal(existsSync(join(destination, 'deployment', 'compose.dev.yaml')), true);

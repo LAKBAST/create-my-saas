@@ -20,10 +20,12 @@ Astro; Astro requiere `--feature billing` para usar organizaciones y facturació
 ## Desarrollo local
 
 Copy `.env.example` to `.env`, set a real `SECRET_KEY` and database URL, then install
-the project dependencies with `uv sync`. Apply the initial schema with:
+the project dependencies with `uv sync`. Apply the initial schema with the
+command below; `heads` also applies migrations that selected extensions add
+on their own Alembic branches:
 
 ```sh
-uv run alembic upgrade head
+uv run alembic upgrade heads
 uv run fastapi dev main.py
 ```
 

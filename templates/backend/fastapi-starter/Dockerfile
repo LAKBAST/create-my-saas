@@ -10,8 +10,9 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 COPY . ./
 
+# "heads" also applies migrations that extensions add on their own branches.
 FROM builder AS migrate
-CMD ["./.venv/bin/alembic", "upgrade", "head"]
+CMD ["./.venv/bin/alembic", "upgrade", "heads"]
 
 FROM python:3.13.3-slim-bookworm AS runtime
 

@@ -344,7 +344,7 @@ jobs:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --locked
-      - run: uv run alembic upgrade head
+      - run: uv run alembic upgrade heads
       - run: uv run python -m unittest discover -s tests
 
   nextjs:

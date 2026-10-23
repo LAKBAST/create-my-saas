@@ -238,7 +238,7 @@ test.beforeAll(async () => {
   const frontendDirectory = join(generatedProject, 'frontend');
   if (backend === 'fastapi') {
     await run('uv', ['sync', '--locked'], { cwd: backendDirectory });
-    await run('uv', ['run', 'alembic', 'upgrade', 'head'], { cwd: backendDirectory });
+    await run('uv', ['run', 'alembic', 'upgrade', 'heads'], { cwd: backendDirectory });
     api = start('uv', ['run', 'uvicorn', 'main:app', '--host', '127.0.0.1', '--port', String(apiPort)], { cwd: backendDirectory });
     await waitFor(`${apiOrigin}/health`, api);
   } else {

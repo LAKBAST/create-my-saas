@@ -9,7 +9,7 @@ exige cambiar los tres starters y sus ejemplos de entorno.
 | Entorno | `APP_ENV` es `development`, `test`, `staging` o `production`. `NODE_ENV` se acepta temporalmente como alias. |
 | PostgreSQL | `DATABASE_URL` debe apuntar a PostgreSQL; FastAPI usa `postgresql+asyncpg://` en ejecución y Alembic traduce sólo para DDL síncrono. Nest usa `postgresql://`. `synchronize` permanece desactivado. |
 | TLS de PostgreSQL | `DATABASE_SSL=true` en staging/production; los drivers verifican el certificado. |
-| Migraciones | Una base nueva se crea únicamente con las migraciones: `alembic upgrade head` y `pnpm migration:run`. Nunca se depende de `create_all` ni de `synchronize` en despliegue. |
+| Migraciones | Una base nueva se crea únicamente con las migraciones: `alembic upgrade heads` (incluye las ramas de migración que añaden las extensiones) y `pnpm migration:run`. Nunca se depende de `create_all` ni de `synchronize` en despliegue. |
 | Probes | `GET /health` es liveness puro y no accede a servicios externos. `GET /ready` prueba PostgreSQL y, si `RATE_LIMIT_ENABLED=true`, Redis con 500 ms de timeout por dependencia; sólo devuelve 200 cuando todas las dependencias requeridas están disponibles y devuelve 503 estructurado con `SERVICE_NOT_READY` en caso contrario. |
 | Límite distribuido | `RATE_LIMIT_ENABLED`, `RATE_LIMIT_REQUESTS`, `RATE_LIMIT_WINDOW_SECONDS`, `AUTH_RATE_LIMIT_REQUESTS`, `AUTH_RATE_LIMIT_WINDOW_SECONDS`, `RATE_LIMIT_PREFIX` y `REDIS_URL` son compartidos. Login, registro, solicitud de recuperación y confirmación usan buckets independientes por IP con el perfil de autenticación (5 solicitudes/60 s por defecto); el resto conserva el perfil general (30/60 s). En staging/production Redis debe ser `rediss://`; si no está disponible, se responde con 503, no se degrada a memoria local. |
 | Identidad de cliente | Por defecto la IP es la del socket. `TRUST_PROXY_HEADERS=false` evita confiar en `X-Forwarded-*`. Sólo al activar esa opción se aceptan cabeceras de las IPs explícitas de `TRUSTED_PROXY_IPS`; `*` no es válido. El proxy debe eliminar cabeceras de entrada y reconstruirlas. |
@@ -24,7 +24,7 @@ apuntes estos comandos a una base compartida:
 ```powershell
 # FastAPI (la URL de ejecución conserva asyncpg)
 $env:DATABASE_URL = 'postgresql+asyncpg://postgres:postgres@localhost:5432/fastapi_empty_check'
-uv run alembic upgrade head
+uv run alembic upgrade heads
 
 # Nest
 $env:DATABASE_URL = 'postgresql://postgres:postgres@localhost:5432/nest_empty_check'

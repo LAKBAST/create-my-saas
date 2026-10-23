@@ -5,6 +5,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- El servicio `migrate` de FastAPI ejecuta `alembic upgrade heads`, de modo que
+  un proyecto con varias extensiones que añaden migraciones en ramas propias
+  de Alembic se migra completo en vez de fallar por tener varias heads.
+
 ## [1.2.0] - 2026-10-23
 
 Primera versión de npm posterior a `1.0.0`. El tag `v1.1.0` se creó, pero su
