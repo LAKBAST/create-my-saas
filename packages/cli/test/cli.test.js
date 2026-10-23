@@ -204,6 +204,8 @@ test('generates selected templates and omits local artifacts', (t) => {
   const deploymentGuide = readFileSync(join(destination, 'deployment', 'README.md'), 'utf8');
   assert.match(deploymentGuide, /app\.example\.com\/ready/);
   assert.match(deploymentGuide, /API seleccionada.*escucha sólo en la red privada de Compose/);
+  assert.match(deploymentGuide, /up -d postgres redis/);
+  assert.match(deploymentGuide, /--profile migrate run --rm migrate/);
   assert.match(deploymentGuide, /up --build api frontend/);
   const productionEnvironment = readFileSync(join(destination, 'deployment', '.env.production.example'), 'utf8');
   assert.match(productionEnvironment, /^APP_ENV=production$/m);
@@ -314,6 +316,33 @@ test('generates the Astro frontend without a selected backend', (t) => {
   assert.match(frontendEnvironment, /^API_PROXY_TARGET=$/m);
   assert.equal(existsSync(join(destination, 'frontend', 'src', 'pages', 'index.astro')), true);
   assert.equal(existsSync(join(destination, 'deployment', 'gateway.Dockerfile')), true);
+  const developmentCompose = readFileSync(join(destination, 'deployment', 'compose.dev.yaml'), 'utf8');
+  assert.match(developmentCompose, /^  frontend:$/m);
+  assert.doesNotMatch(developmentCompose, /^volumes:$/m);
+  const deploymentGuide = readFileSync(join(destination, 'deployment', 'README.md'), 'utf8');
+  const localGuide = deploymentGuide.split('## Comprobación local integrada\n')[1];
+  assert.match(localGuide, /up --build frontend/);
+  assert.match(localGuide, /http:\/\/localhost:3000\//);
+  assert.doesNotMatch(localGuide, /postgres|redis|migrate|\bapi\b/);
+  assert.doesNotMatch(deploymentGuide, /Provisiona PostgreSQL|app\.example\.com\/ready/);
+});
+
+test('documents only API services for a backend-only project', (t) => {
+  const workspace = temporaryDirectory();
+  const destination = join(workspace, 'api-only');
+  t.after(() => rmSync(workspace, { recursive: true, force: true }));
+
+  generateProject({ destination, backendId: 'fastapi', templatesDirectory: defaultTemplatesDirectory });
+
+  const deploymentGuide = readFileSync(join(destination, 'deployment', 'README.md'), 'utf8');
+  const localGuide = deploymentGuide.split('## Comprobación local integrada\n')[1];
+  assert.match(localGuide, /up -d postgres redis/);
+  assert.match(localGuide, /--profile migrate run --rm migrate/);
+  assert.match(localGuide, /up --build api/);
+  assert.doesNotMatch(localGuide, /up --build api frontend|localhost:3000/);
+  assert.match(deploymentGuide, /http:\/\/localhost:8000\/ready/);
+  assert.match(deploymentGuide, /Compose comprueba `\/ready`/);
+  assert.doesNotMatch(deploymentGuide, /antes de servir tráfico/);
 });
 
 test('configures the React Router API proxy from the selected backend', (t) => {
