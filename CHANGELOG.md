@@ -5,7 +5,10 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-09-22
+## [1.2.0] - 2026-10-23
+
+Primera versión de npm posterior a `1.0.0`. El tag `v1.1.0` se creó, pero su
+publicación en npm falló; sus mejoras se incluyen en esta versión.
 
 ### Added
 
@@ -27,6 +30,18 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 - Corregido el workflow de releases para validar correctamente la versión del
   tag antes de publicar.
 - La selección explícita de una dependencia ya resuelta es idempotente.
+- La validación de extensiones usa la versión real de la CLI, y se rechazan
+  enlaces simbólicos en la raíz o un ancestro de overlays externos.
+- Los proyectos generados con solo backend publican el puerto de la API;
+  React Router configura `API_PROXY_TARGET` en su contenedor.
+- Los retornos de Stripe llegan a la página de facturación existente en Next.js
+  y React Router.
+- Los webhooks antiguos no restauran suscripciones previas y los errores por
+  otras restricciones no se confirman como duplicados. Se admite una nueva
+  suscripción después de cancelar la anterior.
+- Las invitaciones pueden recuperarse si falla el envío del correo.
+- La guía y el Compose generados para Astro sin backend funcionan sin servicios
+  ni volúmenes de base de datos.
 
 ## [1.0.0] - 2026-09-20
 
@@ -68,6 +83,6 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.0.0...HEAD
-[1.1.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.0.0...v1.1.0
+[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/SoyManoolo/create-my-saas/compare/v0.1.0...v1.0.0
