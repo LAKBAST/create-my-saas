@@ -196,6 +196,27 @@ test('composes FastAPI integrations from api-keys and webhooks-style features', 
   assert.match(registry, /api_key\.created/);
   assert.match(registry, /webhook\.received/);
   assert.match(readFileSync(join(destination, 'frontend', 'app', 'extensions.generated.ts'), 'utf8'), /settings\/api-keys.*settings\/webhooks/);
+  // The template's tests boot the API, so required settings get test-only values.
+  const settingsTests = readFileSync(join(destination, 'backend', 'tests', 'test_extension_settings.py'), 'utf8');
+  assert.match(settingsTests, /os\.environ\.setdefault\(_setting\["name"\]/);
+  assert.match(settingsTests, /def test_required_settings_reject_short_values/);
+});
+
+test('generates no extension settings tests when no setting is required', (t) => {
+  const { root, templates, extensions } = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const backend = join(templates, 'backend', 'test');
+  const backendManifest = JSON.parse(readFileSync(join(backend, 'template.manifest.json'), 'utf8'));
+  backendManifest.id = 'backend:fastapi';
+  writeJson(join(backend, 'template.manifest.json'), backendManifest);
+  addExtension(extensions, 'reports', extensionManifest('pro:reports', {
+    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^1.0.0' } }],
+    integrations: { fastapi: { routers: ['src.modules.reports.router:router'], settings: [{ name: 'REPORTS_TITLE', default: 'Reports', minLength: 0 }], auditActions: [] } },
+    targets: [{ template: 'backend:fastapi', overlay: 'backend', replace: [], environment: [], migrations: [] }],
+  }), { 'backend/src/modules/reports/router.py': '# router\n' });
+  const destination = join(root, 'generated');
+  generateProject({ destination, backendId: 'fastapi', featureIds: ['pro:reports'], templatesDirectory: templates, extensionsDirectories: [extensions] });
+  assert.equal(existsSync(join(destination, 'backend', 'tests', 'test_extension_settings.py')), false);
 });
 
 test('merges extension deployment environment separately, once, with comments and secrets', (t) => {

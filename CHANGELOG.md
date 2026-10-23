@@ -10,6 +10,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 - El servicio `migrate` de FastAPI ejecuta `alembic upgrade heads`, de modo que
   un proyecto con varias extensiones que añaden migraciones en ramas propias
   de Alembic se migra completo en vez de fallar por tener varias heads.
+- Cuando una extensión de FastAPI declara configuración obligatoria, el
+  proyecto generado incluye `tests/test_extension_settings.py`, que da valores
+  sólo de prueba a esa configuración durante `unittest discover`. Así la suite
+  del template ya no falla por la configuración de las extensiones; la API
+  sigue sin arrancar fuera de los tests si falta. Al ejecutar un único módulo
+  de tests hay que definir esas variables.
 
 ## [1.2.0] - 2026-10-23
 
