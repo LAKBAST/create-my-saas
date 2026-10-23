@@ -51,6 +51,7 @@ si hay mejoras reales en las plantillas públicas. No publiques una versión por
 cambios internos que no afecten a esos dos ámbitos.
 
 1. Elige una nueva versión SemVer, actualiza `version` en `package.json` y
+   `packages/cli/package.json`, y
    añade su sección en `CHANGELOG.md`. El workflow usará el contenido de esa
    sección como descripción de la GitHub Release.
 2. Ejecuta localmente las mismas comprobaciones:
