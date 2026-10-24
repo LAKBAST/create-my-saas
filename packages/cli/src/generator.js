@@ -33,7 +33,9 @@ const excludedDirectoryNames = new Set([
   'node_modules',
 ]);
 
-const excludedFileNames = new Set(['.DS_Store', 'AGENTS.md', 'CLAUDE.md']);
+// .gitignore is excluded so source checkouts behave like the npm package,
+// which never ships it; writeGitignore generates the project's rules instead.
+const excludedFileNames = new Set(['.DS_Store', '.gitignore', 'AGENTS.md', 'CLAUDE.md']);
 
 function shouldCopy(source) {
   const entryName = basename(source);
@@ -432,6 +434,44 @@ ${backend ? `  location = /ready {
   }
 }
 
+// npm never packs .gitignore files, so template copies cannot be relied on:
+// derive the ignore rules from the files each selected layer actually ships.
+function layerIgnorePatterns(layerDirectory) {
+  const files = readdirSync(layerDirectory);
+  const has = (name) => files.some((file) => file === name || file.startsWith(`${name}.`));
+  const patterns = [];
+
+  if (has('pyproject')) {
+    patterns.push('.venv/', '__pycache__/', '*.py[cod]', '.pytest_cache/', '.ruff_cache/', '.mypy_cache/', '.uv-cache/', '.coverage', 'htmlcov/');
+  }
+  if (has('package')) {
+    patterns.push('node_modules/', '.pnpm-store/', 'dist/', 'coverage/', '*.tsbuildinfo');
+  }
+  if (has('next.config')) patterns.push('.next/', 'out/');
+  if (has('astro.config')) patterns.push('.astro/');
+  if (has('react-router.config')) patterns.push('.react-router/', 'build/');
+
+  return patterns;
+}
+
+function writeGitignore(destinationDirectory, backend, frontend) {
+  const sections = [
+    ['Secrets', ['.env', '.env.*', '!.env.example', '!.env.*.example', ...(frontend ? ['/deployment/certs/'] : [])]],
+  ];
+  const seen = new Set(sections[0][1]);
+
+  for (const [kind, template] of [['backend', backend], ['frontend', frontend]]) {
+    if (!template) continue;
+    const patterns = layerIgnorePatterns(join(destinationDirectory, kind)).filter((pattern) => !seen.has(pattern));
+    patterns.forEach((pattern) => seen.add(pattern));
+    if (patterns.length > 0) sections.push([`${kind}: ${template.displayName}`, patterns]);
+  }
+  sections.push(['Logs and editors', ['*.log', '.DS_Store', '.idea/', '.vscode/*', '!.vscode/extensions.json']]);
+
+  const contents = sections.map(([title, patterns]) => `# ${title}\n${patterns.join('\n')}\n`).join('\n');
+  writeFileSync(join(destinationDirectory, '.gitignore'), contents, 'utf8');
+}
+
 function assertCompatibleTemplates(backend, frontend) {
   const requiredCapabilities = [
     ...(frontend.compatibility?.requiresBackendCapabilities ?? []),
@@ -641,6 +681,7 @@ export function generateProject({
     }
 
     writeDeployment(temporaryDirectory, backend, frontend, extensions);
+    writeGitignore(temporaryDirectory, backend, frontend);
 
     const selectedTemplates = {};
     if (backend) {

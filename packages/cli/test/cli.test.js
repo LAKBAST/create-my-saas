@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -328,6 +329,45 @@ test('generates the Astro frontend without a selected backend', (t) => {
   assert.match(localGuide, /http:\/\/localhost:3000\//);
   assert.doesNotMatch(localGuide, /postgres|redis|migrate|\bapi\b/);
   assert.doesNotMatch(deploymentGuide, /Provisiona PostgreSQL|app\.example\.com\/ready/);
+});
+
+function ignoredPaths(directory, paths) {
+  execFileSync('git', ['init', '--quiet'], { cwd: directory });
+  const result = spawnSync('git', ['check-ignore', '--no-index', ...paths], { cwd: directory, encoding: 'utf8' });
+  return result.stdout.split(/\r?\n/).filter(Boolean);
+}
+
+test('generates a .gitignore that matches the selected layers', (t) => {
+  const workspace = temporaryDirectory();
+  t.after(() => rmSync(workspace, { recursive: true, force: true }));
+
+  const fullStack = join(workspace, 'full-stack');
+  generateProject({ destination: fullStack, backendId: 'fastapi', frontendId: 'nextjs', templatesDirectory: defaultTemplatesDirectory });
+  const ignored = [
+    '.env', 'backend/.env', 'frontend/.env', 'frontend/.env.local', 'deployment/.env', 'deployment/certs/privkey.pem',
+    'backend/.venv/bin/python', 'backend/src/__pycache__/main.cpython-313.pyc', 'backend/.pytest_cache/v/x',
+    'frontend/node_modules/next/package.json', 'frontend/.next/build-manifest.json', 'frontend/tsconfig.tsbuildinfo',
+  ];
+  const tracked = [
+    'backend/.env.example', 'frontend/.env.example', 'deployment/.env.production.example',
+    'backend/src/main.py', 'backend/uv.lock', 'frontend/app/page.tsx', 'frontend/pnpm-lock.yaml', '.create-my-saas.json',
+  ];
+  assert.deepEqual(ignoredPaths(fullStack, [...ignored, ...tracked]), ignored);
+  const gitignore = readFileSync(join(fullStack, '.gitignore'), 'utf8');
+  assert.match(gitignore, /^# backend: .+\n\.venv\/$/m);
+  assert.match(gitignore, /^# frontend: .+\nnode_modules\/$/m);
+
+  const apiOnly = join(workspace, 'api-only');
+  generateProject({ destination: apiOnly, backendId: 'nestjs', templatesDirectory: defaultTemplatesDirectory });
+  const apiGitignore = readFileSync(join(apiOnly, '.gitignore'), 'utf8');
+  assert.match(apiGitignore, /^node_modules\/$/m);
+  assert.doesNotMatch(apiGitignore, /\.venv|__pycache__|\.next|certs/);
+
+  const site = join(workspace, 'site');
+  generateProject({ destination: site, frontendId: 'astro', templatesDirectory: defaultTemplatesDirectory });
+  assert.deepEqual(ignoredPaths(site, ['frontend/.astro/types.d.ts', 'frontend/dist/index.html', 'frontend/src/pages/index.astro']), [
+    'frontend/.astro/types.d.ts', 'frontend/dist/index.html',
+  ]);
 });
 
 test('documents only API services for a backend-only project', (t) => {

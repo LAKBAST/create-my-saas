@@ -13,6 +13,11 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 - `pnpm lint` pasa en un frontend Next.js recién generado: la página de
   facturación y el proveedor de PostHog ya no llaman a `setState` de forma
   síncrona dentro de un efecto (`react-hooks/set-state-in-effect`).
+- Los proyectos generados incluyen un `.gitignore` en la raíz según las capas
+  seleccionadas (`.env`, `.venv`, `node_modules`, `.next`, certificados TLS de
+  `deployment/`…). npm nunca publica los `.gitignore` de los templates, así
+  que hasta ahora no había ninguno; la CLI tampoco los copia ya desde el
+  repositorio para que ambos casos generen lo mismo.
 
 ## [1.2.1] - 2026-10-23
 
