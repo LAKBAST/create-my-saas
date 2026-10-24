@@ -189,7 +189,7 @@ class BillingService:
     async def _apply_stripe_event(self, event: Any) -> None:
         if event.type == "checkout.session.completed":
             session = event.data.object
-            organization_id = self._organization_id(self._value(session, "metadata", {}).get("organization_id") or self._value(session, "client_reference_id"))
+            organization_id = self._organization_id(self._metadata(session).get("organization_id") or self._value(session, "client_reference_id"))
             customer_id = self._object_id(self._value(session, "customer"))
             if organization_id and customer_id:
                 await self._bind_customer(organization_id, customer_id)
@@ -200,8 +200,7 @@ class BillingService:
         customer_id = self._object_id(self._value(stripe_subscription, "customer"))
         if not customer_id:
             raise AppError("Stripe subscription customer is missing.", code="INVALID_BILLING_WEBHOOK", status_code=400)
-        metadata = self._value(stripe_subscription, "metadata", {})
-        metadata_org_id = self._organization_id(metadata.get("organization_id"))
+        metadata_org_id = self._organization_id(self._metadata(stripe_subscription).get("organization_id"))
         subscription = (await self.db.execute(select(Subscription).where(Subscription.provider_customer_id == customer_id))).scalar_one_or_none()
         if subscription and metadata_org_id and subscription.organization_id != metadata_org_id:
             raise AppError("Stripe customer belongs to another organization.", code="BILLING_ORGANIZATION_MISMATCH", status_code=400)
@@ -339,6 +338,11 @@ class BillingService:
         stripe.api_key = self.config.stripe_secret_key
     @staticmethod
     def _value(obj: Any, key: str, default: Any = None) -> Any: return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
+    @staticmethod
+    def _metadata(obj: Any) -> dict[str, Any]:
+        # Webhook payloads expose metadata as a StripeObject, which has no dict methods.
+        metadata = BillingService._value(obj, "metadata") or {}
+        return metadata.to_dict() if hasattr(metadata, "to_dict") else dict(metadata)
     @staticmethod
     def _object_id(value: Any) -> str | None: return value if isinstance(value, str) else BillingService._value(value, "id")
     @staticmethod

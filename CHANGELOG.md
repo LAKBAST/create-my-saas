@@ -5,6 +5,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Los webhooks de Stripe de FastAPI leen `metadata` con `to_dict()`: con la
+  versión de `stripe` fijada en `uv.lock` es un `StripeObject` sin `.get`, y
+  `checkout.session.completed` y `customer.subscription.*` respondían 500.
+
 ## [1.2.1] - 2026-10-23
 
 ### Fixed

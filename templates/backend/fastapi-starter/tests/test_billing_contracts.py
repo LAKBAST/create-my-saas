@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
+import stripe
 from fastapi.testclient import TestClient
 
 from main import app
@@ -148,3 +149,37 @@ class BillingContractTests(unittest.TestCase):
         with self.assertRaises(AppError) as error:
             asyncio.run(sync(local, {**event, "customer": "cus_foreign"}, {"sub_old": old, "sub_new": new}))
         self.assertEqual(error.exception.code, "BILLING_CUSTOMER_MISMATCH")
+
+    def test_webhook_events_read_stripe_object_metadata(self):
+        organization_id = uuid4()
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans='{"price_allowed":{"name":"pro","entitlements":{"api_calls":100}}}')
+        metadata = {"organization_id": str(organization_id)}
+
+        def event(event_type, data):
+            return stripe.Event.construct_from({"id": "evt_test", "object": "event", "type": event_type, "data": {"object": data}}, "sk_test")
+
+        checkout = event("checkout.session.completed", {
+            "object": "checkout.session", "id": "cs_test", "customer": "cus_ours", "metadata": metadata,
+        })
+        service = BillingService(AsyncMock(), config)
+        service._bind_customer = AsyncMock()
+        asyncio.run(service._apply_stripe_event(checkout))
+        service._bind_customer.assert_awaited_once_with(organization_id, "cus_ours")
+
+        subscription = {
+            "object": "subscription", "id": "sub_new", "customer": "cus_ours", "status": "active", "metadata": metadata,
+            "items": {"object": "list", "data": [{"object": "subscription_item", "price": {"object": "price", "id": "price_allowed"}}]},
+        }
+        db, created = AsyncMock(), []
+        db.add = created.append
+        db.execute.side_effect = [SimpleNamespace(scalar_one_or_none=lambda: None), SimpleNamespace(),
+                                  SimpleNamespace(scalar_one_or_none=lambda: None)]
+        service = BillingService(db, config)
+        service._configure_stripe = lambda: None
+        service._replace_entitlements = AsyncMock()
+        retrieved = stripe.Subscription.construct_from(subscription, "sk_test")
+        with patch("src.modules.billing.service.stripe.Subscription.retrieve", return_value=retrieved):
+            asyncio.run(service._apply_stripe_event(event("customer.subscription.created", subscription)))
+        self.assertEqual([(row.organization_id, row.plan, row.status) for row in created], [(organization_id, "pro", "active")])
+        service._replace_entitlements.assert_awaited_once()
