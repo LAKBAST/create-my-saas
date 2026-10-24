@@ -10,6 +10,9 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 - Los webhooks de Stripe de FastAPI leen `metadata` con `to_dict()`: con la
   versión de `stripe` fijada en `uv.lock` es un `StripeObject` sin `.get`, y
   `checkout.session.completed` y `customer.subscription.*` respondían 500.
+- `pnpm lint` pasa en un frontend Next.js recién generado: la página de
+  facturación y el proveedor de PostHog ya no llaman a `setState` de forma
+  síncrona dentro de un efecto (`react-hooks/set-state-in-effect`).
 
 ## [1.2.1] - 2026-10-23
 
