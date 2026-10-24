@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "../auth.module.css";
+import { PRODUCT_NAME } from "../lib/brand";
 import { api, ApiError } from "../lib/api";
 
 function VerifyEmail() {
@@ -20,7 +21,7 @@ function VerifyEmail() {
   }, [token]);
 
   const invalidLink = !token;
-  return <main className={styles.page}><section className={styles.box}><div className={styles.brand}><span>s</span>Starter</div><h1>{state === "complete" ? "Correo verificado" : "Verificación de correo"}</h1><p role="status">{invalidLink ? "El enlace de verificación no es válido." : message}</p>{(state !== "loading" || invalidLink) && <p className={styles.footer}><Link href="/login">Iniciar sesión</Link></p>}</section></main>;
+  return <main className={styles.page}><section className={styles.box}><div className={styles.brand}><span aria-hidden="true">{PRODUCT_NAME.slice(0, 1)}</span>{PRODUCT_NAME}</div><h1>{state === "complete" ? "Correo verificado" : "Verificación de correo"}</h1><p role="status">{invalidLink ? "El enlace de verificación no es válido." : message}</p>{(state !== "loading" || invalidLink) && <p className={styles.footer}><Link href="/login">Iniciar sesión</Link></p>}</section></main>;
 }
 
 export default function VerifyEmailPage() {

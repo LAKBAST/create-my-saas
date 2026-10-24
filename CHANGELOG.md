@@ -5,6 +5,24 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Nuevo diseño del frontend Next.js: tokens de color y tipografía en
+  `globals.css` (modo claro y oscuro según el sistema), clases comunes
+  (`btn`, `badge`, `field`, `notice`), iconos SVG, barra lateral con miga de
+  pan y menú móvil, y páginas de inicio (primeros pasos), cuenta, facturación,
+  configuración y acceso rediseñadas. El nombre del producto se cambia en
+  `app/lib/brand.ts`.
+
+### Fixed
+
+- Next.js ya no cierra la sesión al recargar: los refrescos simultáneos de la
+  sesión (Strict Mode, varios componentes) comparten una sola petición, en vez
+  de reutilizar un refresh token ya rotado, que el backend trata como robo y
+  revoca todas las sesiones.
+- La página de facturación de Next.js carga sus datos solo cuando la sesión
+  está restaurada; al recargarla mostraba «La sesión ha caducado».
+
 ## [1.2.2] - 2026-10-24
 
 ### Fixed

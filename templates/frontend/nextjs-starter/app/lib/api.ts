@@ -174,10 +174,20 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
   }
 }
 
+// Refresh tokens rotate on every use and a reused one revokes every session,
+// so concurrent callers (React Strict Mode, several components) share one request.
+let refreshInFlight: Promise<Authentication> | null = null;
+function refreshSession(): Promise<Authentication> {
+  refreshInFlight ??= request<Record<string, unknown>>("/auth/refresh", { method: "POST" })
+    .then(authentication)
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
 export const api = {
   register: (payload: { name: string; email: string; password: string }) => request<User>("/auth/register", { method: "POST", body: payload }),
   login: async (payload: { email: string; password: string }) => authentication(await request<Record<string, unknown>>("/auth/login", { method: "POST", body: payload })),
-  refresh: async () => authentication(await request<Record<string, unknown>>("/auth/refresh", { method: "POST" })),
+  refresh: refreshSession,
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   currentUser: async (accessToken: string) => normaliseUser(await request<Record<string, unknown>>("/users/me", { accessToken })),
   requestPasswordReset: (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } }),

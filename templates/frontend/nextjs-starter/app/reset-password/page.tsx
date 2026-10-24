@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import styles from "../auth.module.css";
+import { PRODUCT_NAME } from "../lib/brand";
 import { api, ApiError } from "../lib/api";
 
 function ResetPasswordForm() {
@@ -24,7 +25,7 @@ function ResetPasswordForm() {
     finally { setSubmitting(false); }
   }
 
-  return <main className={styles.page}><section className={styles.box}><div className={styles.brand}><span>s</span>Starter</div><h1>Nueva contraseña</h1>{complete ? <><p>Tu contraseña se ha actualizado. Inicia sesión con la nueva contraseña.</p><p className={styles.footer}><Link href="/login">Iniciar sesión</Link></p></> : <><p>Elige una contraseña nueva y segura.</p><form className={styles.form} onSubmit={submit}><label>Nueva contraseña<input name="password" type="password" autoComplete="new-password" placeholder="8 caracteres, letra y número" required disabled={!token} /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={!token || submitting}>{submitting ? "Actualizando…" : "Actualizar contraseña"}</button></form></>}</section></main>;
+  return <main className={styles.page}><section className={styles.box}><div className={styles.brand}><span aria-hidden="true">{PRODUCT_NAME.slice(0, 1)}</span>{PRODUCT_NAME}</div><h1>Nueva contraseña</h1>{complete ? <><p>Tu contraseña se ha actualizado. Inicia sesión con la nueva contraseña.</p><p className={styles.footer}><Link href="/login">Iniciar sesión</Link></p></> : <><p>Elige una contraseña nueva y segura.</p><form className={styles.form} onSubmit={submit}><label>Nueva contraseña<input name="password" type="password" autoComplete="new-password" placeholder="8 caracteres, letra y número" required disabled={!token} /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={!token || submitting}>{submitting ? "Actualizando…" : "Actualizar contraseña"}</button></form></>}</section></main>;
 }
 
 export default function ResetPasswordPage() {

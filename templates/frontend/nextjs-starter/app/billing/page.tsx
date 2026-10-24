@@ -2,14 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
+import { Icon } from "../components/icons";
 import { ProtectedPage } from "../components/protected-page";
 import { useAuth } from "../components/auth-provider";
 import { api, type BillingConfiguration, type BillingSubscription, type Organization } from "../lib/api";
 import styles from "../product.module.css";
 
 function entitlement(limit: number | null) { return limit === null ? "Sin límite" : `${limit} incluidos`; }
+const statusLabels: Record<string, { label: string; tone: string }> = {
+  active: { label: "Activa", tone: "badge-success" },
+  trialing: { label: "En prueba", tone: "badge-accent" },
+  past_due: { label: "Pago pendiente", tone: "badge-warning" },
+  unpaid: { label: "Impagada", tone: "badge-danger" },
+  canceled: { label: "Cancelada", tone: "badge-danger" },
+  incomplete: { label: "Incompleta", tone: "badge-warning" },
+};
 
-export default function BillingPage() {
+// Rendered inside ProtectedPage so its effects run only once the session is restored.
+function Billing() {
   const { getAccessToken } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
@@ -60,14 +70,38 @@ export default function BillingPage() {
     finally { setPending(undefined); }
   }
 
-  return <ProtectedPage><AppShell><section className={styles.content}>
-    <p className={styles.eyebrow}>FACTURACIÓN</p><h1>Planes y suscripción</h1><p className={styles.lead}>Elige un plan para tu organización. El pago y la gestión de la suscripción se completan de forma segura en Stripe.</p>
-    {organizations.length > 1 && <label>Organización<select value={organizationId} onChange={(event) => selectOrganization(event.target.value)}>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>}
-    {!loading && !organizationId && <div className={styles.empty}><h2>No hay una organización disponible</h2><p>Crea o acepta una organización antes de configurar su facturación.</p></div>}
-    {subscription && <section className={styles.card}><div><span>Plan actual</span><strong>{subscription.plan}</strong><small>{subscription.status}{subscription.cancelAtPeriodEnd ? " · cancela al final del periodo" : ""}</small></div><div><span>Renovación</span><strong>{subscription.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(new Date(subscription.currentPeriodEnd)) : "Sin fecha"}</strong><small>{subscription.seats} plaza{subscription.seats === 1 ? "" : "s"}</small></div><button type="button" onClick={() => void redirect("portal")} disabled={!configuration?.configured || Boolean(pending)}>{pending === "portal" ? "Abriendo…" : "Gestionar suscripción"}</button></section>}
-    {notice && <p className={styles.lead} role="status">{notice}</p>}
+  const status = subscription ? statusLabels[subscription.status] ?? { label: subscription.status, tone: "" } : undefined;
+  const renewal = subscription?.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "long" }).format(new Date(subscription.currentPeriodEnd)) : "Sin fecha de renovación";
+
+  return <section className={styles.content}>
+    <header className={styles.pageHeader}>
+      <div><p className={styles.eyebrow}>Facturación</p><h1>Planes y suscripción</h1><p className={styles.lead}>Elige un plan para tu organización. El pago y la gestión de la suscripción se completan de forma segura en Stripe.</p></div>
+      {organizations.length > 1 && <label className="field">Organización<select value={organizationId} onChange={(event) => selectOrganization(event.target.value)}>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>}
+    </header>
+    {notice && <p className="notice" role="status">{notice}</p>}
+    {!loading && !organizationId && <div className={styles.empty}><div><Icon name="building" size={22} /></div><h2>No hay una organización disponible</h2><p>Crea o acepta una organización antes de configurar su facturación.</p></div>}
+    {subscription && status && <section className={styles.panel} aria-labelledby="current-plan">
+      <div className={styles.panelHeader}>
+        <div><h2 id="current-plan">Plan actual: {subscription.plan}</h2><p>{subscription.cancelAtPeriodEnd ? `Se cancela el ${renewal}` : subscription.currentPeriodEnd ? `Se renueva el ${renewal}` : renewal} · {subscription.seats} plaza{subscription.seats === 1 ? "" : "s"}</p></div>
+        <span className={`badge ${status.tone}`}>{status.label}</span>
+      </div>
+      <dl className={styles.rows}><div><dt>Gestión</dt><dd>Cambia de plan, actualiza el método de pago o descarga facturas.</dd>
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => void redirect("portal")} disabled={!configuration?.configured || Boolean(pending)}>{pending === "portal" ? "Abriendo…" : "Gestionar suscripción"}</button></div></dl>
+    </section>}
     {loading && organizationId && <p className={styles.lead}>Cargando facturación…</p>}
-    {!loading && configuration?.configured && <div className={styles.grid}>{configuration.plans.map((plan) => <article className={styles.card} key={plan.priceId}><p>PLAN</p><h2>{plan.name}</h2><ul>{Object.entries(plan.entitlements).map(([key, limit]) => <li key={key}><strong>{key}</strong><span>{entitlement(limit)}</span></li>)}</ul><button type="button" onClick={() => void redirect("checkout", plan.priceId)} disabled={Boolean(pending)}>{pending === plan.priceId ? "Redirigiendo…" : "Elegir este plan"}</button></article>)}</div>}
-    {!loading && configuration && !configuration.configured && <div className={styles.empty}><h2>Facturación no configurada</h2><p>Configura Stripe y los planes permitidos en el backend para habilitar Checkout.</p></div>}
-  </section></AppShell></ProtectedPage>;
+    {!loading && configuration?.configured && <>
+      <h2 className={styles.sectionTitle}>Planes disponibles</h2>
+      <div className={styles.grid}>{configuration.plans.map((plan) => {
+        const current = subscription?.plan === plan.name;
+        return <article className={`${styles.card} ${current ? styles.featured : ""}`} key={plan.priceId}>
+          <p>{current ? "Tu plan" : "Plan"}</p><h2>{plan.name}</h2>
+          <ul>{Object.entries(plan.entitlements).map(([key, limit]) => <li key={key}><strong><Icon name="check" size={15} style={{ color: "var(--success)", verticalAlign: "-3px", marginRight: 6 }} />{key}</strong><span>{entitlement(limit)}</span></li>)}</ul>
+          <button type="button" onClick={() => void redirect("checkout", plan.priceId)} disabled={Boolean(pending) || current}>{current ? "Plan actual" : pending === plan.priceId ? "Redirigiendo…" : "Elegir este plan"}</button>
+        </article>;
+      })}</div>
+    </>}
+    {!loading && configuration && !configuration.configured && <div className={styles.empty}><div><Icon name="billing" size={22} /></div><h2>Facturación no configurada</h2><p>Configura Stripe y los planes permitidos en el backend para habilitar Checkout.</p></div>}
+  </section>;
 }
+
+export default function BillingPage() { return <ProtectedPage><AppShell><Billing /></AppShell></ProtectedPage>; }

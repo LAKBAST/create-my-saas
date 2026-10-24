@@ -1,1 +1,61 @@
-.content{max-width:1050px;padding:52px 42px}.eyebrow{margin:0 0 10px;color:#8a93a4;font-size:10px;font-weight:750;letter-spacing:1px}.content h1{margin:0;font-size:30px;letter-spacing:-1.2px}.content h1 span{color:#efaf29}.lead{max-width:570px;margin:11px 0 32px;color:var(--muted);font-size:14px;line-height:1.6}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}.card,.empty{background:var(--surface);border:1px solid var(--line);border-radius:15px;box-shadow:var(--shadow)}.card{min-height:185px;padding:22px;display:flex;flex-direction:column;align-items:start}.cardIcon{width:38px;height:38px;display:grid;place-items:center;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-size:19px}.card p{margin:17px 0 4px;color:var(--muted);font-size:11px}.card strong{font-size:17px;letter-spacing:-.5px}.card span{margin-top:5px;color:var(--muted);font-size:11px}.card a,.card button,.empty a{border:0;background:none;padding:0;color:var(--accent-dark);font-size:11px;font-weight:700;text-decoration:none;margin-top:auto}.empty{margin-top:19px;padding:37px;text-align:center}.empty>div{font-size:23px;color:var(--accent)}.empty h2{font-size:16px;margin:11px 0 7px}.empty p{max-width:470px;margin:0 auto;color:var(--muted);font-size:12px;line-height:1.6}.empty a{display:inline-block;margin-top:17px}@media(max-width:720px){.content{padding:32px 18px}.grid{grid-template-columns:1fr}.content h1{font-size:26px}}
+/* Page building blocks inside the AppShell, which already pads and centres. */
+.content { display: grid; gap: 24px; }
+.content > * { margin: 0; }
+.pageHeader { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.eyebrow { margin: 0 0 6px; color: var(--accent); font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+.content h1 { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -.5px; }
+.lead { max-width: 640px; margin: 6px 0 0; color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+.sectionTitle { margin: 8px 0 -8px; font-size: 15px; font-weight: 650; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.card, .empty, .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 20px; transition: border-color .15s, box-shadow .15s; }
+.card:hover { border-color: var(--line-strong); }
+.cardIcon { width: 36px; height: 36px; display: grid; place-items: center; margin-bottom: 10px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.card p { margin: 0; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; }
+.card h2 { margin: 2px 0 0; font-size: 16px; letter-spacing: -.2px; }
+.card strong { font-size: 16px; letter-spacing: -.2px; }
+.card span { color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+.card ul { width: 100%; margin: 12px 0 4px; padding: 0; display: grid; gap: 8px; list-style: none; }
+.card li { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.card li strong { font-size: 13.5px; font-weight: 500; }
+.card li span { font-size: 13px; }
+.card a { margin-top: auto; padding-top: 14px; color: var(--accent); font-size: 13.5px; font-weight: 600; text-decoration: none; }
+.card a:hover { text-decoration: underline; }
+.card button { width: 100%; height: 38px; margin-top: 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font-size: 13.5px; font-weight: 600; box-shadow: var(--shadow-sm); }
+.card button + button { margin-top: 8px; }
+.card button:hover:not(:disabled) { background: var(--surface-soft); }
+.card button:disabled { cursor: not-allowed; opacity: .55; }
+.featured { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+.featured button { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.featured button:hover:not(:disabled) { background: var(--accent-strong); }
+
+.panel { overflow: hidden; }
+.panelHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.panelHeader h2 { margin: 0; font-size: 15px; }
+.panelHeader p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.rows { margin: 0; }
+.rows > div { display: grid; grid-template-columns: 200px 1fr auto; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.rows > div:first-child { border-top: 0; }
+.rows dt { color: var(--muted); font-size: 13.5px; }
+.rows dd { margin: 0; overflow: hidden; font-size: 14px; font-weight: 500; text-overflow: ellipsis; }
+
+.steps { margin: 0; padding: 0; list-style: none; }
+.steps li { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.steps li:first-child { border-top: 0; }
+.steps li > div { flex: 1; min-width: 0; }
+.steps strong { display: block; font-size: 14px; }
+.steps span { color: var(--muted); font-size: 13px; }
+.stepIcon { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); }
+.stepDone { border-color: var(--success); background: var(--success); color: var(--surface); }
+
+.empty { padding: 40px 24px; text-align: center; border-style: dashed; box-shadow: none; }
+.empty > div { width: 44px; height: 44px; display: grid; place-items: center; margin: 0 auto; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 20px; }
+.empty h2 { margin: 14px 0 6px; font-size: 16px; }
+.empty p { max-width: 460px; margin: 0 auto; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.empty a { display: inline-flex; margin-top: 16px; color: var(--accent); font-weight: 600; text-decoration: none; }
+
+@media (max-width: 720px) {
+  .content h1 { font-size: 22px; }
+  .rows > div { grid-template-columns: 1fr; gap: 4px; }
+}
