@@ -5,6 +5,19 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Next.js: formulario para crear la organización en Facturación cuando el
+  usuario no tiene ninguna; antes un cliente nuevo no podía contratar un plan.
+
+### Fixed
+
+- Next.js renueva el token de acceso un minuto antes de que caduque (y al
+  volver a una pestaña en segundo plano); antes la app fallaba con «sesión
+  caducada» a los 15 minutos hasta recargar.
+- Varias pestañas ya no cierran la sesión al refrescar a la vez: los refrescos
+  se serializan con Web Locks para no reutilizar un refresh token rotado.
+
 ## [1.3.0] - 2026-10-24
 
 ### Changed

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "../components/app-shell";
+import { CreateOrganization } from "../components/create-organization";
 import { Icon } from "../components/icons";
 import { ProtectedPage } from "../components/protected-page";
 import { useAuth } from "../components/auth-provider";
@@ -79,7 +80,7 @@ function Billing() {
       {organizations.length > 1 && <label className="field">Organización<select value={organizationId} onChange={(event) => selectOrganization(event.target.value)}>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>}
     </header>
     {notice && <p className="notice" role="status">{notice}</p>}
-    {!loading && !organizationId && <div className={styles.empty}><div><Icon name="building" size={22} /></div><h2>No hay una organización disponible</h2><p>Crea o acepta una organización antes de configurar su facturación.</p></div>}
+    {!loading && !organizationId && <CreateOrganization onCreated={(organization) => { setOrganizations([organization]); selectOrganization(organization.id); }} />}
     {subscription && status && <section className={styles.panel} aria-labelledby="current-plan">
       <div className={styles.panelHeader}>
         <div><h2 id="current-plan">Plan actual: {subscription.plan}</h2><p>{subscription.cancelAtPeriodEnd ? `Se cancela el ${renewal}` : subscription.currentPeriodEnd ? `Se renueva el ${renewal}` : renewal} · {subscription.seats} plaza{subscription.seats === 1 ? "" : "s"}</p></div>

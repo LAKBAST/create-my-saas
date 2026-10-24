@@ -174,14 +174,29 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
   }
 }
 
-// Refresh tokens rotate on every use and a reused one revokes every session,
-// so concurrent callers (React Strict Mode, several components) share one request.
+// Refresh tokens rotate on every use and the backend treats a reused one as
+// stolen, revoking every session. Callers in this tab (React Strict Mode,
+// several components) share one request, and other tabs wait on a Web Lock so
+// each refresh sends the cookie the previous one rotated in.
 let refreshInFlight: Promise<Authentication> | null = null;
 function refreshSession(): Promise<Authentication> {
-  refreshInFlight ??= request<Record<string, unknown>>("/auth/refresh", { method: "POST" })
+  const refresh = () => request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
+  const run = (): Promise<Record<string, unknown>> => typeof navigator !== "undefined" && navigator.locks
+    // LockManager types wrap the callback's promise, but it resolves to its value.
+    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<Record<string, unknown>>
+    : refresh();
+  refreshInFlight ??= run()
     .then(authentication)
     .finally(() => { refreshInFlight = null; });
   return refreshInFlight;
+}
+
+/** Seconds until the access token's `exp` claim, or null when it has none. */
+export function accessTokenLifetime(accessToken: string): number | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp - Date.now() / 1000 : null;
+  } catch { return null; }
 }
 
 export const api = {
@@ -195,6 +210,7 @@ export const api = {
   verifyEmail: (token: string) => request<void>("/auth/email/verify", { method: "POST", body: { token } }),
   resendEmailVerification: (accessToken: string) => request<void>("/auth/email/resend", { method: "POST", accessToken }),
   organizations: (accessToken: string) => request<Organization[]>("/organizations", { accessToken }),
+  createOrganization: (payload: { name: string; slug: string }, accessToken: string) => request<Organization>("/organizations", { method: "POST", body: payload, accessToken }),
   billingConfiguration: (organizationId: string, accessToken: string) => billingRequest<BillingConfiguration>(organizationId, "configuration", accessToken),
   billingSubscription: (organizationId: string, accessToken: string) => billingRequest<BillingSubscription>(organizationId, "subscription", accessToken),
   createCheckout: (organizationId: string, priceId: string, accessToken: string) => billingRequest<BillingRedirect>(organizationId, "checkout", accessToken, { priceId, quantity: 1 }),
