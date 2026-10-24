@@ -447,7 +447,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
       });
       expect(checkout).toMatchObject({ status: 200, body: { configured: false, url: null } });
 
-      await page.getByRole('link', { name: 'Facturación' }).click();
+      await page.getByRole('link', { name: 'Facturación', exact: true }).click();
       await expectPath(page, frontend === 'astro' ? '/billing/' : '/billing');
       await expect(page.getByRole('heading', { name: 'Planes y suscripción' })).toBeVisible();
       if (frontend === 'astro') {
