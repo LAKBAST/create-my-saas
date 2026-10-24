@@ -278,15 +278,14 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
     await expect(page.getByRole('heading', { name: /Inicia sesión|Bienvenido de nuevo/i })).toBeVisible();
   });
 
-  if (backend !== 'fastapi') {
-    await test.step('unconfigured OAuth is reported in the DOM', async () => {
-      const providers = await waitForApi(page, '/auth/oauth/providers', () => page.getByRole('button', { name: 'Google' }).click());
-      expect(providers.status()).toBe(200);
-      const oauthStatus = frontend === 'astro' ? page.locator('[data-oauth-status]') : page.getByText(/OAuth no está configurado/i);
-      await expect(oauthStatus).toContainText(/OAuth no está configurado/i);
-      await expectPath(page, paths.login);
-    });
-  }
+  await test.step('unconfigured OAuth providers get no sign-in buttons', async () => {
+    const providers = await waitForApi(page, '/auth/oauth/providers', () => page.goto(paths.login));
+    expect(providers.status()).toBe(200);
+    expect((await providers.json()).every((item) => item.configured === false)).toBe(true);
+    await expect(page.getByRole('button', { name: 'Google' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'GitHub' })).toHaveCount(0);
+    await expectPath(page, paths.login);
+  });
 
   const unique = `${backend}-${frontend}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const credentials = { name: 'Browser E2E', email: `${unique}@example.com`, password: 'browser-password-123' };

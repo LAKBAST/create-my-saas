@@ -115,12 +115,46 @@ async function request<T>(path: string, init: Omit<RequestInit, "body"> & { body
   return result as T;
 }
 
-async function restoreSession() {
-  const result = await request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
-  accessToken = String(result.accessToken ?? result.access_token);
-  const session = { accessToken, user: user(result.user as Record<string, unknown>) } satisfies Session;
-  identifyAnalyticsUser(session.user.id);
-  return session;
+// Refresh tokens rotate on every use and the backend treats a reused one as
+// stolen, revoking every session. Calls in this page share one request, and
+// other tabs wait on a Web Lock so each refresh sends the rotated cookie.
+let refreshInFlight: Promise<Session> | null = null;
+let renewalTimer: ReturnType<typeof setTimeout> | undefined;
+
+function restoreSession(): Promise<Session> {
+  const refresh = () => request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
+  const run = (): Promise<Record<string, unknown>> => navigator.locks
+    // LockManager types wrap the callback's promise, but it resolves to its value.
+    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<Record<string, unknown>>
+    : refresh();
+  refreshInFlight ??= run().then((result) => {
+    accessToken = String(result.accessToken ?? result.access_token);
+    scheduleRenewal(accessToken);
+    const session = { accessToken, user: user(result.user as Record<string, unknown>) } satisfies Session;
+    identifyAnalyticsUser(session.user.id);
+    return session;
+  }).finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+/** Seconds until the access token's `exp` claim, or null when it has none. */
+function accessTokenLifetime(token: string): number | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp - Date.now() / 1000 : null;
+  } catch { return null; }
+}
+
+// Renews the access token a minute before it expires so long-open pages keep working.
+function scheduleRenewal(token: string) {
+  clearTimeout(renewalTimer);
+  const lifetime = accessTokenLifetime(token);
+  if (lifetime === null) return;
+  const expiresAt = Date.now() + lifetime * 1000;
+  const renew = () => { if (Date.now() >= expiresAt - 60_000) void restoreSession().catch(() => { accessToken = null; }); };
+  renewalTimer = setTimeout(renew, Math.max(expiresAt - 60_000 - Date.now(), 5_000));
+  // Timers are throttled in background tabs, so also check when the tab is shown.
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && accessToken === token) renew(); });
 }
 
 function setStatus(target: Element | null, message: string, error = false) {
@@ -167,6 +201,13 @@ function bindForms() {
 }
 
 function bindOAuth() {
+  // The sign-in block stays hidden unless the backend has credentials for a provider.
+  const block = document.querySelector<HTMLElement>("[data-oauth]");
+  if (block) void request<Array<{ provider: string; configured: boolean }>>("/auth/oauth/providers").then((providers) => {
+    const configured = new Set(providers.filter((item) => item.configured).map((item) => item.provider));
+    block.querySelectorAll<HTMLButtonElement>("[data-oauth-provider]").forEach((button) => { button.hidden = !configured.has(button.dataset.oauthProvider ?? ""); });
+    block.hidden = configured.size === 0;
+  }).catch(() => { block.hidden = true; });
   document.querySelectorAll<HTMLButtonElement>("[data-oauth-provider]").forEach((button) => button.addEventListener("click", async () => {
     const status = document.querySelector("[data-oauth-status]");
     button.disabled = true;

@@ -46,8 +46,11 @@ export class AuthService {
 
   async refresh(previousToken: string | undefined): Promise<{ user: StoredUser } & SessionTokens> {
     if (!previousToken) throw this.invalidRefreshToken();
-    const previous = await this.repository.findActiveSessionByRefreshHash(tokenHash(previousToken));
+    const previous = await this.repository.findSessionByRefreshHash(tokenHash(previousToken));
     if (!previous) throw this.invalidRefreshToken();
+    // A rotated (revoked) refresh token coming back means it was copied: end every session.
+    if (previous.revokedAt) throw await this.refreshTokenReused(previous.userId);
+    if (previous.refreshExpiresAt <= new Date()) throw this.invalidRefreshToken();
     const user = await this.repository.findUserById(previous.userId);
     if (!user || !user.isActive) throw this.invalidRefreshToken();
     const accessToken = opaqueToken();
@@ -59,8 +62,13 @@ export class AuthService {
       accessExpiresAt: new Date(Date.now() + this.accessMaxAge * 1_000),
       refreshExpiresAt: new Date(Date.now() + this.refreshMaxAge * 1_000),
     });
-    if (!rotated) throw new AppError(401, 'REFRESH_TOKEN_REUSED', 'Authentication is required.');
+    if (!rotated) throw await this.refreshTokenReused(user.id);
     return { user, accessToken, refreshToken };
+  }
+
+  private async refreshTokenReused(userId: string): Promise<AppError> {
+    await this.repository.revokeSessionsForUser(userId);
+    return new AppError(401, 'REFRESH_TOKEN_REUSED', 'Authentication is required.');
   }
 
   async logout(refreshToken: string | undefined): Promise<void> {

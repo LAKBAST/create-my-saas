@@ -20,7 +20,8 @@ export class SecureEmailService {
       const response = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: recipient, subject, text }),
+        // EMAIL_FROM is the sender for providers that require one, such as Resend.
+        body: JSON.stringify({ to: recipient, subject, text, ...(this.config.get<string>('EMAIL_FROM') ? { from: this.config.get<string>('EMAIL_FROM') } : {}) }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new AppError('EMAIL_DELIVERY_UNAVAILABLE', 'Secure email delivery is unavailable.', 503);

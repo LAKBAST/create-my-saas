@@ -79,8 +79,11 @@ function configureFrontendApiProxyTarget(destinationDirectory, backend) {
   writeFileSync(envExamplePath, configuredContents, 'utf8');
 }
 
-function frontendApiPrefixes(frontend, extensions = []) {
+// Routes the backend owns behind the gateway. Backend capabilities count too:
+// Stripe webhooks reach /billing even when the frontend has no billing page.
+function frontendApiPrefixes(backend, frontend, extensions = []) {
   const requiredCapabilities = [
+    ...(backend?.capabilities ?? []),
     ...(frontend?.compatibility?.requiresBackendCapabilities ?? []),
     ...extensions.flatMap((extension) => extension.requires.capabilities),
   ];
@@ -387,7 +390,7 @@ function writeDeployment(destinationDirectory, backend, frontend, extensions) {
   if (frontend) {
     writeFileSync(join(deploymentDirectory, '.dockerignore'), '.env\ncerts/\n', 'utf8');
     writeFileSync(join(deploymentDirectory, 'gateway.Dockerfile'), 'FROM nginx:1.27.4-alpine-slim\nCOPY nginx.conf /etc/nginx/conf.d/default.conf\n', 'utf8');
-  const apiPrefixes = frontendApiPrefixes(frontend, extensions).join('|');
+  const apiPrefixes = frontendApiPrefixes(backend, frontend, extensions).join('|');
   writeFileSync(join(deploymentDirectory, 'nginx.conf'), `server {
   listen 80;
   server_name _;

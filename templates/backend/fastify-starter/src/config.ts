@@ -24,6 +24,7 @@ const environment = z.object({
   COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
   EMAIL_DELIVERY_URL: z.string().url().optional(),
   EMAIL_DELIVERY_TOKEN: z.string().min(1).optional(),
+  EMAIL_FROM: z.string().min(1).optional(),
   RATE_LIMIT_ENABLED: environmentBoolean('true'),
   RATE_LIMIT_REQUESTS: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),

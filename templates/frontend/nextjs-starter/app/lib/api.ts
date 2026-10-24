@@ -215,10 +215,16 @@ export const api = {
   billingSubscription: (organizationId: string, accessToken: string) => billingRequest<BillingSubscription>(organizationId, "subscription", accessToken),
   createCheckout: (organizationId: string, priceId: string, accessToken: string) => billingRequest<BillingRedirect>(organizationId, "checkout", accessToken, { priceId, quantity: 1 }),
   createPortal: (organizationId: string, accessToken: string) => billingRequest<BillingRedirect>(organizationId, "portal", accessToken),
+  oauthProviders: async (): Promise<OAuthProvider[]> => {
+    try {
+      const providers = await request<Array<{ provider: string; configured: boolean }>>("/auth/oauth/providers", { method: "GET" });
+      return providers.filter((item) => item.configured).map((item) => item.provider as OAuthProvider);
+    } catch { return []; }
+  },
   beginOAuth: async (provider: OAuthProvider): Promise<never> => {
-    // Nest reports configured providers and returns a URL. FastAPI has no
-    // provider list and owns the redirect at /start. Both keep PKCE and
-    // provider secrets on the backend.
+    // Every backend reports configured providers. Nest returns a URL; FastAPI
+    // owns the redirect at /start. Both keep PKCE and provider secrets on the
+    // backend.
     try {
       const providers = await request<Array<{ provider: string; configured: boolean }>>("/auth/oauth/providers", { method: "GET" });
       if (!providers.some((item) => item.provider === provider && item.configured)) {

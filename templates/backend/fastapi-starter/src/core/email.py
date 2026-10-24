@@ -18,7 +18,10 @@ async def send_secure_email(*, recipient: str, subject: str, body: str) -> None:
         return
 
     def deliver() -> None:
-        payload = json.dumps({"to": recipient, "subject": subject, "text": body}).encode("utf-8")
+        message = {"to": recipient, "subject": subject, "text": body}
+        if settings.email_from:
+            message["from"] = settings.email_from
+        payload = json.dumps(message).encode("utf-8")
         email_request = request.Request(
             settings.email_delivery_url,
             data=payload,

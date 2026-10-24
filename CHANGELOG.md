@@ -5,6 +5,33 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- FastAPI: `GET /auth/oauth/providers`, como ya tenían NestJS y Fastify.
+- `EMAIL_FROM` en los tres backends: remitente para proveedores que lo exigen,
+  como Resend.
+- React Router: formulario para crear la organización en Facturación, como en
+  Next.js, y etiquetas legibles para el estado de la suscripción.
+
+### Fixed
+
+- Los botones de Google y GitHub solo aparecen si el proveedor está configurado
+  en el backend (Next.js, React Router y Astro); antes llevaban a un error JSON.
+- React Router y Astro comparten un único refresco de sesión por pestaña y lo
+  serializan entre pestañas con Web Locks, y renuevan el token de acceso antes
+  de que caduque. En React Router, volver de OAuth lanzaba dos refrescos a la
+  vez y la detección de reutilización cerraba todas las sesiones.
+- React Router: la página de Facturación espera a que se restaure la sesión;
+  al recargarla mostraba «La sesión ha caducado».
+- Crear una organización reintenta con sufijo también con el código
+  `ORGANIZATION_SLUG_ALREADY_EXISTS` de NestJS.
+- Fastify revoca todas las sesiones del usuario al reutilizarse un refresh
+  token, igual que FastAPI y NestJS.
+- El gateway generado enruta a la API los prefijos que ofrece el backend
+  (`/billing`, `/organizations`) aunque el frontend no los use; con Astro, los
+  webhooks de Stripe acababan en el frontend.
+- Next.js usa `PRODUCT_NAME` en los metadatos del layout.
+
 ## [1.3.1] - 2026-10-24
 
 ### Added

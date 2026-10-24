@@ -24,7 +24,8 @@ export class SecureEmailSender implements EmailSender {
       const response = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: recipient, subject, text }),
+        // EMAIL_FROM is the sender for providers that require one, such as Resend.
+        body: JSON.stringify({ to: recipient, subject, text, ...(this.config.EMAIL_FROM ? { from: this.config.EMAIL_FROM } : {}) }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new EmailDeliveryError();

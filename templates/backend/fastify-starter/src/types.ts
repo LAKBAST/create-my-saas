@@ -57,6 +57,8 @@ export interface SessionRepository {
   createSession(session: StoredSession): Promise<void>;
   findActiveSessionByAccessHash(accessTokenHash: string): Promise<StoredSession | undefined>;
   findActiveSessionByRefreshHash(refreshTokenHash: string): Promise<StoredSession | undefined>;
+  /** Finds a session by refresh token whether or not it is still active (reuse detection). */
+  findSessionByRefreshHash(refreshTokenHash: string): Promise<StoredSession | undefined>;
   rotateSession(input: {
     previousSessionId: string;
     accessTokenHash: string;

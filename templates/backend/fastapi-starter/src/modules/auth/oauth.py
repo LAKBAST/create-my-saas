@@ -244,6 +244,12 @@ async def _get_verified_email(
     return primary_email, bool(primary_email)
 
 
+@router.get("/providers")
+async def oauth_providers():
+    """Lets the frontend show only the sign-in buttons that can work."""
+    return [{"provider": provider, "configured": _provider_config(provider) is not None} for provider in sorted(SUPPORTED_PROVIDERS)]
+
+
 @router.get("/{provider}/start")
 async def oauth_start(
     provider: str,

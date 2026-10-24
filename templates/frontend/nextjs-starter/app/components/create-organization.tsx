@@ -11,6 +11,8 @@ export function slugify(name: string): string {
   return name.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 160);
 }
 
+const SLUG_TAKEN = new Set(["SLUG_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_EXISTS"]);
+
 // Shown wherever a page needs an organization and the user has none yet.
 export function CreateOrganization({ onCreated }: { onCreated: (organization: Organization) => void }) {
   const { getAccessToken } = useAuth();
@@ -27,7 +29,7 @@ export function CreateOrganization({ onCreated }: { onCreated: (organization: Or
     try {
       // Slugs are unique across every customer, so a taken one gets a short suffix.
       onCreated(await create(slug).catch((cause: unknown) => {
-        if (cause instanceof ApiError && cause.code === "SLUG_ALREADY_EXISTS") return create(`${slug.slice(0, 150)}-${Math.random().toString(36).slice(2, 7)}`);
+        if (cause instanceof ApiError && cause.code && SLUG_TAKEN.has(cause.code)) return create(`${slug.slice(0, 150)}-${Math.random().toString(36).slice(2, 7)}`);
         throw cause;
       }));
     }

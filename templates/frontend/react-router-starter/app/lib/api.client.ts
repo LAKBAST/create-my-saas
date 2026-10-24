@@ -169,10 +169,35 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
   }
 }
 
+// Refresh tokens rotate on every use and the backend treats a reused one as
+// stolen, revoking every session. Callers in this tab (React Strict Mode,
+// several components) share one request, and other tabs wait on a Web Lock so
+// each refresh sends the cookie the previous one rotated in.
+let refreshInFlight: Promise<Authentication> | null = null;
+function refreshSession(): Promise<Authentication> {
+  const refresh = () => request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
+  const run = (): Promise<Record<string, unknown>> => typeof navigator !== "undefined" && navigator.locks
+    // LockManager types wrap the callback's promise, but it resolves to its value.
+    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<Record<string, unknown>>
+    : refresh();
+  refreshInFlight ??= run()
+    .then(authentication)
+    .finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
+
+/** Seconds until the access token's `exp` claim, or null when it has none. */
+export function accessTokenLifetime(accessToken: string): number | null {
+  try {
+    const payload = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: unknown };
+    return typeof payload.exp === "number" ? payload.exp - Date.now() / 1000 : null;
+  } catch { return null; }
+}
+
 export const api = {
   register: (payload: { name: string; email: string; password: string }) => request<User>("/auth/register", { method: "POST", body: payload }),
   login: async (payload: { email: string; password: string }) => authentication(await request<Record<string, unknown>>("/auth/login", { method: "POST", body: payload })),
-  refresh: async () => authentication(await request<Record<string, unknown>>("/auth/refresh", { method: "POST" })),
+  refresh: refreshSession,
   logout: () => request<void>("/auth/logout", { method: "POST" }),
   currentUser: async (accessToken: string) => normaliseUser(await request<Record<string, unknown>>("/users/me", { accessToken })),
   requestPasswordReset: (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } }),
@@ -180,10 +205,17 @@ export const api = {
   verifyEmail: (token: string) => request<void>("/auth/email/verify", { method: "POST", body: { token } }),
   resendEmailVerification: (accessToken: string) => request<void>("/auth/email/resend", { method: "POST", accessToken }),
   organizations: (accessToken: string) => request<Organization[]>("/organizations", { accessToken }),
+  createOrganization: (payload: { name: string; slug: string }, accessToken: string) => request<Organization>("/organizations", { method: "POST", body: payload, accessToken }),
   billingConfiguration: (organizationId: string, accessToken: string) => billingRequest<BillingConfiguration>(organizationId, "configuration", accessToken),
   billingSubscription: (organizationId: string, accessToken: string) => billingRequest<BillingSubscription>(organizationId, "subscription", accessToken),
   createCheckout: (organizationId: string, priceId: string, accessToken: string) => billingRequest<BillingRedirect>(organizationId, "checkout", accessToken, { priceId, quantity: 1 }),
   createPortal: (organizationId: string, accessToken: string) => billingRequest<BillingRedirect>(organizationId, "portal", accessToken),
+  oauthProviders: async (): Promise<OAuthProvider[]> => {
+    try {
+      const providers = await request<Array<{ provider: string; configured: boolean }>>("/auth/oauth/providers", { method: "GET" });
+      return providers.filter((item) => item.configured).map((item) => item.provider as OAuthProvider);
+    } catch { return []; }
+  },
   beginOAuth: async (provider: OAuthProvider): Promise<never> => {
     try {
       const providers = await request<Array<{ provider: string; configured: boolean }>>("/auth/oauth/providers", { method: "GET" });

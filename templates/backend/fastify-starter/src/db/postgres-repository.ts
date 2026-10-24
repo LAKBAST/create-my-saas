@@ -147,6 +147,15 @@ export class PostgresSessionRepository implements SessionRepository {
     return rows[0] ? session(rows[0]) : undefined;
   }
 
+  async findSessionByRefreshHash(refreshTokenHash: string): Promise<StoredSession | undefined> {
+    const rows = await this.sql<SessionRow[]>`
+      select id, user_id, access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at, revoked_at
+      from browser_sessions
+      where refresh_token_hash = ${refreshTokenHash}
+    `;
+    return rows[0] ? session(rows[0]) : undefined;
+  }
+
   async rotateSession(input: {
     previousSessionId: string;
     accessTokenHash: string;

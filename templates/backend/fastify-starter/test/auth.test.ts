@@ -33,6 +33,9 @@ class InMemorySessions implements SessionRepository {
   async findActiveSessionByRefreshHash(refreshTokenHash: string) {
     return [...this.sessions.values()].find((session) => session.refreshTokenHash === refreshTokenHash && !session.revokedAt && session.refreshExpiresAt > new Date());
   }
+  async findSessionByRefreshHash(refreshTokenHash: string) {
+    return [...this.sessions.values()].find((session) => session.refreshTokenHash === refreshTokenHash);
+  }
   async rotateSession(input: {
     previousSessionId: string;
     accessTokenHash: string;
@@ -325,6 +328,14 @@ test('browser session contract returns an in-memory access token but never a ref
     assert.equal(refreshed.statusCode, 200);
     assert.deepEqual(Object.keys(refreshed.json()).sort(), ['accessToken', 'user']);
     assert.equal('refreshToken' in refreshed.json(), false);
+
+    // Replaying the rotated cookie revokes every session, including the new one.
+    const replay = await app.inject({ method: 'POST', url: '/auth/refresh', headers: { cookie: `${refresh}; ${csrf}`, 'x-csrf-token': csrf.split('=', 2)[1] } });
+    assert.equal(replay.statusCode, 401);
+    assert.equal(replay.json().error.code, 'REFRESH_TOKEN_REUSED');
+    const next = await app.inject({ method: 'POST', url: '/auth/refresh', headers: { cookie: `${cookie(refreshed, 'refresh_token')}; ${csrf}`, 'x-csrf-token': csrf.split('=', 2)[1] } });
+    assert.equal(next.statusCode, 401);
+    assert.equal(next.json().error.code, 'REFRESH_TOKEN_REUSED');
   } finally {
     await app.close();
   }

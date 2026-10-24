@@ -1,27 +1,28 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { PRODUCT_NAME } from "./lib/brand";
 
 const siteUrl = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com");
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
-  applicationName: "SaaS starter",
+  applicationName: PRODUCT_NAME,
   title: {
-    default: "SaaS starter",
-    template: "%s | SaaS starter",
+    default: PRODUCT_NAME,
+    template: `%s | ${PRODUCT_NAME}`,
   },
   description: "Una base reutilizable para la aplicación autenticada de tu SaaS.",
   openGraph: {
     type: "website",
     locale: "es_ES",
-    siteName: "SaaS starter",
-    title: "SaaS starter",
+    siteName: PRODUCT_NAME,
+    title: PRODUCT_NAME,
     description: "Una base reutilizable para la aplicación autenticada de tu SaaS.",
   },
   twitter: {
     card: "summary",
-    title: "SaaS starter",
+    title: PRODUCT_NAME,
     description: "Una base reutilizable para la aplicación autenticada de tu SaaS.",
   },
   robots: {
