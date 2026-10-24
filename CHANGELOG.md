@@ -5,6 +5,14 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-25
+
+### Fixed
+
+- La extensión de facturación de Astro muestra los botones de Google y GitHub
+  cuando el proveedor está configurado, comparte el refresco de sesión entre
+  pestañas y renueva el token antes de que caduque, como la plantilla Astro.
+
 ## [1.3.2] - 2026-10-24
 
 ### Added
@@ -177,7 +185,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.2...HEAD
+[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.3...HEAD
+[1.3.3]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.2...v1.3.3
 [1.3.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.2...v1.3.0
