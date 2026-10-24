@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-24
+
 ### Changed
 
 - Nuevo diseño del frontend Next.js: tokens de color y tipografía en
@@ -131,7 +133,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.2...HEAD
+[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.2...v1.3.0
 [1.2.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.0.0...v1.2.0
