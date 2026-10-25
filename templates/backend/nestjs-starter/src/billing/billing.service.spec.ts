@@ -56,7 +56,7 @@ describe('BillingService', () => {
     expect(retrieve).toHaveBeenCalledTimes(1);
     expect(retrieve).toHaveBeenCalledWith('price_allowed');
     const now = Date.now();
-    const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 600_001);
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 86_400_001);
     try { await service.configuration(); } finally { clock.mockRestore(); }
     expect(retrieve).toHaveBeenCalledTimes(2);
   });
