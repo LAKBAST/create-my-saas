@@ -130,7 +130,7 @@ function readExtensionManifest(extensionsDirectory, manifestPath) {
 function findExtensionManifests(directory) {
   if (!existsSync(directory)) throw new Error(`Extension directory not found: ${directory}`);
   const manifests = [];
-  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
     const entryPath = join(directory, entry.name);
     if (entry.isDirectory()) manifests.push(...findExtensionManifests(entryPath));
     if (entry.isFile() && entry.name === 'extension.manifest.json') manifests.push(entryPath);
@@ -250,7 +250,7 @@ export function extensionTargetFiles(extension, target) {
   }
   const files = [];
   function visit(directory) {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       const entryPath = join(directory, entry.name);
       if (entry.isSymbolicLink()) throw new Error(`Extension overlays cannot contain symbolic links: ${extension.id}/${target.overlay}.`);
       if (entry.isDirectory()) visit(entryPath);

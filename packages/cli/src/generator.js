@@ -1,4 +1,5 @@
 import {
+  chmodSync,
   copyFileSync,
   cpSync,
   existsSync,
@@ -13,8 +14,9 @@ import {
 import { basename, dirname, join, resolve } from 'node:path';
 import { defaultExtensionsDirectory, defaultTemplatesDirectory, findTemplate, loadCatalog } from './catalog.js';
 import { extensionTargetFiles, resolveExtensions, selectExtensions } from './extensions.js';
+import { buildManifest, normalizedFileContents, writeManifest } from './manifest.js';
 
-const { version: cliVersion } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+const { version: cliVersion } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
 const excludedDirectoryNames = new Set([
   '.git',
@@ -66,7 +68,7 @@ function configureFrontendApiProxyTarget(destinationDirectory, backend) {
     throw new Error(`Frontend template is missing .env.example: ${envExamplePath}`);
   }
 
-  const originalContents = readFileSync(envExamplePath, 'utf8');
+  const originalContents = normalizedFileContents(readFileSync(envExamplePath)).toString('utf8');
   const apiProxyTargetPattern = /^API_PROXY_TARGET=.*$/m;
   if (!apiProxyTargetPattern.test(originalContents)) {
     throw new Error(`Frontend .env.example is missing API_PROXY_TARGET: ${envExamplePath}`);
@@ -468,7 +470,7 @@ ${backend ? `  location = /ready {
 // npm never packs .gitignore files, so template copies cannot be relied on:
 // derive the ignore rules from the files each selected layer actually ships.
 function layerIgnorePatterns(layerDirectory) {
-  const files = readdirSync(layerDirectory);
+  const files = readdirSync(layerDirectory).sort();
   const has = (name) => files.some((file) => file === name || file.startsWith(`${name}.`));
   const patterns = [];
 
@@ -555,7 +557,7 @@ function extensionInstallationPlan(extensions, backend, frontend) {
 function templateFiles(directory) {
   const files = [];
   function visit(current) {
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
+    for (const entry of readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
       if (!shouldCopy(join(current, entry.name))) continue;
       const path = join(current, entry.name);
       if (entry.isDirectory()) visit(path);
@@ -570,7 +572,7 @@ function mergeEnvironment(destinationDirectory, kind, variables, extensionId) {
   if (variables.length === 0) return;
   const environmentPath = join(destinationDirectory, kind, '.env.example');
   if (!existsSync(environmentPath)) throw new Error(`Extension "${extensionId}" requires .env.example in ${kind}.`);
-  const contents = readFileSync(environmentPath, 'utf8');
+  const contents = normalizedFileContents(readFileSync(environmentPath)).toString('utf8');
   writeFileSync(environmentPath, mergeEnvironmentContents(contents, variables, extensionId, kind), 'utf8');
 }
 
@@ -656,6 +658,22 @@ function writeExtensionIntegrations(destinationDirectory, backend, frontend, ext
   }
 }
 
+// Canonical bytes and permissions are independent of Git autocrlf, source modes
+// and the caller's umask. Shebang scripts remain executable on Unix.
+function normalizeProject(directory) {
+  chmodSync(directory, 0o755);
+  for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) normalizeProject(path);
+    else if (entry.isFile()) {
+      const original = readFileSync(path);
+      const contents = normalizedFileContents(original);
+      if (!contents.equals(original)) writeFileSync(path, contents);
+      chmodSync(path, contents.subarray(0, 2).toString() === '#!' ? 0o755 : 0o644);
+    } else throw new Error('Cannot generate non-regular project file: ' + path);
+  }
+}
+
 export function generateProject({
   destination,
   backendId,
@@ -677,7 +695,7 @@ export function generateProject({
   const catalog = loadCatalog(templatesDirectory, extensionsDirectories);
   const backend = backendId ? findTemplate(catalog, 'backend', backendId) : undefined;
   const frontend = frontendId ? findTemplate(catalog, 'frontend', frontendId) : undefined;
-  const extensions = resolveExtensions(selectExtensions(catalog.extensions, featureIds), { backend, frontend, cliVersion });
+  const extensions = resolveExtensions(selectExtensions(catalog.extensions, [...featureIds].sort()), { backend, frontend, cliVersion });
   const installationPlan = extensionInstallationPlan(extensions, backend, frontend);
 
   if (backend && frontend) {
@@ -716,35 +734,15 @@ export function generateProject({
     writeDeployment(temporaryDirectory, backend, frontend, extensions);
     writeGitignore(temporaryDirectory, backend, frontend);
 
-    const selectedTemplates = {};
-    if (backend) {
-      selectedTemplates.backend = {
-        id: backend.id,
-        version: backend.version,
-        source: backend.directory,
-      };
-    }
-    if (frontend) {
-      selectedTemplates.frontend = {
-        id: frontend.id,
-        version: frontend.version,
-        source: frontend.directory,
-      };
-    }
-
-    const metadata = { schemaVersion: 2, templates: selectedTemplates };
-    if (extensions.length > 0) metadata.extensions = extensions.map((extension) => ({
-      id: extension.id,
-      version: extension.version,
-      source: extension.directory,
-      manifestSchemaVersion: extension.schemaVersion,
+    normalizeProject(temporaryDirectory);
+    writeManifest(temporaryDirectory, buildManifest(temporaryDirectory, {
+      cliVersion,
+      backend,
+      frontend,
+      features: featureIds,
+      extensions,
     }));
-
-    writeFileSync(
-      join(temporaryDirectory, '.create-my-saas.json'),
-      `${JSON.stringify(metadata, null, 2)}\n`,
-      'utf8',
-    );
+    chmodSync(join(temporaryDirectory, '.create-my-saas.json'), 0o644);
 
     if (existsSync(outputDirectory)) {
       throw new Error(`Destination already exists: ${outputDirectory}`);
