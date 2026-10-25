@@ -1,10 +1,17 @@
 import posthog from "posthog-js";
 
+import { PRODUCT_NAME } from "../lib/brand";
+
 type Consent = "granted" | "denied" | "unknown";
 
 const projectKey = import.meta.env.PUBLIC_POSTHOG_KEY;
 const apiHost = import.meta.env.PUBLIC_POSTHOG_HOST;
 const consentKey = "saas_analytics_consent";
+// Link only to policies supplied by the generated product; never invent legal pages.
+const legalLinks = [
+  { href: import.meta.env.PUBLIC_PRIVACY_POLICY_URL, label: "Privacidad" },
+  { href: import.meta.env.PUBLIC_COOKIE_POLICY_URL, label: "Política de cookies" },
+].filter((link): link is { href: string; label: string } => Boolean(link.href && ((link.href.startsWith("/") && !link.href.startsWith("//")) || link.href.startsWith("https://"))));
 let initialized = false;
 let consent: Consent = "unknown";
 let userId: string | null = null;
@@ -46,6 +53,16 @@ function consentBanner() {
   banner.className = "analytics-consent";
   banner.setAttribute("aria-label", "Preferencias de analítica");
   banner.innerHTML = "<p>Usamos analítica opcional y sin autocaptura para mejorar el producto.</p><div><button type=\"button\" data-analytics-consent=\"denied\">Rechazar</button><button type=\"button\" data-analytics-consent=\"granted\">Aceptar analítica</button></div>";
+  const description = banner.querySelector("p");
+  if (description) description.textContent = "Usamos analítica opcional y sin autocaptura para mejorar " + PRODUCT_NAME + ".";
+  if (legalLinks.length) {
+    const policies = document.createElement("p");
+    legalLinks.forEach((link, index) => {
+      if (index) policies.append(" · ");
+      const anchor = document.createElement("a"); anchor.href = link.href; anchor.textContent = link.label; policies.append(anchor);
+    });
+    description?.after(policies);
+  }
   banner.querySelectorAll<HTMLButtonElement>("[data-analytics-consent]").forEach((button) => button.addEventListener("click", () => {
     applyConsent(button.dataset.analyticsConsent as Exclude<Consent, "unknown">);
     banner.remove();

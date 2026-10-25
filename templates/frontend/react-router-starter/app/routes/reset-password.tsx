@@ -18,6 +18,7 @@ export default function ResetPassword() {
     event.preventDefault();
     if (!token) return;
     const password = String(new FormData(event.currentTarget).get("password"));
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { setError("La contraseña debe tener al menos 8 caracteres, una letra y un número."); return; }
     setError(undefined); setPending(true);
     try { await api.resetPassword(token, password); setDone(true); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "No se ha podido actualizar la contraseña."); } finally { setPending(false); }
   }

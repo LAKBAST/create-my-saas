@@ -84,3 +84,10 @@ node scripts/validate-template-manifests.mjs
 El dashboard no incluye entidades ni flujos específicos del producto. Mantén el
 contrato de autenticación y actualiza `template.manifest.json` al añadir nuevas
 capacidades.
+
+### Enlaces del aviso de analítica
+
+Configura `VITE_PRIVACY_POLICY_URL` y `VITE_COOKIE_POLICY_URL` con las
+URLs HTTPS o rutas del mismo sitio de tus políticas publicadas. El aviso muestra
+los enlaces configurados; los valores vacíos no generan enlaces a páginas
+inexistentes. El texto del aviso usa `PRODUCT_NAME` de `app/lib/brand.ts`.

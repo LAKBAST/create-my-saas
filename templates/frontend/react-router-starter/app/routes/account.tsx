@@ -36,6 +36,7 @@ function Account() {
         <div><dt>Correo electrónico</dt><dd>{user?.email}</dd>
           {user?.emailVerified ? <span className="badge badge-success">Verificado</span> : <button type="button" className="btn btn-secondary btn-sm" onClick={() => void resend()} disabled={sending}>{sending ? "Enviando…" : "Reenviar verificación"}</button>}
         </div>
+        <div><dt>Estado</dt><dd>{user?.isActive ? "Cuenta activa" : "Cuenta desactivada"}</dd><span className={`badge ${user?.isActive ? "badge-success" : "badge-danger"}`}>{user?.isActive ? "Activa" : "Inactiva"}</span></div>
       </dl>
     </section>
     <section className={styles.panel} aria-labelledby="session">

@@ -5,12 +5,25 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Astro con facturación permite crear la primera organización desde el estado
+  vacío y reintenta con otro slug si el identificador ya está ocupado.
+- Los avisos de consentimiento de los tres frontends admiten enlaces
+  configurables de privacidad y cookies, documentados en sus `.env.example`.
+
 ### Fixed
 
+- React Router y Astro igualan los estados de cuenta, la validación de
+  contraseñas y los mensajes de registro, recuperación y verificación con
+  Next.js. Astro muestra el progreso de inicio y los estados de espera de los
+  botones; la extensión de facturación muestra plazas, etiquetas de estado,
+  planes disponibles y el estado explícito de facturación sin configurar.
+- El aviso de consentimiento utiliza `PRODUCT_NAME` en los tres frontends.
 - NestJS y Fastify rechazan en staging y producción los secretos de ejemplo,
   los secretos de menos de 32 caracteres y las conexiones de base de datos a
-  `localhost`, con las mismas reglas y mensajes que FastAPI. NestJS comparte
-  la validación con las extensiones que sustituyen su módulo principal.
+  `localhost`, con las mismas reglas y mensajes que FastAPI. NestJS concentra
+  la validación en `src/config.ts` para comprobarla sin iniciar la aplicación.
 
 ### Changed
 

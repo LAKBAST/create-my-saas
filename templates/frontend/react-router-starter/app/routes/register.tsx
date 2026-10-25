@@ -17,6 +17,8 @@ export default function Register() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    const password = String(data.get("password"));
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) { setError("La contraseña debe tener al menos 8 caracteres, una letra y un número."); return; }
     setError(undefined); setPending(true);
     try {
       await api.register({ name: String(data.get("name")), email: String(data.get("email")), password: String(data.get("password")) });

@@ -8,7 +8,18 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <label class="field" data-billing-organization hidden>Organización<select></select></label>
     </header>
     <p class="form-status" data-billing-status aria-live="polite"></p>
+    <section class="panel" data-create-organization hidden aria-labelledby="create-organization">
+      <div class="panel-header"><div><h2 id="create-organization">Crea tu organización</h2><p>Las compras, la facturación y el equipo pertenecen a una organización. Puedes invitar a más personas después.</p></div></div>
+      <form class="content" data-create-organization-form>
+        <label class="field">Nombre de la organización<input name="name" placeholder="Mi empresa" maxlength="160" required autocomplete="organization" /></label>
+        <small data-organization-slug></small>
+        <p class="form-status" data-create-organization-status role="alert"></p>
+        <div><button type="submit" class="btn btn-primary">Crear organización</button></div>
+      </form>
+    </section>
+    <div class="empty" data-billing-unconfigured hidden><h2>Facturación no configurada</h2><p>Configura Stripe y los planes permitidos en el backend para habilitar Checkout.</p></div>
     <section class="panel" data-billing-summary hidden aria-label="Suscripción actual"></section>
+    <h2 class="section-title" data-billing-plans-heading hidden>Planes disponibles</h2>
     <div class="grid" data-billing-plans></div>
   </section>
 </BaseLayout>

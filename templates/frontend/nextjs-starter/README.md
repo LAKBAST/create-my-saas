@@ -78,3 +78,10 @@ node scripts/validate-template-manifests.mjs
 Es un dashboard autenticado y no un sitio público de marketing. No incluye
 entidades ni pantallas específicas del producto; añádelas sin cambiar el
 contrato de autenticación ni las capacidades declaradas.
+
+### Enlaces del aviso de analítica
+
+Configura `NEXT_PUBLIC_PRIVACY_POLICY_URL` y `NEXT_PUBLIC_COOKIE_POLICY_URL` con las
+URLs HTTPS o rutas del mismo sitio de tus políticas publicadas. El aviso muestra
+los enlaces configurados; los valores vacíos no generan enlaces a páginas
+inexistentes. El texto del aviso usa `PRODUCT_NAME` de `app/lib/brand.ts`.

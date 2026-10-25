@@ -451,7 +451,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
       await expectPath(page, frontend === 'astro' ? '/billing/' : '/billing');
       await expect(page.getByRole('heading', { name: 'Planes y suscripción' })).toBeVisible();
       if (frontend === 'astro') {
-        await expect(page.locator('[data-billing-summary]')).toContainText(/Plan actual: free · active/i);
+        await expect(page.locator('[data-billing-summary]')).toContainText(/Plan actual: free/i);
         await expect(page.locator('[data-billing-status]')).toContainText(/Configura Stripe/i);
         await expect(page.getByRole('button', { name: 'Gestionar suscripción' })).toBeDisabled();
       } else {
