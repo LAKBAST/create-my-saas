@@ -480,7 +480,8 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         labels: { 'store.pro-api-keys': 'API keys' }, price: { unitAmount, currency: 'eur', interval, intervalCount },
       }));
       plans.push({ priceId: 'price_unavailable', name: 'Sin precio', entitlements: { legacy_key: 5 }, labels: {}, price: null });
-      await page.route('**/billing/organizations/*/configuration', (route) => route.fulfill({ json: {
+      const configurationRoute = /\/(?:billing\/organizations\/[^/]+|organizations\/[^/]+\/billing)\/configuration(?:\?.*)?$/;
+      await page.route(configurationRoute, (route) => route.fulfill({ json: {
         configured: true, provider: 'stripe', usageMeterConfigured: false, plans,
       } }));
       try {
@@ -496,7 +497,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         await expect(unavailable).toContainText('legacy_key');
         await expect(unavailable).not.toContainText('€');
       } finally {
-        await page.unroute('**/billing/organizations/*/configuration');
+        await page.unroute(configurationRoute);
       }
     });
   }
