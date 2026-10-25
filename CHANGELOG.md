@@ -5,6 +5,13 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- NestJS y Fastify rechazan en staging y producción los secretos de ejemplo,
+  los secretos de menos de 32 caracteres y las conexiones de base de datos a
+  `localhost`, con las mismas reglas y mensajes que FastAPI. NestJS comparte
+  la validación con las extensiones que sustituyen su módulo principal.
+
 ### Changed
 
 - FastAPI envía los correos de verificación, recuperación de contraseña e

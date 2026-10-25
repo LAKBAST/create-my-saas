@@ -452,3 +452,22 @@ test('GitHub rejects an unverified email returned by /user', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+for (const APP_ENV of ['staging', 'production']) {
+  const valid = {
+    APP_ENV, SECRET_KEY: 'a'.repeat(32), DATABASE_URL: 'postgresql://db.example.test/app', DATABASE_SSL: 'true',
+    FRONTEND_URL: 'https://app.example.test', CORS_ORIGINS: 'https://app.example.test', COOKIE_SECURE: 'true', RATE_LIMIT_ENABLED: 'true',
+    REDIS_URL: 'rediss://redis.example.test', EMAIL_DELIVERY_URL: 'https://mail.example.test', EMAIL_DELIVERY_TOKEN: 'token',
+  };
+  for (const SECRET_KEY of ['development-only-secret-not-for-production-32b', 'change-me-in-production', 'replace-with-a-long-random-secret', 'a'.repeat(31)]) {
+    test(APP_ENV + ' rejects example or short secrets: ' + SECRET_KEY, () => {
+      assert.throws(() => loadConfig({ ...valid, SECRET_KEY }), { message: 'SECRET_KEY must be a unique value of at least 32 characters in production.' });
+    });
+  }
+  test(APP_ENV + ' rejects a local database', () => {
+    assert.throws(() => loadConfig({ ...valid, DATABASE_URL: 'postgresql://localhost/app' }), { message: 'DATABASE_URL must point to the production database.' });
+  });
+  test(APP_ENV + ' accepts a remote database and a 32-character secret', () => {
+    assert.equal(loadConfig(valid).SECRET_KEY, valid.SECRET_KEY);
+  });
+}
