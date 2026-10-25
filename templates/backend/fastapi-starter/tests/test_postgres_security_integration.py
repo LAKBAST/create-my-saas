@@ -6,6 +6,7 @@ the Alembic migrations.
 """
 import asyncio
 import os
+import re
 import unittest
 from base64 import urlsafe_b64encode
 from dataclasses import replace
@@ -263,7 +264,7 @@ class PostgresSecurityIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 )
         self.assertFalse(result["accepted"])
         self.assertEqual(len(delivered), 1)
-        raw_token = delivered[0].rsplit(": ", 1)[1]
+        raw_token = re.search(r"token:\s*(\S+)", delivered[0], re.IGNORECASE).group(1)
 
         async with SessionLocal() as db:
             await invitations.accept_invitation(AcceptInvite(token=raw_token), invited, db)
