@@ -5,6 +5,13 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- FastAPI envía los correos de verificación, recuperación de contraseña e
+  invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
+  el enlace de respaldo, además de la versión en texto plano. Los asuntos
+  pasan a español.
+
 ## [1.4.0] - 2026-10-25
 
 ### Changed

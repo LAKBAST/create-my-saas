@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.email import send_secure_email
+from src.core.email_templates import render_email
 from src.core.exceptions import AppError
 from src.modules.auth.security.password import hash_password, verify_password
 from src.modules.auth.security.tokens import (
@@ -284,22 +285,25 @@ class AuthService:
 
     async def send_one_time_token(self, user: User, purpose: TokenPurpose) -> None:
         raw_token = await self.create_one_time_token(user, purpose)
+        path = "/reset-password" if purpose == TokenPurpose.PASSWORD_RESET else "/verify-email"
+        link = f"{settings.frontend_url.rstrip('/')}{path}?{urlencode({'token': raw_token})}"
         if purpose == TokenPurpose.PASSWORD_RESET:
-            path = "/reset-password"
-            subject = "Reset your password"
+            email = render_email(
+                subject="Restablece tu contraseña",
+                title="Restablece tu contraseña",
+                paragraphs=[f"Hola, {user.name}. Hemos recibido una solicitud para cambiar la contraseña de tu cuenta."],
+                action=("Elegir una contraseña nueva", link),
+                note="El enlace caduca en 1 hora y solo se puede usar una vez. Si no lo has pedido tú, tu contraseña sigue igual.",
+            )
         else:
-            path = "/verify-email"
-            subject = "Verify your email"
-
-        await send_secure_email(
-            recipient=user.email,
-            subject=subject,
-            body=(
-                "Use this one-time link: "
-                f"{settings.frontend_url.rstrip('/')}{path}?"
-                f"{urlencode({'token': raw_token})}"
-            ),
-        )
+            email = render_email(
+                subject="Confirma tu correo electrónico",
+                title="Confirma tu correo electrónico",
+                paragraphs=[f"Hola, {user.name}. Confirma que esta dirección es tuya para proteger tu cuenta y poder recuperarla si olvidas la contraseña."],
+                action=("Confirmar mi correo", link),
+                note="El enlace caduca en 24 horas y solo se puede usar una vez.",
+            )
+        await send_secure_email(recipient=user.email, subject=email.subject, body=email.text, html=email.html)
 
     async def consume_one_time_token(
         self,

@@ -45,6 +45,8 @@ class Settings:
     email_delivery_token: str | None = os.getenv("EMAIL_DELIVERY_TOKEN") or None
     # Sender for providers that require one (Resend: "Name <no-reply@your-domain>").
     email_from: str | None = os.getenv("EMAIL_FROM") or None
+    # Shown in the header and footer of every email.
+    product_name: str = os.getenv("PRODUCT_NAME", "").strip() or "Starter"
     stripe_secret_key: str | None = os.getenv("STRIPE_SECRET_KEY") or None
     stripe_webhook_secret: str | None = os.getenv("STRIPE_WEBHOOK_SECRET") or None
     stripe_price_plans: str = os.getenv("STRIPE_PRICE_PLANS", "{}")

@@ -10,7 +10,7 @@ class EmailDeliveryError(RuntimeError):
     pass
 
 
-async def send_secure_email(*, recipient: str, subject: str, body: str) -> None:
+async def send_secure_email(*, recipient: str, subject: str, body: str, html: str | None = None) -> None:
     """Send through the shared authenticated adapter. Development may suppress mail."""
     if not settings.email_delivery_configured:
         if settings.environment in {"production", "staging"}:
@@ -21,6 +21,8 @@ async def send_secure_email(*, recipient: str, subject: str, body: str) -> None:
         message = {"to": recipient, "subject": subject, "text": body}
         if settings.email_from:
             message["from"] = settings.email_from
+        if html:
+            message["html"] = html
         payload = json.dumps(message).encode("utf-8")
         email_request = request.Request(
             settings.email_delivery_url,
