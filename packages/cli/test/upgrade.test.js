@@ -131,7 +131,11 @@ test('upgrade refuses uncommitted changes, unknown base versions and missing man
   commitAll(project);
   writeFileSync(join(project, 'backend', 'server.js'), 'dirty\n');
   assert.throws(() => upgradeProject(options), /Commit or stash/);
+  // Projects generated before 1.6.0 (schema 2) do not record the CLI version.
+  const { templates } = JSON.parse(readFileSync(join(project, '.create-my-saas.json'), 'utf8'));
+  writeJson(join(project, '.create-my-saas.json'), { schemaVersion: 2, templates });
   assert.throws(() => upgradeProject({ ...options, fromVersion: undefined, allowDirty: true }), /--from <version>/);
+  assert.ok(upgradeProject({ ...options, allowDirty: true, dryRun: true }).plan.length > 0, 'with --from it works');
   rmSync(join(project, '.create-my-saas.json'));
   assert.throws(() => upgradeProject({ ...options, allowDirty: true }), /No \.create-my-saas\.json/);
 });
@@ -142,10 +146,10 @@ test('reads schema 2 and schema 3 manifests', (t) => {
   const templatesEntry = { backend: { id: 'backend:fastapi', version: '0.1.0', source: 'backend/fastapi-starter' }, frontend: { id: 'frontend:nextjs', version: '0.1.0', source: 'frontend/nextjs-starter' } };
   writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 2, templates: templatesEntry, extensions: [{ id: 'pro:api-keys', version: '1.1.0', source: '', manifestSchemaVersion: 1 }] });
   assert.deepEqual(readProjectManifest(workspace), { schemaVersion: 2, cliVersion: undefined, backendId: 'fastapi', frontendId: 'nextjs', featureIds: ['pro:api-keys'], unmanaged: [] });
-  writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 3, cliVersion: '1.6.0', templates: templatesEntry, features: ['api-keys'], files: {}, unmanaged: ['deployment/nginx.conf'] });
+  writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 3, cliVersion: '1.6.0', templates: templatesEntry, features: ['api-keys'], extensions: [], files: {}, unmanaged: ['deployment/nginx.conf'] });
   assert.deepEqual(readProjectManifest(workspace), { schemaVersion: 3, cliVersion: '1.6.0', backendId: 'fastapi', frontendId: 'nextjs', featureIds: ['api-keys'], unmanaged: ['deployment/nginx.conf'] });
   writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 9, templates: templatesEntry });
-  assert.throws(() => readProjectManifest(workspace), /unsupported format/);
+  assert.throws(() => readProjectManifest(workspace), /schemaVersion must be 2 or 3/);
 });
 
 test('parses upgrade options and routes the subcommand', () => {

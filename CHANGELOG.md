@@ -12,6 +12,17 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   archivos que no has tocado, fusiona los que sí y marca los conflictos.
   Incluye `--dry-run`, `--from` para proyectos antiguos, `--allow-dirty` y
   respeta las rutas `unmanaged` de `.create-my-saas.json`.
+- Los proyectos generados incluyen `.create-my-saas.json` con las opciones de
+  generación, las versiones de las extensiones y los hashes de los archivos,
+  que usa el comando `upgrade`. El esquema 3 conserva `templates`
+  y los metadatos completos de `extensions` del esquema 2, y añade `cliVersion`,
+  `features`, `files` y `unmanaged`.
+
+### Fixed
+
+- La generación normaliza los archivos de texto a LF y fija el orden de lectura
+  y los permisos, para producir el mismo resultado desde distintos directorios
+  y sistemas. Los secretos siguen siendo marcadores que hay que configurar.
 
 ## [1.5.2] - 2026-10-25
 

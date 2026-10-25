@@ -3,38 +3,29 @@
 // version it came from, so the user's edits survive while template changes
 // arrive. The project must be a clean git checkout so every change is reviewable.
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { defaultExtensionsDirectory } from './catalog.js';
 import { generateProject } from './generator.js';
+import { fileDigest, MANIFEST_FILE, normalizedFileContents, readManifest } from './manifest.js';
 
-export const MANIFEST_FILE = '.create-my-saas.json';
 const cliVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const isBinary = (buffer) => buffer.subarray(0, 8000).includes(0);
-const normalize = (buffer) => (isBinary(buffer) ? buffer : Buffer.from(buffer.toString('utf8').replace(/\r\n/g, '\n'), 'utf8'));
-const digest = (buffer) => createHash('sha256').update(normalize(buffer)).digest('hex');
 
-/** Reads a schema 2 or 3 manifest and returns what upgrade needs from it. */
+/** What upgrade needs from a schema 2 or 3 manifest (validated by manifest.js). */
 export function readProjectManifest(projectDirectory) {
-  const path = join(projectDirectory, MANIFEST_FILE);
-  if (!existsSync(path)) return null;
-  let manifest;
-  try { manifest = JSON.parse(readFileSync(path, 'utf8')); } catch { throw new Error(`${MANIFEST_FILE} is not valid JSON.`); }
-  if (![2, 3].includes(manifest.schemaVersion) || typeof manifest.templates !== 'object' || manifest.templates === null) {
-    throw new Error(`${MANIFEST_FILE} has an unsupported format (schemaVersion ${manifest.schemaVersion}).`);
-  }
-  const shortId = (template) => (typeof template?.id === 'string' ? template.id.split(':').at(-1) : undefined);
-  const extensions = Array.isArray(manifest.extensions) ? manifest.extensions.map((extension) => extension.id) : [];
+  const manifest = readManifest(projectDirectory);
+  if (!manifest) return null;
+  const shortId = (template) => template?.id.split(':').at(-1);
   return {
     schemaVersion: manifest.schemaVersion,
-    cliVersion: typeof manifest.cliVersion === 'string' ? manifest.cliVersion : undefined,
+    cliVersion: manifest.cliVersion ?? undefined,
     backendId: shortId(manifest.templates.backend),
     frontendId: shortId(manifest.templates.frontend),
-    featureIds: Array.isArray(manifest.features) ? manifest.features : extensions,
-    unmanaged: Array.isArray(manifest.unmanaged) ? manifest.unmanaged : [],
+    featureIds: manifest.features,
+    unmanaged: manifest.unmanaged,
   };
 }
 
@@ -134,7 +125,7 @@ export function upgradeProject({
       const base = baseFiles.has(path) ? readFileSync(join(baseDirectory, path)) : undefined;
       const incoming = currentFiles.has(path) ? readFileSync(join(currentDirectory, path)) : undefined;
       const mine = existsSync(target) ? readFileSync(target) : undefined;
-      const same = (a, b) => a !== undefined && b !== undefined && digest(a) === digest(b);
+      const same = (a, b) => a !== undefined && b !== undefined && fileDigest(a) === fileDigest(b);
 
       if (incoming === undefined) {
         // Removed by the template: delete it only if the user never changed it.
@@ -151,7 +142,7 @@ export function upgradeProject({
       } else if (isBinary(mine) || isBinary(incoming)) {
         plan.push({ path, action: 'conflict', reason: 'archivo binario modificado por las dos partes', sidecar: incoming });
       } else {
-        const merged = mergeText(normalize(mine), normalize(base ?? Buffer.alloc(0)), normalize(incoming));
+        const merged = mergeText(normalizedFileContents(mine), normalizedFileContents(base ?? Buffer.alloc(0)), normalizedFileContents(incoming));
         plan.push({ path, action: merged.conflict ? 'conflict' : 'merged', content: matchLineEndings(merged.text, mine) });
       }
     }
@@ -165,8 +156,7 @@ export function upgradeProject({
       }
       // The new generation's manifest becomes the base of the next upgrade.
       const next = existsSync(join(currentDirectory, MANIFEST_FILE)) ? JSON.parse(readFileSync(join(currentDirectory, MANIFEST_FILE), 'utf8')) : {};
-      if (next.schemaVersion >= 3) next.unmanaged = [...unmanaged].sort();
-      next.cliVersion ??= cliVersion;
+      next.unmanaged = [...unmanaged].sort();
       writeFileSync(join(project, MANIFEST_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8');
     }
     return { fromVersion: baseVersion, toVersion: cliVersion, plan: plan.map(({ content, sidecar, ...entry }) => entry) };
