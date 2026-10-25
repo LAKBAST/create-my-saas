@@ -58,7 +58,7 @@ describe('OrganizationsService', () => {
 
     expect(invitations.save).toHaveBeenCalledTimes(1);
     expect(secureEmail.send).toHaveBeenCalledTimes(1);
-    expect(secureEmail.send).toHaveBeenCalledWith('member@example.com', 'Organization invitation', expect.any(String));
+    expect(secureEmail.send).toHaveBeenCalledWith('member@example.com', expect.stringContaining('Organization invitation'), expect.any(String), expect.stringContaining('<html'));
     expect(audit.record).toHaveBeenCalledTimes(1);
     expect(audit.record).toHaveBeenCalledWith({
       organizationId: 'organization-1', actorUserId: user.id, action: 'organization.invitation.created',
@@ -95,7 +95,7 @@ describe('OrganizationsService', () => {
     await service.invite('organization-1', user.id, 'member@example.com', 'member');
 
     expect((stored as Invitation | undefined)?.tokenHash).not.toBe(firstHash);
-    const deliveredToken = (secureEmail.send as jest.Mock).mock.calls[1][2].split(': ')[1];
+    const deliveredToken = (secureEmail.send as jest.Mock).mock.calls[1][2].match(/token:\s*(\S+)/i)?.[1] ?? '';
     expect((stored as Invitation | undefined)?.tokenHash).toBe(createHash('sha256').update(deliveredToken).digest('hex'));
     expect(invitations.save).toHaveBeenCalledTimes(2);
     expect(secureEmail.send).toHaveBeenCalledTimes(2);

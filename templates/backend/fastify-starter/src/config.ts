@@ -25,6 +25,8 @@ const environment = z.object({
   EMAIL_DELIVERY_URL: z.string().url().optional(),
   EMAIL_DELIVERY_TOKEN: z.string().min(1).optional(),
   EMAIL_FROM: z.string().min(1).optional(),
+  PRODUCT_NAME: z.string().optional(),
+  EMAIL_ACCENT_COLOR: z.string().optional(),
   RATE_LIMIT_ENABLED: environmentBoolean('true'),
   RATE_LIMIT_REQUESTS: z.coerce.number().int().positive().default(30),
   RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),

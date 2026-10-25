@@ -464,7 +464,7 @@ describe('AppController (e2e)', () => {
         .send({ email: invited.email, role: invited.role })
         .expect(201);
       const invitation = deliveries.findLast((delivery) =>
-        delivery.recipient === invited.email && delivery.subject === 'Organization invitation');
+        delivery.recipient === invited.email && delivery.subject.includes('Organization invitation'));
       const token = invitation?.text.match(/token: (\S+)/)?.[1];
       if (!token) throw new Error('Organization invitation token was not delivered');
       await request(app.getHttpServer())
@@ -602,7 +602,7 @@ describe('AppController (e2e)', () => {
     await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com', role: 'owner' }).expect(400).expect({ error: { code: 'OWNER_ROLE_PROTECTED', message: 'Owner invitations are not permitted.' } });
     const invitation = await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com' }).expect(201);
     expect(invitation.body).toEqual({ id: expect.any(String), accepted: false });
-    const delivered = deliveries.findLast((message) => message.subject === 'Organization invitation');
+    const delivered = deliveries.findLast((message) => message.subject.includes('Organization invitation'));
     const token = delivered?.text.match(/token: (\S+)/)?.[1];
     expect(token).toBeDefined();
     await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com' }).expect(201, invitation.body);

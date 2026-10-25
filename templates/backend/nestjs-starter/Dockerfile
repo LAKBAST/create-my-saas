@@ -21,6 +21,8 @@ RUN corepack enable && useradd --create-home --uid 10001 app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --prod --frozen-lockfile
 COPY --from=build --chown=app:app /app/dist ./dist
+# Email layout and texts shared with the other backends (templates/shared/email).
+COPY --from=build --chown=app:app /app/email ./email
 USER app
 EXPOSE 8000
 CMD ["node", "dist/main"]
