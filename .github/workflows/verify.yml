@@ -236,6 +236,10 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
+          # Keep the downloaded wheels: the default "uv cache prune --ci"
+          # leaves an almost empty cache, since every dependency ships a wheel.
+          prune-cache: false
+          cache-suffix: wheels
       - name: Generate, install, boot, and exercise the HTTP contract
         run: >-
           node scripts/e2e-generated-projects.mjs
@@ -303,6 +307,10 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
+          # Keep the downloaded wheels: the default "uv cache prune --ci"
+          # leaves an almost empty cache, since every dependency ships a wheel.
+          prune-cache: false
+          cache-suffix: wheels
       - name: Install the Playwright test runner
         run: pnpm install --frozen-lockfile
       - name: Read the Playwright version
@@ -445,6 +453,10 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
+          # Keep the downloaded wheels: the default "uv cache prune --ci"
+          # leaves an almost empty cache, since every dependency ships a wheel.
+          prune-cache: false
+          cache-suffix: wheels
       - run: uv sync --locked
       - run: uv run alembic upgrade heads
       - run: uv run python -m unittest discover -s tests
