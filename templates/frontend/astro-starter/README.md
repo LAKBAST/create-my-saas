@@ -63,3 +63,4 @@ HTTPS o rutas del mismo sitio de tus políticas publicadas. El aviso muestra los
 enlaces configurados; los valores vacíos no generan enlaces a páginas
 inexistentes. El texto del aviso usa `PRODUCT_NAME` de `src/lib/brand.ts`.
 
+
