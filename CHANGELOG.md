@@ -9,7 +9,9 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 - Los proyectos generados incluyen `.create-my-saas.json` con las opciones de
   generación, las versiones de las extensiones y los hashes de los archivos,
-  como base del futuro comando `upgrade`.
+  como base del futuro comando `upgrade`. El esquema 3 conserva `templates`
+  y los metadatos completos de `extensions` del esquema 2, y añade `cliVersion`,
+  `features`, `files` y `unmanaged`.
 
 ### Fixed
 

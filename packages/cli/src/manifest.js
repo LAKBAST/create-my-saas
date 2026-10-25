@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { findTemplate, loadCatalog } from './catalog.js';
 
 export const MANIFEST_FILE = '.create-my-saas.json';
 
@@ -23,7 +24,18 @@ export function fileDigest(buffer) {
   return createHash('sha256').update(normalizedFileContents(buffer)).digest('hex');
 }
 
-export function buildManifest(projectDirectory, { cliVersion, backend = null, frontend = null, features = [], extensions = [] }) {
+export function buildManifest(projectDirectory, { cliVersion, backend = null, frontend = null, templates, features = [], extensions = [] }) {
+  // Accept the original short-ID API as well as catalog records. Callers with
+  // persisted v2 template metadata can pass templates directly.
+  if (templates === undefined) {
+    const catalog = typeof backend === 'string' || typeof frontend === 'string' ? loadCatalog() : null;
+    templates = {};
+    for (const [kind, selection] of [['backend', backend], ['frontend', frontend]]) {
+      if (!selection) continue;
+      const template = typeof selection === 'string' ? findTemplate(catalog, kind, selection) : selection;
+      templates[kind] = { id: template.id, version: template.version, source: template.directory ?? template.source };
+    }
+  }
   const files = [];
   function visit(directory, prefix = '') {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -37,12 +49,16 @@ export function buildManifest(projectDirectory, { cliVersion, backend = null, fr
   visit(projectDirectory);
   files.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
   return {
-    schemaVersion: 1,
+    schemaVersion: 3,
     cliVersion,
-    backend,
-    frontend,
+    templates,
     features: [...features].sort(),
-    extensions: extensions.map(({ id, version }) => ({ id, version: version ?? null })),
+    extensions: extensions.map((extension) => ({
+      id: extension.id,
+      version: extension.version ?? null,
+      source: extension.directory ?? extension.source,
+      manifestSchemaVersion: extension.schemaVersion ?? extension.manifestSchemaVersion,
+    })),
     files: Object.fromEntries(files),
     unmanaged: [],
   };
@@ -62,17 +78,22 @@ function validateManifest(manifest) {
     if (!condition) throw new Error(`Invalid ${MANIFEST_FILE}: ${message}`);
   };
   require(isObject(manifest), 'expected an object.');
-  require(manifest.schemaVersion === 1, 'schemaVersion must be 1.');
+  require(manifest.schemaVersion === 3, 'schemaVersion must be 3.');
   require(typeof manifest.cliVersion === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.cliVersion), 'cliVersion must be a version string.');
-  require([null, 'fastapi', 'nestjs', 'fastify'].includes(manifest.backend), 'backend must be fastapi, nestjs, fastify or null.');
-  require([null, 'nextjs', 'react-router', 'astro'].includes(manifest.frontend), 'frontend must be nextjs, react-router, astro or null.');
-  require(manifest.backend !== null || manifest.frontend !== null, 'select at least one backend or frontend.');
+  require(isObject(manifest.templates) && Object.keys(manifest.templates).length > 0
+    && Object.entries(manifest.templates).every(([kind, template]) => ['backend', 'frontend'].includes(kind)
+      && isObject(template) && typeof template.id === 'string' && new RegExp(`^${kind}:[a-z][a-z0-9-]*$`).test(template.id)
+      && typeof template.version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(template.version)
+      && safePath(template.source) && Object.keys(template).every((key) => ['id', 'version', 'source'].includes(key))),
+  'templates must contain backend and/or frontend entries with id, version and relative source.');
   require(strings(manifest.features) && manifest.features.every((id, index) => /^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?$/.test(id)
     && (index === 0 || manifest.features[index - 1] <= id)), 'features must be a sorted array of feature IDs.');
   require(Array.isArray(manifest.extensions) && manifest.extensions.every((extension) => isObject(extension)
     && typeof extension.id === 'string' && /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/.test(extension.id)
     && (extension.version === null || (typeof extension.version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(extension.version)))
-    && Object.keys(extension).every((key) => ['id', 'version'].includes(key))), 'extensions must contain { id, version } entries.');
+    && safePath(extension.source) && Number.isInteger(extension.manifestSchemaVersion) && extension.manifestSchemaVersion >= 1
+    && Object.keys(extension).every((key) => ['id', 'version', 'source', 'manifestSchemaVersion'].includes(key))),
+  'extensions must contain { id, version, source, manifestSchemaVersion } entries.');
   require(new Set(manifest.extensions.map(({ id }) => id)).size === manifest.extensions.length, 'extension IDs must be unique.');
   require(isObject(manifest.files), 'files must be an object.');
   for (const [path, digest] of Object.entries(manifest.files)) {
@@ -81,7 +102,7 @@ function validateManifest(manifest) {
   }
   require(strings(manifest.unmanaged) && manifest.unmanaged.every(safePath)
     && new Set(manifest.unmanaged).size === manifest.unmanaged.length, 'unmanaged must be an array of unique relative paths.');
-  require(Object.keys(manifest).every((key) => ['schemaVersion', 'cliVersion', 'backend', 'frontend', 'features', 'extensions', 'files', 'unmanaged'].includes(key)), 'unexpected manifest field.');
+  require(Object.keys(manifest).every((key) => ['schemaVersion', 'cliVersion', 'templates', 'features', 'extensions', 'files', 'unmanaged'].includes(key)), 'unexpected manifest field.');
   return manifest;
 }
 

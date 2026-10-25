@@ -737,8 +737,8 @@ export function generateProject({
     normalizeProject(temporaryDirectory);
     writeManifest(temporaryDirectory, buildManifest(temporaryDirectory, {
       cliVersion,
-      backend: backend?.key ?? null,
-      frontend: frontend?.key ?? null,
+      backend,
+      frontend,
       features: featureIds,
       extensions,
     }));

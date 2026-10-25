@@ -48,10 +48,14 @@ test('manifest sorts paths and features, omits itself and stores no source paths
   mkdirSync(join(directory, 'a'));
   writeFileSync(join(directory, 'a', 'b.txt'), 'b\n');
   writeFileSync(join(directory, MANIFEST_FILE), 'old manifest');
-  const manifest = buildManifest(directory, { ...options, features: ['z', 'a'], extensions: [{ id: 'test:example', sourceDirectory: directory }] });
+  const manifest = buildManifest(directory, { ...options, features: ['z', 'a'], extensions: [{ id: 'test:example', directory: 'example', schemaVersion: 1, sourceDirectory: directory }] });
   assert.deepEqual(Object.keys(manifest.files), ['a/b.txt', 'z.txt']);
   assert.deepEqual(manifest.features, ['a', 'z']);
-  assert.deepEqual(manifest.extensions, [{ id: 'test:example', version: null }]);
+  assert.equal(manifest.schemaVersion, 3);
+  assert.equal('backend' in manifest, false);
+  assert.equal('frontend' in manifest, false);
+  assert.deepEqual(manifest.extensions, [{ id: 'test:example', version: null, source: 'example', manifestSchemaVersion: 1 }]);
+  assert.equal(JSON.stringify(manifest).includes(directory), false);
   writeManifest(directory, manifest);
   assert.equal(readFileSync(join(directory, MANIFEST_FILE), 'utf8'), `${JSON.stringify(manifest, null, 2)}\n`);
   assert.deepEqual(readManifest(directory), manifest);
@@ -61,9 +65,12 @@ test('readManifest returns null only for absent manifests and rejects invalid sc
   const directory = workspace(t);
   assert.equal(readManifest(directory), null);
   const valid = buildManifest(directory, options);
-  const invalid = [null, [], {}, { ...valid, schemaVersion: 2 }, { ...valid, cliVersion: '' },
-    { ...valid, backend: 'backend:fastapi' }, { ...valid, frontend: 'wrong' },
-    { ...valid, backend: null }, { ...valid, features: ['z', 'a'] }, { ...valid, features: [2] },
+  const invalid = [null, [], {}, { ...valid, schemaVersion: 1 }, { ...valid, schemaVersion: 2 }, { ...valid, cliVersion: '' },
+    { ...valid, templates: {} }, { ...valid, templates: [] },
+    { ...valid, templates: { wrong: valid.templates.backend } },
+    ...[{ id: 'fastapi' }, { id: 'frontend:fastapi' }, { version: 2 }, { source: '/absolute/path' }, { source: '../outside' }]
+      .map((changes) => ({ ...valid, templates: { backend: { ...valid.templates.backend, ...changes } } })),
+    { ...valid, backend: null }, { ...valid, frontend: null }, { ...valid, features: ['z', 'a'] }, { ...valid, features: [2] },
     { ...valid, extensions: [{ id: 'test:x' }] }, { ...valid, extensions: [{ id: 'test:x', version: 2 }] },
     { ...valid, files: [] }, { ...valid, files: { 'x.txt': 'wrong' } },
     ...['../x', '/x', 'C:/x', 'a\\x', 'a//x', './x', MANIFEST_FILE].map((path) => ({ ...valid, files: { [path]: 'a'.repeat(64) } })),
@@ -82,6 +89,22 @@ test('readManifest returns null only for absent manifests and rejects invalid sc
   assert.throws(() => readManifest(directory), /malformed JSON/);
 });
 
+test('v3 extends v2 template and extension metadata without dropping legacy fields', (t) => {
+  const directory = workspace(t);
+  const templates = {
+    backend: { id: 'backend:fastapi', version: '0.1.0', source: 'backend/fastapi-starter' },
+    frontend: { id: 'frontend:nextjs', version: '0.1.0', source: 'frontend/nextjs-starter' },
+  };
+  const extensions = [{ id: 'pro:example', version: '1.2.3', source: 'external/example', manifestSchemaVersion: 1 }];
+  const manifest = buildManifest(directory, { cliVersion, templates, extensions });
+  assert.deepEqual(manifest.templates, templates);
+  assert.deepEqual(manifest.extensions, extensions);
+  assert.equal(manifest.schemaVersion, 3);
+  assert.deepEqual(Object.keys(manifest).sort(), ['schemaVersion', 'templates', 'extensions', 'cliVersion', 'features', 'files', 'unmanaged'].sort());
+  writeManifest(directory, manifest);
+  assert.deepEqual(readManifest(directory), manifest);
+});
+
 const catalog = loadCatalog();
 for (const backend of [null, ...catalog.backend]) {
   for (const frontend of [null, ...catalog.frontend]) {
@@ -94,8 +117,13 @@ for (const backend of [null, ...catalog.backend]) {
       assert.deepEqual(tree(destinations[0]), tree(destinations[1]));
       const manifest = readManifest(destinations[0]);
       assert.equal(manifest.cliVersion, cliVersion);
-      assert.equal(manifest.backend, backend?.key ?? null);
-      assert.equal(manifest.frontend, frontend?.key ?? null);
+      const legacyTemplates = {};
+      for (const [kind, template] of [['backend', backend], ['frontend', frontend]]) {
+        if (template) legacyTemplates[kind] = { id: template.id, version: template.version, source: template.directory };
+      }
+      assert.deepEqual(manifest.templates, legacyTemplates);
+      assert.equal('backend' in manifest, false);
+      assert.equal('frontend' in manifest, false);
       const files = tree(destinations[0]).filter(([path]) => path !== MANIFEST_FILE);
       assert.deepEqual(Object.keys(manifest.files), files.map(([path]) => path));
       for (const [path, contents] of files) {
@@ -148,7 +176,7 @@ test('templates and extension overlays reproduce across CRLF, LF, source modes a
   assert.deepEqual(tree(destinations[0]), tree(destinations[1]));
   const manifest = readManifest(destinations[0]);
   assert.deepEqual(manifest.features, ['example']);
-  assert.deepEqual(manifest.extensions, [{ id: 'test:example', version: '1.0.0' }]);
+  assert.deepEqual(manifest.extensions, [{ id: 'test:example', version: '1.0.0', source: 'example', manifestSchemaVersion: 1 }]);
   assert.equal(manifest.files['backend/example.ico'], fileDigest(binary));
   assert.equal(manifest.files['backend/example.sh'], fileDigest(Buffer.from('#!/bin/sh\necho example\n')));
   assert.deepEqual(readFileSync(join(destinations[0], 'backend', 'example.ico')), binary);

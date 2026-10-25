@@ -508,7 +508,7 @@ test('generates Astro billing with NestJS and records the selected feature', (t)
   assert.match(readFileSync(join(destination, 'frontend', 'astro.config.mjs'), 'utf8'), /organizations/);
   assert.match(readFileSync(join(destination, 'frontend', 'astro.config.mjs'), 'utf8'), /billing/);
   const metadata = JSON.parse(readFileSync(join(destination, '.create-my-saas.json'), 'utf8'));
-  assert.equal(metadata.schemaVersion, 2);
+  assert.equal(metadata.schemaVersion, 3);
   assert.deepEqual(metadata.extensions, [{
     id: 'community:astro-billing', version: '1.0.0', source: 'community-astro-billing', manifestSchemaVersion: 1,
   }]);
