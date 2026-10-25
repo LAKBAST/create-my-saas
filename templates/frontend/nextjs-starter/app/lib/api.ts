@@ -163,14 +163,36 @@ function authentication(input: Record<string, unknown>): Authentication {
   return { accessToken: String(input.accessToken ?? input.access_token), user: normaliseUser(input.user as Record<string, unknown>) };
 }
 
+// NestJS serves billing under /organizations/{id}/billing and FastAPI under
+// /billing/organizations/{id}. The first request finds out which one answers
+// (concurrent ones wait for it), so later requests skip the failing 404.
+type BillingRoutes = "nest" | "fastapi";
+let billingRoutes: Promise<BillingRoutes | undefined> | undefined;
+
 async function billingRequest<T>(organizationId: string, suffix: "subscription" | "configuration" | "checkout" | "portal", accessToken: string, body?: unknown): Promise<T> {
   const options: RequestOptions = { method: suffix === "subscription" || suffix === "configuration" ? "GET" : "POST", accessToken, ...(body === undefined ? {} : { body }) };
+  const paths: Record<BillingRoutes, string> = {
+    nest: `/organizations/${organizationId}/billing/${suffix}`,
+    fastapi: `/billing/organizations/${organizationId}${suffix === "subscription" ? "" : `/${suffix}`}`,
+  };
+  // Claim detection synchronously; awaiting undefined lets concurrent callers race.
+  while (billingRoutes) {
+    const known = await billingRoutes;
+    if (known) return request<T>(paths[known], options);
+  }
+  let settle: (routes: BillingRoutes | undefined) => void = () => undefined;
+  billingRoutes = new Promise((resolve) => { settle = resolve; });
   try {
-    return await request<T>(`/organizations/${organizationId}/billing/${suffix}`, options);
+    const result = await request<T>(paths.nest, options);
+    settle("nest");
+    return result;
   } catch (cause) {
-    if (!(cause instanceof ApiError) || cause.status !== 404) throw cause;
-    const fastApiSuffix = suffix === "subscription" ? "" : `/${suffix}`;
-    return request<T>(`/billing/organizations/${organizationId}${fastApiSuffix}`, options);
+    if (!(cause instanceof ApiError) || cause.status !== 404) { billingRoutes = undefined; settle(undefined); throw cause; }
+    try {
+      const result = await request<T>(paths.fastapi, options);
+      settle("fastapi");
+      return result;
+    } catch (error) { billingRoutes = undefined; settle(undefined); throw error; }
   }
 }
 

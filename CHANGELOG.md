@@ -5,6 +5,13 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Facturación recuerda la ruta del backend y comparte su detección entre
+  peticiones concurrentes, evitando repetir peticiones contra el otro backend.
+- Los precios de Stripe se consultan en paralelo y se guardan en caché un día.
+- Los botones dentro de estados vacíos conservan el contraste de su texto.
+
 ## [1.7.0] - 2026-10-25
 
 ### Added

@@ -254,12 +254,36 @@ type BillingConfiguration = { configured: boolean; plans: BillingPlan[] };
 type BillingSubscription = { plan: string; status: string; seats: number; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean };
 type BillingRedirect = { url: string | null; reason?: string };
 
-async function billingRequest<T>(organizationId: string, suffix: "subscription" | "configuration" | "checkout" | "portal", token: string, body?: unknown) {
-  const init: Omit<RequestInit, "body"> & { body?: unknown; token?: string | null } = { method: suffix === "subscription" || suffix === "configuration" ? "GET" : "POST", token, ...(body === undefined ? {} : { body }) };
-  try { return await request<T>(`/organizations/${organizationId}/billing/${suffix}`, init); }
-  catch (cause) {
-    if (!(cause instanceof ApiError) || cause.status !== 404) throw cause;
-    return request<T>(`/billing/organizations/${organizationId}${suffix === "subscription" ? "" : `/${suffix}`}`, init);
+// NestJS serves billing under /organizations/{id}/billing and FastAPI under
+// /billing/organizations/{id}. The first request finds out which one answers
+// (concurrent ones wait for it), so later requests skip the failing 404.
+type BillingRoutes = "nest" | "fastapi";
+let billingRoutes: Promise<BillingRoutes | undefined> | undefined;
+
+async function billingRequest<T>(organizationId: string, suffix: "subscription" | "configuration" | "checkout" | "portal", token: string, body?: unknown): Promise<T> {
+  const options: Omit<RequestInit, "body"> & { body?: unknown; token?: string | null } = { method: suffix === "subscription" || suffix === "configuration" ? "GET" : "POST", token, ...(body === undefined ? {} : { body }) };
+  const paths: Record<BillingRoutes, string> = {
+    nest: `/organizations/${organizationId}/billing/${suffix}`,
+    fastapi: `/billing/organizations/${organizationId}${suffix === "subscription" ? "" : `/${suffix}`}`,
+  };
+  // Claim detection synchronously; awaiting undefined lets concurrent callers race.
+  while (billingRoutes) {
+    const known = await billingRoutes;
+    if (known) return request<T>(paths[known], options);
+  }
+  let settle: (routes: BillingRoutes | undefined) => void = () => undefined;
+  billingRoutes = new Promise((resolve) => { settle = resolve; });
+  try {
+    const result = await request<T>(paths.nest, options);
+    settle("nest");
+    return result;
+  } catch (cause) {
+    if (!(cause instanceof ApiError) || cause.status !== 404) { billingRoutes = undefined; settle(undefined); throw cause; }
+    try {
+      const result = await request<T>(paths.fastapi, options);
+      settle("fastapi");
+      return result;
+    } catch (error) { billingRoutes = undefined; settle(undefined); throw error; }
   }
 }
 
