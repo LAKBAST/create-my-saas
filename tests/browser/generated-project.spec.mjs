@@ -461,7 +461,9 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         }
       };
       page.on('response', recordMissingBillingRoute);
-      await page.getByRole('link', { name: 'Facturación', exact: true }).click();
+      // Organization creation already loaded billing. Start a fresh document so
+      // all frontends reset their module cache before measuring detection.
+      await page.goto(frontend === 'astro' ? '/billing/' : '/billing');
       await expectPath(page, frontend === 'astro' ? '/billing/' : '/billing');
       await expect(page.getByRole('heading', { name: 'Planes y suscripción' })).toBeVisible();
       if (frontend === 'astro') {
