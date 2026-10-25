@@ -97,6 +97,32 @@ La CLI no sobrescribe directorios existentes. Cada proyecto generado incluye
 `.create-my-saas.json` con los IDs y versiones de las plantillas elegidas, y no
 copia dependencias, entornos virtuales ni artefactos de compilación locales.
 
+### Actualizar un proyecto generado
+
+Desde la carpeta del proyecto, con el repositorio de git sin cambios pendientes:
+
+```sh
+npx @soymanolo/create-my-saas@latest upgrade --dry-run   # qué cambiaría
+npx @soymanolo/create-my-saas@latest upgrade
+```
+
+La CLI regenera el proyecto con la versión de la que viene (descargándola de
+npm) y con la actual, y compara cada archivo con tu copia:
+
+- si no lo has tocado, se sustituye por el de la versión nueva;
+- si lo has cambiado y la plantilla también, se fusionan las dos versiones;
+  cuando chocan quedan marcas `<<<<<<<` que debes resolver (y el comando sale
+  con código 2);
+- los archivos nuevos de la plantilla se añaden y los que la plantilla elimina
+  se borran solo si no los has modificado;
+- tus archivos propios no se tocan.
+
+Revisa el resultado con `git diff` y haz commit. Los proyectos creados antes de
+que `.create-my-saas.json` guardara la versión de la CLI necesitan indicarla una
+vez con `--from <versión>`. Las rutas de `unmanaged` en ese archivo no se
+actualizan nunca, para lo que hayas personalizado a fondo. Si usaste extensiones
+de una carpeta local (por ejemplo, Pro), vuelve a pasar `--extensions-dir`.
+
 ## Combinaciones
 
 | Necesidad | Combinación recomendada |

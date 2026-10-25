@@ -5,6 +5,14 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `create-my-saas upgrade` actualiza un proyecto generado con una fusión a
+  tres bandas: regenera la versión de la que viene y la actual, sustituye los
+  archivos que no has tocado, fusiona los que sí y marca los conflictos.
+  Incluye `--dry-run`, `--from` para proyectos antiguos, `--allow-dirty` y
+  respeta las rutas `unmanaged` de `.create-my-saas.json`.
+
 ## [1.5.2] - 2026-10-25
 
 ### Fixed

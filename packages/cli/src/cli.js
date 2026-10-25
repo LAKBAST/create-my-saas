@@ -1,7 +1,9 @@
 import { defaultExtensionsDirectory, loadCatalog } from './catalog.js';
 import { generateProject } from './generator.js';
+import { formatUpgradeSummary, upgradeProject } from './upgrade.js';
 
 const usage = `Usage: create-my-saas <destination> [options]
+       create-my-saas upgrade [project] [upgrade options]
 
 Options:
   --backend <id>     Backend template to generate
@@ -11,10 +13,18 @@ Options:
   --list             List available templates
   --help, -h         Show this help
 
+Upgrade options:
+  --from <version>         CLI version the project was generated with (needed once for older projects)
+  --extensions-dir <path>  Extension directory the project was generated with (repeatable)
+  --dry-run                Show what would change without writing anything
+  --allow-dirty            Upgrade even if the project has uncommitted changes
+
 Examples:
   create-my-saas my-saas --backend nestjs --frontend nextjs
   create-my-saas my-saas --backend nestjs --frontend astro --feature billing
   create-my-saas api-only --backend fastapi
+  create-my-saas upgrade --dry-run
+  create-my-saas upgrade ./my-saas --from 1.3.3
 `;
 
 function listTemplates(log, catalog = loadCatalog()) {
@@ -86,8 +96,41 @@ export function parseArguments(argumentsList) {
   return options;
 }
 
+export function parseUpgradeArguments(argumentsList) {
+  const options = { projectDirectory: '.', fromVersion: undefined, extensionsDirectories: [], dryRun: false, allowDirty: false, help: false };
+  let project;
+  for (let index = 0; index < argumentsList.length; index += 1) {
+    const argument = argumentsList[index];
+    const [name, inline] = argument.startsWith('--') && argument.includes('=') ? [argument.slice(0, argument.indexOf('=')), argument.slice(argument.indexOf('=') + 1)] : [argument, undefined];
+    if (name === '--from' || name === '--extensions-dir') {
+      const value = inline ?? argumentsList[index + 1];
+      if (!value || value.startsWith('--')) throw new Error(`Missing value for ${name}.`);
+      if (inline === undefined) index += 1;
+      if (name === '--from') options.fromVersion = value.replace(/^v/, '');
+      else options.extensionsDirectories.push(value);
+    } else if (argument === '--dry-run') options.dryRun = true;
+    else if (argument === '--allow-dirty') options.allowDirty = true;
+    else if (argument === '--help' || argument === '-h') options.help = true;
+    else if (argument.startsWith('-')) throw new Error(`Unknown option: ${argument}`);
+    else if (project === undefined) project = argument;
+    else throw new Error(`Unexpected argument: ${argument}`);
+  }
+  if (project !== undefined) options.projectDirectory = project;
+  return options;
+}
+
+function runUpgrade(argumentsList, log) {
+  const options = parseUpgradeArguments(argumentsList);
+  if (options.help) { log(usage); return 0; }
+  const result = upgradeProject(options);
+  log(formatUpgradeSummary(result, { dryRun: options.dryRun }));
+  // Conflicts need the user's attention, so scripts can tell them apart.
+  return result.plan.some((entry) => entry.action === 'conflict') ? 2 : 0;
+}
+
 export function run(argumentsList, { log = console.log, error = console.error } = {}) {
   try {
+    if (argumentsList[0] === 'upgrade') return runUpgrade(argumentsList.slice(1), log);
     const options = parseArguments(argumentsList);
 
     if (options.help) {
