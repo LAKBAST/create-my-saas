@@ -34,6 +34,10 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   verde (Next.js, React Router y Astro).
 - La extensión de facturación de Astro excluye del sitemap las páginas
   privadas, como la plantilla Astro.
+- FastAPI envía los correos con un User-Agent propio: Resend (tras Cloudflare)
+  rechazaba el de urllib con un 403 y el registro fallaba.
+- FastAPI: si el correo de verificación no se puede enviar al registrarse,
+  responde `EMAIL_DELIVERY_UNAVAILABLE` (503) en lugar de un error 500.
 
 ## [1.3.3] - 2026-10-25
 
