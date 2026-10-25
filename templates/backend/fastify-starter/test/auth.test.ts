@@ -269,8 +269,8 @@ test('rate limiting fails closed in protected environments', async () => {
 });
 
 class CapturingEmailSender implements EmailSender {
-  readonly messages: Array<{ recipient: string; subject: string; text: string }> = [];
-  async send(recipient: string, subject: string, text: string): Promise<void> { this.messages.push({ recipient, subject, text }); }
+  readonly messages: Array<{ recipient: string; subject: string; text: string; html?: string }> = [];
+  async send(recipient: string, subject: string, text: string, html?: string): Promise<void> { this.messages.push({ recipient, subject, text, html }); }
   token(subject: string): string {
     const message = this.messages.find((item) => item.subject === subject);
     assert.ok(message, `Expected a ${subject} email`);
@@ -350,7 +350,7 @@ test('password recovery and email verification use opaque, single-use tokens', a
     assert.equal(registration.statusCode, 201);
     assert.equal('token' in registration.json(), false);
 
-    const verificationToken = emailSender.token('Verify your email');
+    const verificationToken = emailSender.token('Confirma tu correo electrónico');
     const verification = await app.inject({ method: 'POST', url: '/auth/email/verify', payload: { token: verificationToken } });
     assert.equal(verification.statusCode, 204);
     const verificationReuse = await app.inject({ method: 'POST', url: '/auth/email/verify', payload: { token: verificationToken } });
@@ -362,7 +362,7 @@ test('password recovery and email verification use opaque, single-use tokens', a
     const resetUnknown = await app.inject({ method: 'POST', url: '/auth/password/reset/request', payload: { email: 'unknown@example.com' } });
     assert.equal(resetKnown.statusCode, 204);
     assert.equal(resetUnknown.statusCode, 204);
-    const resetToken = emailSender.token('Reset your password');
+    const resetToken = emailSender.token('Restablece tu contraseña');
     const reset = await app.inject({ method: 'POST', url: '/auth/password/reset/confirm', payload: { token: resetToken, newPassword: 'changed2' } });
     assert.equal(reset.statusCode, 204);
     const revokedSession = await app.inject({ method: 'GET', url: '/users/me', headers: { authorization: `Bearer ${login.json().accessToken}` } });

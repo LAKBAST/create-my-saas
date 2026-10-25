@@ -16,6 +16,7 @@ import { RefreshSession } from './refresh-session.entity';
 import { OAuthState } from './oauth-state.entity';
 import { OAuthAccount } from './oauth-account.entity';
 import { SecureEmailService } from './secure-email.service';
+import { emailBrand, renderMessage } from '../email/email-templates';
 
 export type AuthenticationResult = { accessToken: string; user: UserPublicDto };
 export type BrowserAuthenticationResult = { authentication: AuthenticationResult; refreshToken: string };
@@ -255,7 +256,8 @@ export class AuthService {
     const isReset = kind === 'password_reset';
     const path = isReset ? '/reset-password' : '/verify-email';
     const url = `${this.config.get<string>('FRONTEND_URL', 'http://localhost:3000').replace(/\/$/, '')}${path}?token=${raw}`;
-    await this.secureEmail.send(user.email, isReset ? 'Reset your password' : 'Verify your email', `Use this one-time link: ${url}`);
+    const email = renderMessage(emailBrand({ ...process.env, FRONTEND_URL: this.config.get<string>('FRONTEND_URL') }), kind, { url, values: { name: user.name } });
+    await this.secureEmail.send(user.email, email.subject, email.text, email.html);
   }
   private async consumeToken(raw: string, kind: TokenKind): Promise<AuthToken> {
     const record = await this.tokens.findOneBy({ tokenHash: this.hashToken(raw), kind, usedAt: IsNull() });

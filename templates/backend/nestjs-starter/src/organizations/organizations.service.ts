@@ -9,6 +9,7 @@ import { Invitation } from './invitation.entity';
 import { Membership, OrganizationRole } from './membership.entity';
 import { Organization } from './organization.entity';
 import { SecureEmailService } from '../auth/secure-email.service';
+import { emailBrand, renderMessage } from '../email/email-templates';
 import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
@@ -91,7 +92,8 @@ export class OrganizationsService {
    });
   }
   if (deliver) {
-   await this.secureEmail.send(normalizedEmail, 'Organization invitation', `Use this one-time invitation token: ${raw}`);
+   const email = renderMessage(emailBrand(), 'organization_invitation', { code: raw });
+   await this.secureEmail.send(normalizedEmail, email.subject, email.text, email.html);
    await this.invitations.update({ id: created.id, tokenHash: this.hash(raw) }, { deliveredAt: new Date() });
   }
   return { id: created.id, accepted: false };

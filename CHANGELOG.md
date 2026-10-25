@@ -43,8 +43,9 @@ llamen a la API directamente (los frontends incluidos aceptan los dos formatos):
 - El diseño y los textos de los correos viven en un único sitio,
   `templates/shared/email` (`layout.html` y `email.json`), que
   `scripts/sync-shared-email.mjs` copia en cada backend; un test de la CLI
-  avisa si una copia queda desfasada. FastAPI ya los usa; NestJS y Fastify se
-  sumarán con su propio renderizador.
+  avisa si una copia queda desfasada. Los tres backends los usan: NestJS y
+  Fastify comparten `src/email/email-templates.ts` y copian `email/` en su
+  imagen Docker. Los correos de NestJS y Fastify pasan a HTML y a español.
 
 ### Added
 
@@ -57,7 +58,8 @@ llamen a la API directamente (los frontends incluidos aceptan los dos formatos):
   navegador crean la primera organización desde la interfaz y comprueban
   el contrato común de invitaciones, miembros y facturación.
 
-- `EMAIL_ACCENT_COLOR` (FastAPI) para el color del botón y del logo de los
+- `PRODUCT_NAME` y `EMAIL_ACCENT_COLOR` en los tres backends para el nombre,
+  el color del botón y el logo de los
   correos.
 
 ### Fixed

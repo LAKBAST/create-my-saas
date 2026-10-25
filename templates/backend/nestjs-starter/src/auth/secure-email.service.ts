@@ -7,7 +7,7 @@ import { AppError } from '../common/errors/app.error';
 export class SecureEmailService {
   constructor(private readonly config: ConfigService) {}
 
-  async send(recipient: string, subject: string, text: string): Promise<void> {
+  async send(recipient: string, subject: string, text: string, html?: string): Promise<void> {
     const url = this.config.get<string>('EMAIL_DELIVERY_URL');
     const token = this.config.get<string>('EMAIL_DELIVERY_TOKEN');
     if (!url || !token) {
@@ -21,7 +21,7 @@ export class SecureEmailService {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         // EMAIL_FROM is the sender for providers that require one, such as Resend.
-        body: JSON.stringify({ to: recipient, subject, text, ...(this.config.get<string>('EMAIL_FROM') ? { from: this.config.get<string>('EMAIL_FROM') } : {}) }),
+        body: JSON.stringify({ to: recipient, subject, text, ...(html ? { html } : {}), ...(this.config.get<string>('EMAIL_FROM') ? { from: this.config.get<string>('EMAIL_FROM') } : {}) }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new AppError('EMAIL_DELIVERY_UNAVAILABLE', 'Secure email delivery is unavailable.', 503);

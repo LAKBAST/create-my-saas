@@ -7,14 +7,14 @@ export class EmailDeliveryError extends Error {
 }
 
 export interface EmailSender {
-  send(recipient: string, subject: string, text: string): Promise<void>;
+  send(recipient: string, subject: string, text: string, html?: string): Promise<void>;
 }
 
 /** Sends mail through an authenticated HTTPS transactional-email adapter. */
 export class SecureEmailSender implements EmailSender {
   constructor(private readonly config: Config) {}
 
-  async send(recipient: string, subject: string, text: string): Promise<void> {
+  async send(recipient: string, subject: string, text: string, html?: string): Promise<void> {
     const { EMAIL_DELIVERY_URL: url, EMAIL_DELIVERY_TOKEN: token } = this.config;
     if (!url || !token) {
       if (this.config.environment === 'production' || this.config.environment === 'staging') throw new EmailDeliveryError();
@@ -25,7 +25,7 @@ export class SecureEmailSender implements EmailSender {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         // EMAIL_FROM is the sender for providers that require one, such as Resend.
-        body: JSON.stringify({ to: recipient, subject, text, ...(this.config.EMAIL_FROM ? { from: this.config.EMAIL_FROM } : {}) }),
+        body: JSON.stringify({ to: recipient, subject, text, ...(html ? { html } : {}), ...(this.config.EMAIL_FROM ? { from: this.config.EMAIL_FROM } : {}) }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) throw new EmailDeliveryError();

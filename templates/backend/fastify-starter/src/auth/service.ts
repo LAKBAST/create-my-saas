@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import argon2 from 'argon2';
 import type { Config } from '../config.js';
 import { EmailDeliveryError, type EmailSender } from '../email.js';
+import { emailBrand, renderMessage } from '../email/email-templates.js';
 import { AppError } from '../http/errors.js';
 import type { OneTimeTokenKind, SessionRepository, StoredSession, StoredUser } from '../types.js';
 import { buildAuthorizationUrl, exchangeOAuthProfile, getOAuthConfig } from './oauth.js';
@@ -197,7 +198,10 @@ export class AuthService {
     });
     const reset = kind === 'password_reset';
     const link = `${this.config.FRONTEND_URL.replace(/\/$/, '')}${reset ? '/reset-password' : '/verify-email'}?token=${encodeURIComponent(rawToken)}`;
-    await this.emailSender.send(user.email, reset ? 'Reset your password' : 'Verify your email', `Use this one-time link: ${link}`);
+    const email = renderMessage(emailBrand({
+      PRODUCT_NAME: this.config.PRODUCT_NAME, FRONTEND_URL: this.config.FRONTEND_URL, EMAIL_ACCENT_COLOR: this.config.EMAIL_ACCENT_COLOR,
+    }), kind, { url: link, values: { name: user.name } });
+    await this.emailSender.send(user.email, email.subject, email.text, email.html);
   }
 
   private unauthorized(code = 'UNAUTHORIZED') {

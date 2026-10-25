@@ -7,8 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'templates/shared/email');
-// NestJS and Fastify join once their renderers read these files.
-export const emailBackends = ['fastapi-starter'];
+export const emailBackends = ['fastapi-starter', 'nestjs-starter', 'fastify-starter'];
 
 export function sharedEmailDrift() {
   const drift = [];
