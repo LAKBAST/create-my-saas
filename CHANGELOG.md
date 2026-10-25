@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-10-25
+
 ### Fixed
 
 - Facturación recuerda la ruta del backend y comparte su detección entre
@@ -356,7 +358,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.5.1...v1.5.2
