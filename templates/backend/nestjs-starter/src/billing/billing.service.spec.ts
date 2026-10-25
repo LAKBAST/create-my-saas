@@ -46,6 +46,19 @@ describe('BillingService', () => {
     expect(service.configuration()).toMatchObject({ configured: true, plans: [{ priceId: 'price_promonthly', name: 'pro', entitlements: { api_calls: 1000 } }] });
   });
 
+  it('maps provider failures to the shared billing error instead of an internal error', async () => {
+    const { service, customers } = setup({ STRIPE_SECRET_KEY: 'sk_test', STRIPE_WEBHOOK_SECRET: 'whsec_test', STRIPE_PRICE_PLANS: '{"price_allowed":{"name":"pro","entitlements":{}}}', FRONTEND_URL: 'https://app.example' });
+    customers.findOneBy.mockResolvedValue({ providerCustomerId: 'cus_test' });
+    const failure = new Error('Provider details must stay private');
+    const stripe = {
+      checkout: { sessions: { create: jest.fn().mockRejectedValue(failure) } },
+      billingPortal: { sessions: { create: jest.fn().mockRejectedValue(failure) } },
+    };
+    (service as unknown as { stripe: () => unknown }).stripe = jest.fn(() => stripe);
+    await expect(service.checkout('organization-1', 'price_allowed', 1, 'actor-1')).rejects.toMatchObject({ code: 'BILLING_PROVIDER_ERROR', statusCode: 502, message: 'The billing provider could not create Checkout.' });
+    await expect(service.portal('organization-1', 'actor-1')).rejects.toMatchObject({ code: 'BILLING_PROVIDER_ERROR', statusCode: 502, message: 'The billing provider could not create the portal.' });
+  });
+
   it('audits Checkout and Portal without provider object identifiers', async () => {
     const values = { STRIPE_SECRET_KEY: 'sk_test', STRIPE_WEBHOOK_SECRET: 'whsec_test', STRIPE_PRICE_PLANS: '{"price_allowed":{"name":"pro","entitlements":{}}}', FRONTEND_URL: 'https://app.example' };
     const { service, customers, audit } = setup(values);

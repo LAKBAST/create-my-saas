@@ -36,20 +36,24 @@ export class BillingService {
     if (!subscription) {
       subscription = await this.subscriptions.save(this.subscriptions.create({
         organizationId, provider: 'manual', plan: 'free', status: 'active', providerSubscriptionId: null,
-        currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false,
+        seats: 1, currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false,
       }));
       await this.replaceEntitlements(this.dataSource.manager, organizationId, this.freeEntitlements(), 'free', null);
     }
     return subscription;
   }
 
-  async snapshot(organizationId: string): Promise<Subscription & { entitlements: BillingEntitlement[]; usage: UsageTotal[] }> {
+  async snapshot(organizationId: string): Promise<{ organizationId: string; provider: string; plan: string; status: string; seats: number; currentPeriodStart: Date | null; currentPeriodEnd: Date | null; cancelAtPeriodEnd: boolean; entitlements: Array<{ key: string; limit: number | null; enabled: boolean; source: string; expiresAt: Date | null }>; usage: UsageTotal[] }> {
     const subscription = await this.subscription(organizationId);
     const [entitlements, usage] = await Promise.all([
       this.entitlements.find({ where: { organizationId }, order: { key: 'ASC' } }),
       this.usage(organizationId, subscription.currentPeriodStart ?? subscription.createdAt),
     ]);
-    return Object.assign(subscription, { entitlements, usage });
+    return {
+      organizationId, provider: subscription.provider, plan: subscription.plan, status: subscription.status, seats: subscription.seats,
+      currentPeriodStart: subscription.currentPeriodStart, currentPeriodEnd: subscription.currentPeriodEnd, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+      entitlements: entitlements.map(({ key, limit, enabled, source, expiresAt }) => ({ key, limit, enabled, source, expiresAt })), usage,
+    };
   }
 
   configuration(): { configured: boolean; provider: 'stripe'; usageMeterConfigured: boolean; plans: PublicPlan[] } {
@@ -69,8 +73,8 @@ export class BillingService {
       cancel_url: `${this.frontendUrl()}/billing?organizationId=${encodeURIComponent(organizationId)}&checkout=cancelled`,
       metadata: { organization_id: organizationId, plan: plan.name },
       subscription_data: { metadata: { organization_id: organizationId, plan: plan.name } },
-    });
-    if (!session.url) throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider did not return a checkout URL.', 502);
+    }).catch(() => { throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider could not create Checkout.', 502); });
+    if (!session.url) throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider did not return a Checkout URL.', 502);
     await this.audit.record({
       organizationId, actorUserId, action: 'billing.checkout.created', targetType: 'billing',
       metadata: { provider: 'stripe', plan: plan.name, quantity },
@@ -87,7 +91,7 @@ export class BillingService {
     const session = await this.stripe().billingPortal.sessions.create({
       customer: customer.providerCustomerId, return_url: `${this.frontendUrl()}/billing?organizationId=${encodeURIComponent(organizationId)}`,
       ...(configuration ? { configuration } : {}),
-    });
+    }).catch(() => { throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider could not create the portal.', 502); });
     await this.audit.record({
       organizationId, actorUserId, action: 'billing.portal.created', targetType: 'billing', metadata: { provider: 'stripe' },
     });
@@ -191,10 +195,12 @@ export class BillingService {
     const subscriptions = manager.getRepository(Subscription);
     let subscription = await subscriptions.findOneBy({ organizationId });
     // Event timestamps can tie; read the current state while holding the lock.
-    const stripeSubscription = await this.stripe().subscriptions.retrieve(eventSubscription.id);
+    const stripeSubscription = await this.stripe().subscriptions.retrieve(eventSubscription.id)
+      .catch(() => { throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider could not retrieve the subscription.', 502); });
     if (this.objectId(stripeSubscription.customer) !== customerId) throw new AppError('BILLING_CUSTOMER_MISMATCH', 'Stripe subscription customer changed.', 400);
     if (subscription?.providerSubscriptionId && subscription.providerSubscriptionId !== eventSubscription.id) {
-      const previous = await this.stripe().subscriptions.retrieve(subscription.providerSubscriptionId);
+      const previous = await this.stripe().subscriptions.retrieve(subscription.providerSubscriptionId)
+        .catch(() => { throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider could not retrieve the subscription.', 502); });
       if (this.objectId(previous.customer) !== customerId) throw new AppError('BILLING_CUSTOMER_MISMATCH', 'Stripe subscription customer changed.', 400);
       if (!Number.isInteger(stripeSubscription.created) || !Number.isInteger(previous.created)) {
         throw new AppError('INVALID_BILLING_WEBHOOK', 'Stripe subscription creation time is missing.', 400);
@@ -215,6 +221,7 @@ export class BillingService {
     const plan = priceId ? this.pricePlans().get(priceId) : undefined;
     if (!subscription) subscription = subscriptions.create({ organizationId, provider: 'stripe', plan: 'free', status: 'inactive', providerSubscriptionId: null, currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false });
     subscription.provider = 'stripe'; subscription.providerSubscriptionId = stripeSubscription.id;
+    subscription.seats = stripeSubscription.items.data[0]?.quantity ?? 1;
     subscription.plan = plan?.name ?? 'unknown'; subscription.status = stripeSubscription.status;
     subscription.currentPeriodStart = this.epochToDate(stripeSubscription.items.data[0]?.current_period_start);
     subscription.currentPeriodEnd = this.epochToDate(stripeSubscription.items.data[0]?.current_period_end);
@@ -238,7 +245,7 @@ export class BillingService {
     const stripeCustomer = await this.stripe().customers.create(
       { name: organization.name, metadata: { organization_id: organizationId } },
       { idempotencyKey: `billing-customer:${organizationId}` },
-    );
+    ).catch(() => { throw new AppError('BILLING_PROVIDER_ERROR', 'The billing provider could not create a customer.', 502); });
     try { return await this.customers.save(this.customers.create({ organizationId, provider: 'stripe', providerCustomerId: stripeCustomer.id })); }
     catch (error) {
       if (this.isUniqueViolation(error)) return this.customers.findOneByOrFail({ organizationId, provider: 'stripe' });

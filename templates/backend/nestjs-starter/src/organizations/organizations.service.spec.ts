@@ -73,7 +73,7 @@ describe('OrganizationsService', () => {
     invitations.createQueryBuilder.mockReturnValue({ where: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(activeInvitation) });
     invitations.save.mockRejectedValue({ code: '23505' });
 
-    await expect(service.invite('organization-1', user.id, 'member@example.com', 'member')).resolves.toBeUndefined();
+    await expect(service.invite('organization-1', user.id, 'member@example.com', 'member')).resolves.toEqual({ id: 'invitation-1', accepted: false });
 
     expect(secureEmail.send).not.toHaveBeenCalled();
   });
@@ -158,7 +158,7 @@ describe('OrganizationsService', () => {
         builder.orderBy = jest.fn(() => builder);
         builder.setLock = jest.fn(() => { lockAliases.push(alias); return builder; });
         builder.getMany = jest.fn(async () => storedMemberships.filter((entry) =>
-          entry.organizationId === parameters.organizationId && (parameters.userIds ?? [parameters.userId]).includes(entry.userId)));
+          entry.organizationId === parameters.organizationId && (parameters.memberId ? entry.id === parameters.memberId || entry.userId === parameters.memberId || entry.userId === parameters.actorUserId : (parameters.userIds ?? [parameters.userId]).includes(entry.userId))));
         return builder;
       }),
       update: jest.fn(async (criteria: string | { id: string; role: string }, values: Partial<Membership>) => {
@@ -218,7 +218,7 @@ describe('OrganizationsService', () => {
     const state = ownershipSetup({ actorRole });
 
     await expect(state.service.transferOwnership(state.organizationId, state.actor.id, state.target.id)).rejects.toMatchObject({
-      code: 'ORGANIZATION_ACCESS_DENIED',
+      code: 'INSUFFICIENT_ROLE',
       statusCode: 403,
     });
     expect(state.storedMemberships.find((membership) => membership.userId === state.actor.id)?.role).toBe(actorRole);

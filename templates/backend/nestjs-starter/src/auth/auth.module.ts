@@ -2,7 +2,7 @@ import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users/users.module';
-import { AuthController } from './auth.controller';
+import { AuthController, UsersAuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -37,7 +37,7 @@ import { SecureEmailService } from './secure-email.service';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, UsersAuthController],
   providers: [AuthService, JwtAuthGuard, RateLimitService, RateLimitGuard, SecureEmailService],
   exports: [JwtModule, JwtAuthGuard, RateLimitService, SecureEmailService],
 })

@@ -5,12 +5,27 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- NestJS adopta las rutas de facturación y desactivación de FastAPI; mantiene
+  las anteriores como alias obsoletos del mismo servicio. Iguala los códigos
+  HTTP, los cuerpos públicos de usuario, sesión, organización y miembros,
+  los errores y la validación 422. Añade las rutas de recuperación y
+  verificación bajo `/users` y el inicio OAuth con redirección 307.
+- La suscripción de NestJS incluye `seats`, con una migración para las
+  instalaciones existentes y actualización de plazas desde Stripe. Los
+  errores del proveedor de facturación responden 502.
+
 ### Added
 
 - Astro con facturación permite crear la primera organización desde el estado
   vacío y reintenta con otro slug si el identificador ya está ocupado.
 - Los avisos de consentimiento de los tres frontends admiten enlaces
   configurables de privacidad y cookies, documentados en sus `.env.example`.
+- La revisión de equivalencia, las excepciones intencionadas y las
+  comprobaciones se documentan en `docs/template-parity.md`. Las pruebas de
+  navegador crean la primera organización desde la interfaz y comprueban
+  el contrato común de invitaciones, miembros y facturación.
 
 ### Fixed
 

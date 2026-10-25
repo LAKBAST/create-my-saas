@@ -147,7 +147,7 @@ function apiPath(path) {
 }
 
 function billingPath(organizationId, action) {
-  if (backend === 'fastapi') {
+  if (backend === 'fastapi' || backend === 'nestjs') {
     return `/billing/organizations/${organizationId}${action === 'subscription' ? '' : `/${action}`}`;
   }
   return `/organizations/${organizationId}/billing/${action}`;
@@ -366,14 +366,19 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
 
   if (hasOrganizations) {
     await test.step('organizations, invitations, and organization permissions use the generated proxy', async () => {
-      const created = await browserApi(page, '/organizations', {
-        method: 'POST',
-        accessToken: ownerSession.accessToken ?? ownerSession.access_token,
-        body: { name: `Browser organization ${unique}`, slug: `browser-org-${unique}`.replaceAll(/[^a-z0-9-]/g, '-').slice(0, 150) },
-      });
-      expect(created.status).toBe(201);
-      organization = created.body;
+      await page.goto(frontend === 'astro' ? '/billing/' : '/billing');
+      await expect(page.getByRole('heading', { name: 'Crea tu organización' })).toBeVisible();
+      await page.getByLabel('Nombre de la organización').fill(`Browser organization ${unique}`);
+      const created = await waitForApi(page, '/organizations', () => page.getByRole('button', { name: 'Crear organización', exact: true }).click());
+      expect(created.status()).toBe(201);
+      organization = await created.json();
       expect(organization).toMatchObject({ name: `Browser organization ${unique}` });
+
+      const duplicate = await browserApi(page, '/organizations', {
+        method: 'POST', accessToken: ownerSession.accessToken ?? ownerSession.access_token,
+        body: { name: organization.name, slug: organization.slug },
+      });
+      expect(duplicate).toMatchObject({ status: 409, body: { error: { code: 'SLUG_ALREADY_EXISTS' } } });
 
       const listed = await browserApi(page, '/organizations', { accessToken: ownerSession.accessToken ?? ownerSession.access_token });
       expect(listed.status).toBe(200);
@@ -395,31 +400,31 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         method: 'POST', accessToken: ownerSession.accessToken ?? ownerSession.access_token,
         body: { email: invitee.email, role: 'member' },
       });
-      expect(invitation.status).toBe(backend === 'fastapi' ? 201 : 204);
+      expect(invitation.status).toBe(201);
+      expect(invitation.body).toEqual({ id: expect.any(String), accepted: false });
       const token = await invitationToken(mailbox, invitee.email);
 
       const accepted = await browserApi(inviteePage, '/organizations/invitations/accept', {
         method: 'POST', accessToken: inviteeSession.accessToken ?? inviteeSession.access_token, body: { token },
       });
-      expect(accepted.status).toBe(backend === 'fastapi' ? 204 : 201);
+      expect(accepted.status).toBe(204);
 
       const members = await browserApi(page, `/organizations/${organization.id}/members`, {
         accessToken: ownerSession.accessToken ?? ownerSession.access_token,
       });
       expect(members.status).toBe(200);
       const invitedMember = members.body.find((member) => (
-        backend === 'fastapi'
-          ? member.email === invitee.email
-          : member.userId === inviteeSession.user.id
+        member.email === invitee.email
       ));
       expect(invitedMember).toBeTruthy();
+      expect(invitedMember).toMatchObject({ user_id: inviteeSession.user.id, name: invitee.name, role: 'member' });
 
       const deniedBilling = await browserApi(inviteePage, billingPath(organization.id, 'configuration'), {
         accessToken: inviteeSession.accessToken ?? inviteeSession.access_token,
       });
       expect(deniedBilling.status).toBe(403);
 
-      const memberId = backend === 'fastapi' ? invitedMember.id : invitedMember.userId;
+      const memberId = invitedMember.id;
       expect(memberId, 'Membership list must expose the identifier required by its role endpoint.').toBeTruthy();
       const promoted = await browserApi(page, `/organizations/${organization.id}/members/${memberId}`, {
         method: 'PATCH', accessToken: ownerSession.accessToken ?? ownerSession.access_token, body: { role: 'admin' },
