@@ -247,7 +247,9 @@ async function bindProtectedPage() {
 }
 
 type Organization = { id: string; name: string; slug: string };
-type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null> };
+import { formatBillingPrice, type BillingPrice } from "./billing-price";
+
+type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; price: BillingPrice | null };
 type BillingConfiguration = { configured: boolean; plans: BillingPlan[] };
 type BillingSubscription = { plan: string; status: string; seats: number; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean };
 type BillingRedirect = { url: string | null; reason?: string };
@@ -303,12 +305,14 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
     const entitlements = element("ul");
     for (const [key, limit] of Object.entries(plan.entitlements)) {
       const item = element("li");
-      item.append(element("strong", "", key), element("span", "", limit === null ? "Sin límite" : `${limit} incluidos`));
+      item.append(element("strong", "", plan.labels[key] ?? key), element("span", "", limit === null ? "Sin límite" : `${limit} incluidos`));
       entitlements.append(item);
     }
     const checkout = element("button", current ? "btn btn-secondary" : "btn btn-primary", current ? "Plan actual" : "Elegir este plan"); checkout.type = "button"; checkout.disabled = current;
     checkout.addEventListener("click", () => void startRedirect("checkout", organizationId, token, checkout, plan.priceId));
-    card.append(element("p", "", current ? "Tu plan" : "Plan"), element("h2", "", plan.name), entitlements, checkout); plans.append(card);
+    card.append(element("p", "", current ? "Tu plan" : "Plan"), element("h2", "", plan.name));
+    if (plan.price) card.append(element("p", "", formatBillingPrice(plan.price)));
+    card.append(entitlements, checkout); plans.append(card);
   }
   plans.hidden = configuration.plans.length === 0;
 }

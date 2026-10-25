@@ -5,6 +5,14 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Los planes de facturación de FastAPI y NestJS incluyen el precio real de Stripe,
+  con caché de diez minutos y `price: null` si el proveedor no está disponible.
+  Next.js, React Router y la extensión Astro de facturación muestran el importe
+  y el intervalo en español, y admiten nombres legibles mediante `labels` en
+  `STRIPE_PRICE_PLANS`, conservando las configuraciones anteriores.
+
 ## [1.6.0] - 2026-10-25
 
 ### Added

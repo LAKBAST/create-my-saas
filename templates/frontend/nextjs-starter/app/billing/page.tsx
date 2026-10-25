@@ -9,6 +9,8 @@ import { useAuth } from "../components/auth-provider";
 import { api, type BillingConfiguration, type BillingSubscription, type Organization } from "../lib/api";
 import styles from "../product.module.css";
 
+import { formatBillingPrice } from "../lib/billing-price";
+
 function entitlement(limit: number | null) { return limit === null ? "Sin límite" : `${limit} incluidos`; }
 const statusLabels: Record<string, { label: string; tone: string }> = {
   active: { label: "Activa", tone: "badge-success" },
@@ -96,7 +98,8 @@ function Billing() {
         const current = subscription?.plan === plan.name;
         return <article className={`${styles.card} ${current ? styles.featured : ""}`} key={plan.priceId}>
           <p>{current ? "Tu plan" : "Plan"}</p><h2>{plan.name}</h2>
-          <ul>{Object.entries(plan.entitlements).map(([key, limit]) => <li key={key}><strong><Icon name="check" size={15} style={{ color: "var(--success)", verticalAlign: "-3px", marginRight: 6 }} />{key}</strong><span>{entitlement(limit)}</span></li>)}</ul>
+          {plan.price && <p>{formatBillingPrice(plan.price)}</p>}
+          <ul>{Object.entries(plan.entitlements).map(([key, limit]) => <li key={key}><strong><Icon name="check" size={15} style={{ color: "var(--success)", verticalAlign: "-3px", marginRight: 6 }} />{plan.labels[key] ?? key}</strong><span>{entitlement(limit)}</span></li>)}</ul>
           <button type="button" onClick={() => void redirect("checkout", plan.priceId)} disabled={Boolean(pending) || current}>{current ? "Plan actual" : pending === plan.priceId ? "Redirigiendo…" : "Elegir este plan"}</button>
         </article>;
       })}</div>
