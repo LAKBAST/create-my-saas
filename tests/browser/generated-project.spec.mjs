@@ -454,6 +454,13 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
       });
       expect(checkout).toMatchObject({ status: 200, body: { configured: false, url: null } });
 
+      const missingBillingRoutes = [];
+      const recordMissingBillingRoute = (response) => {
+        if (response.status() === 404 && /\/organizations\/[^/]+\/billing\//.test(new URL(response.url()).pathname)) {
+          missingBillingRoutes.push(response.url());
+        }
+      };
+      page.on('response', recordMissingBillingRoute);
       await page.getByRole('link', { name: 'Facturación', exact: true }).click();
       await expectPath(page, frontend === 'astro' ? '/billing/' : '/billing');
       await expect(page.getByRole('heading', { name: 'Planes y suscripción' })).toBeVisible();
@@ -464,6 +471,8 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
       } else {
         await expect(page.getByRole('heading', { name: 'Facturación no configurada' })).toBeVisible();
       }
+      page.off('response', recordMissingBillingRoute);
+      expect(missingBillingRoutes, 'Concurrent billing calls must share route detection.').toHaveLength(backend === 'fastapi' ? 1 : 0);
     });
 
     await test.step('billing cards format prices and labels without contacting Stripe', async () => {
@@ -480,7 +489,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         labels: { 'store.pro-api-keys': 'API keys' }, price: { unitAmount, currency: 'eur', interval, intervalCount },
       }));
       plans.push({ priceId: 'price_unavailable', name: 'Sin precio', entitlements: { legacy_key: 5 }, labels: {}, price: null });
-      const configurationRoute = /\/(?:billing\/organizations\/[^/]+|organizations\/[^/]+\/billing)\/configuration(?:\?.*)?$/;
+      const configurationRoute = (url) => url.pathname === billingPath(organization.id, 'configuration');
       await page.route(configurationRoute, (route) => route.fulfill({ json: {
         configured: true, provider: 'stripe', usageMeterConfigured: false, plans,
       } }));
