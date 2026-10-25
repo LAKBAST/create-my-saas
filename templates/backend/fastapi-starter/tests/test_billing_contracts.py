@@ -1,5 +1,6 @@
 import unittest
 import asyncio
+import json
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -11,24 +12,81 @@ from fastapi.testclient import TestClient
 from main import app
 from src.core.config import settings
 from src.core.exceptions import AppError
+from src.db.database import get_db
+from src.modules.auth.security.tokens import get_current_user
 from src.modules.billing.router import CreateCheckout
-from src.modules.billing.service import BillingService
+from src.modules.billing.service import BillingService, _PRICE_CACHE
 
 
 class BillingContractTests(unittest.TestCase):
+    def setUp(self):
+        _PRICE_CACHE.clear()
+
+    def test_prices_labels_cache_and_provider_outage(self):
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans=json.dumps({"price_allowed": {"name": "Pro", "entitlements": {"api_calls": None}, "labels": {"api_calls": "API calls"}}}))
+        service = BillingService(AsyncMock(), config)
+        for interval, count, amount in [("month", 1, 2900), ("year", 1, 29000), ("month", 3, 7900), (None, 1, 4900)]:
+            with self.subTest(interval=interval, count=count):
+                _PRICE_CACHE.clear()
+                provider = {"unit_amount": amount, "currency": "eur", "recurring": {"interval": interval, "interval_count": count} if interval else None}
+                with patch("src.modules.billing.service.stripe.Price.retrieve", return_value=provider) as retrieve:
+                    plan = asyncio.run(service.configuration())["plans"][0]
+                    self.assertEqual(plan["price"], {"unitAmount": amount, "currency": "eur", "interval": interval, "intervalCount": count})
+                    self.assertEqual(plan["labels"], {"api_calls": "API calls"})
+                    # New request/service instances reuse the process cache.
+                    asyncio.run(BillingService(AsyncMock(), config).configuration())
+                    retrieve.assert_called_once_with("price_allowed", api_key="sk_test")
+                    with patch("src.modules.billing.service.monotonic", return_value=float("inf")):
+                        asyncio.run(service.configuration())
+                    self.assertEqual(retrieve.call_count, 2)
+        _PRICE_CACHE.clear()
+        with patch("src.modules.billing.service.stripe.Price.retrieve", side_effect=RuntimeError("Stripe down")):
+            self.assertIsNone(asyncio.run(service.configuration())["plans"][0]["price"])
+        with patch("src.modules.billing.service.stripe.Price.retrieve") as retrieve:
+            unconfigured = BillingService(AsyncMock(), replace(config, stripe_secret_key=None, stripe_webhook_secret=None))
+            self.assertIsNone(asyncio.run(unconfigured.configuration())["plans"][0]["price"])
+            retrieve.assert_not_called()
+
+    def test_labels_must_be_strings_for_existing_entitlements(self):
+        for labels in [None, [], "API calls", {"unknown": "Unknown"}, {"api_calls": 3}, {"api_calls": None}]:
+            with self.subTest(labels=labels):
+                config = replace(settings, stripe_price_plans=json.dumps({"price_allowed": {"name": "Pro", "entitlements": {"api_calls": None}, "labels": labels}}))
+                with self.assertRaises(AppError) as error:
+                    BillingService(AsyncMock(), config).price_plans()
+                self.assertEqual(error.exception.code, "INVALID_BILLING_CONFIGURATION")
+
+    def test_configuration_http_contract_without_stripe(self):
+        config = replace(settings, stripe_secret_key=None, stripe_webhook_secret=None,
+                         stripe_price_plans='{"price_allowed":{"name":"Pro","entitlements":{"api_calls":null}}}')
+        service = BillingService(AsyncMock(), config)
+        overrides = app.dependency_overrides.copy()
+        app.dependency_overrides[get_db] = lambda: AsyncMock()
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=uuid4())
+        try:
+            with patch("src.modules.billing.router.require_billing_role", new_callable=AsyncMock), patch("src.modules.billing.router.BillingService", return_value=service), TestClient(app) as client:
+                response = client.get(f"/billing/organizations/{uuid4()}/configuration")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json(), {"configured": False, "provider": "stripe", "usageMeterConfigured": False,
+                    "plans": [{"priceId": "price_allowed", "name": "Pro", "entitlements": {"api_calls": None}, "labels": {}, "price": None}]})
+        finally:
+            app.dependency_overrides.clear()
+            app.dependency_overrides.update(overrides)
+
     def test_checkout_accepts_the_public_camel_case_price_id(self):
         self.assertEqual(CreateCheckout.model_validate({"priceId": "price_allowed"}).price_id, "price_allowed")
         self.assertEqual(CreateCheckout.model_validate({"price_id": "price_allowed"}).price_id, "price_allowed")
 
     def test_unconfigured_billing_is_explicit_and_free_entitlements_are_validated(self):
         service = BillingService(AsyncMock(), replace(settings, stripe_secret_key=None, stripe_webhook_secret=None, stripe_price_plans="{}", billing_free_entitlements='{"api_calls":100}'))
-        self.assertEqual(service.configuration(), {"configured": False, "provider": "stripe", "usageMeterConfigured": False, "plans": []})
+        self.assertEqual(asyncio.run(service.configuration()), {"configured": False, "provider": "stripe", "usageMeterConfigured": False, "plans": []})
         self.assertEqual(service.free_entitlements(), {"api_calls": 100})
 
     def test_only_allowlisted_prices_are_accepted(self):
         service = BillingService(AsyncMock(), replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test", stripe_price_plans='{"price_allowed":{"name":"pro","entitlements":{"api_calls":null}}}'))
         self.assertIn("price_allowed", service.price_plans())
-        self.assertEqual(service.configuration()["plans"], [{"priceId": "price_allowed", "name": "pro", "entitlements": {"api_calls": None}}])
+        with patch("src.modules.billing.service.stripe.Price.retrieve", side_effect=RuntimeError("Stripe down")):
+            self.assertEqual(asyncio.run(service.configuration())["plans"], [{"priceId": "price_allowed", "name": "pro", "entitlements": {"api_calls": None}, "labels": {}, "price": None}])
         with self.assertRaises(AppError) as error:
             asyncio.run(service.checkout(uuid4(), "price_not_allowed", 1, uuid4()))
         self.assertEqual(error.exception.code, "BILLING_PRICE_NOT_AVAILABLE")

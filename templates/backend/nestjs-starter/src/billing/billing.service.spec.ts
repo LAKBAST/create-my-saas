@@ -41,9 +41,36 @@ describe('BillingService', () => {
     await expect(service.checkout('fdafb779-347e-4ec0-b240-859f2e3985b4', 'price_pro_monthly', 1, 'actor-1')).resolves.toEqual({ configured: false, url: null, sessionId: null });
   });
 
-  it('returns only allowlisted plans for an authenticated billing screen', () => {
+  it('returns only allowlisted plans for an authenticated billing screen', async () => {
     const { service } = setup({ STRIPE_SECRET_KEY: 'sk_test', STRIPE_WEBHOOK_SECRET: 'whsec_test', STRIPE_PRICE_PLANS: '{"price_promonthly":{"name":"pro","entitlements":{"api_calls":1000}}}' });
-    expect(service.configuration()).toMatchObject({ configured: true, plans: [{ priceId: 'price_promonthly', name: 'pro', entitlements: { api_calls: 1000 } }] });
+    jest.spyOn(service as never, 'stripe').mockReturnValue({ prices: { retrieve: jest.fn().mockRejectedValue(new Error('Stripe down')) } } as never);
+    await expect(service.configuration()).resolves.toMatchObject({ configured: true, plans: [{ priceId: 'price_promonthly', name: 'pro', entitlements: { api_calls: 1000 }, labels: {}, price: null }] });
+  });
+
+  it.each([['month', 1, 2900], ['year', 1, 29000], ['month', 3, 7900], [null, 1, 4900]])('returns and caches %s prices (%s periods)', async (interval, intervalCount, unitAmount) => {
+    const { service } = setup({ STRIPE_SECRET_KEY: 'sk_test', STRIPE_WEBHOOK_SECRET: 'whsec_test', STRIPE_PRICE_PLANS: JSON.stringify({ price_allowed: { name: 'Pro', entitlements: { api_calls: null }, labels: { api_calls: 'API calls' } } }) });
+    const retrieve = jest.fn().mockResolvedValue({ unit_amount: unitAmount, currency: 'eur', recurring: interval ? { interval, interval_count: intervalCount } : null });
+    jest.spyOn(service as never, 'stripe').mockReturnValue({ prices: { retrieve } } as never);
+    await expect(service.configuration()).resolves.toMatchObject({ plans: [{ price: { unitAmount, currency: 'eur', interval, intervalCount }, labels: { api_calls: 'API calls' } }] });
+    await service.configuration();
+    expect(retrieve).toHaveBeenCalledTimes(1);
+    expect(retrieve).toHaveBeenCalledWith('price_allowed');
+    const now = Date.now();
+    const clock = jest.spyOn(Date, 'now').mockReturnValue(now + 600_001);
+    try { await service.configuration(); } finally { clock.mockRestore(); }
+    expect(retrieve).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns null without contacting Stripe when credentials are absent', async () => {
+    const { service } = setup({ STRIPE_PRICE_PLANS: '{"price_allowed":{"name":"Pro","entitlements":{}}}' });
+    const stripe = jest.spyOn(service as never, 'stripe');
+    await expect(service.configuration()).resolves.toMatchObject({ configured: false, plans: [{ price: null, labels: {} }] });
+    expect(stripe).not.toHaveBeenCalled();
+  });
+
+  it.each([null, [], 'API calls', { unknown: 'Unknown' }, { api_calls: 3 }, { api_calls: null }])('rejects invalid labels %j', async (labels) => {
+    const { service } = setup({ STRIPE_PRICE_PLANS: JSON.stringify({ price_allowed: { name: 'Pro', entitlements: { api_calls: null }, labels } }) });
+    await expect(service.configuration()).rejects.toMatchObject({ code: 'INVALID_BILLING_CONFIGURATION' });
   });
 
   it('maps provider failures to the shared billing error instead of an internal error', async () => {

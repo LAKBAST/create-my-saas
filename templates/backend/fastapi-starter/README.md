@@ -104,3 +104,26 @@ bodies, credentials, Stripe customer/session/subscription IDs, payment methods,
 and card data are never audit metadata. The invited email is retained for
 incident investigation, so define retention/export rules appropriate to the
 product before using the log for enterprise or compliance purposes.
+
+## Precios y nombres visibles de los planes
+
+`STRIPE_PRICE_PLANS` admite `labels` opcional por plan, un objeto de textos cuyas
+claves deben existir en `entitlements`. Los planes sin `labels` siguen siendo válidos.
+
+```dotenv
+STRIPE_PRICE_PLANS={"price_example":{"name":"Pro mensual","entitlements":{"store.pro-api-keys":null},"labels":{"store.pro-api-keys":"API keys"}}}
+```
+
+`GET /billing/organizations/{id}/configuration` devuelve siempre `labels` (`{}`
+si se omite) y `price` por plan. El precio se consulta en Stripe con `Price.retrieve`
+y se guarda en memoria durante diez minutos por Price ID y credencial. Cada
+proceso mantiene su propia caché. El importe no se configura en este JSON:
+`price` tiene la forma `{ "unitAmount": 2900, "currency": "eur", "interval": "month", "intervalCount": 1 }`.
+`unitAmount` está en la unidad mínima de la moneda. El intervalo es `month`,
+`year`, `week`, `day` o `null` para pagos únicos (con `intervalCount: 1`).
+Si faltan credenciales, Stripe falla o el precio no tiene importe fijo,
+`price` es `null`; la ruta sigue respondiendo correctamente. Los clientes
+ocultan el precio ausente y usan la clave del entitlement si no hay etiqueta.
+Next.js, React Router y Astro muestran el importe con formato `es-ES` y el
+intervalo en español. Esto sólo añade información visible: Checkout conserva
+el flujo de suscripción existente.

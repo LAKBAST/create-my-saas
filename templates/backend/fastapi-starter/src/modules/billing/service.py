@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import re
+import asyncio
+from time import monotonic
 from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
@@ -24,6 +26,7 @@ from src.modules.audit.service import AuditAction, record_audit_event
 from src.modules.users.model import BillingEntitlement, BillingWebhookEvent, Organization, Subscription, UsageRecord
 
 _ENTITLEMENT_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,99}$")
+_PRICE_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 
 
 class BillingService:
@@ -31,17 +34,39 @@ class BillingService:
         self.db = db
         self.config = config
 
-    def configuration(self) -> dict[str, Any]:
+    async def configuration(self) -> dict[str, Any]:
         plans = self.price_plans()
         return {
             "configured": self.is_stripe_configured(),
             "provider": "stripe",
             "usageMeterConfigured": bool(self.config.stripe_usage_event_name),
             "plans": [
-                {"priceId": price_id, "name": plan["name"], "entitlements": plan["entitlements"]}
+                {"priceId": price_id, **plan, "price": await self._price(price_id)}
                 for price_id, plan in plans.items()
             ],
         }
+
+    async def _price(self, price_id: str) -> dict[str, Any] | None:
+        if not self.is_stripe_configured():
+            return None
+        cache_key = (self.config.stripe_secret_key, price_id)
+        cached = _PRICE_CACHE.get(cache_key)
+        if cached and cached[0] > monotonic():
+            return cached[1]
+        try:
+            price = await asyncio.to_thread(stripe.Price.retrieve, price_id, api_key=self.config.stripe_secret_key)
+            amount = self._value(price, "unit_amount")
+            if amount is None:
+                return None
+            recurring = self._value(price, "recurring")
+            result = {"unitAmount": amount, "currency": self._value(price, "currency"),
+                      "interval": self._value(recurring, "interval"),
+                      "intervalCount": self._value(recurring, "interval_count", 1)}
+            _PRICE_CACHE[cache_key] = (monotonic() + 600, result)
+            return result
+        except Exception:
+            # Pricing is display metadata; a provider outage must not break billing configuration.
+            return None
 
     async def snapshot(self, organization_id: UUID) -> dict[str, Any]:
         subscription = await self._subscription(organization_id, create=False)
@@ -309,7 +334,11 @@ class BillingService:
         for price_id, plan in self._json_object(self.config.stripe_price_plans, "STRIPE_PRICE_PLANS").items():
             if not re.fullmatch(r"price_[A-Za-z0-9]+", price_id) or not isinstance(plan, dict) or not isinstance(plan.get("name"), str) or not plan["name"].strip():
                 raise AppError("STRIPE_PRICE_PLANS contains an invalid plan.", code="INVALID_BILLING_CONFIGURATION", status_code=500)
-            plans[price_id] = {"name": plan["name"], "entitlements": self._validate_entitlements(plan.get("entitlements", {}), "STRIPE_PRICE_PLANS")}
+            entitlements = self._validate_entitlements(plan.get("entitlements", {}), "STRIPE_PRICE_PLANS")
+            labels = plan.get("labels", {})
+            if not isinstance(labels, dict) or any(key not in entitlements or not isinstance(label, str) for key, label in labels.items()):
+                raise AppError("STRIPE_PRICE_PLANS contains invalid labels.", code="INVALID_BILLING_CONFIGURATION", status_code=500)
+            plans[price_id] = {"name": plan["name"], "entitlements": entitlements, "labels": labels}
         return plans
 
     def free_entitlements(self) -> dict[str, int | None]:

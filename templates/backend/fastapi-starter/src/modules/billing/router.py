@@ -36,7 +36,7 @@ async def get_subscription(org_id: UUID, user: User = Depends(get_current_user),
 @router.get("/organizations/{org_id}/configuration")
 async def get_configuration(org_id: UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     await require_billing_role(org_id, user, db)
-    return BillingService(db).configuration()
+    return await BillingService(db).configuration()
 
 
 @router.post("/organizations/{org_id}/checkout")
