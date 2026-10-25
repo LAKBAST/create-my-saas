@@ -27,6 +27,7 @@ from src.modules.users.model import BillingEntitlement, BillingWebhookEvent, Org
 
 _ENTITLEMENT_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,99}$")
 _PRICE_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+PRICE_CACHE_SECONDS = 86_400
 
 
 class BillingService:
@@ -36,13 +37,14 @@ class BillingService:
 
     async def configuration(self) -> dict[str, Any]:
         plans = self.price_plans()
+        prices = await asyncio.gather(*(self._price(price_id) for price_id in plans))
         return {
             "configured": self.is_stripe_configured(),
             "provider": "stripe",
             "usageMeterConfigured": bool(self.config.stripe_usage_event_name),
             "plans": [
-                {"priceId": price_id, **plan, "price": await self._price(price_id)}
-                for price_id, plan in plans.items()
+                {"priceId": price_id, **plan, "price": price}
+                for (price_id, plan), price in zip(plans.items(), prices, strict=True)
             ],
         }
 
@@ -62,7 +64,8 @@ class BillingService:
             result = {"unitAmount": amount, "currency": self._value(price, "currency"),
                       "interval": self._value(recurring, "interval"),
                       "intervalCount": self._value(recurring, "interval_count", 1)}
-            _PRICE_CACHE[cache_key] = (monotonic() + 600, result)
+            # A Stripe price's amount and interval cannot change once created.
+            _PRICE_CACHE[cache_key] = (monotonic() + PRICE_CACHE_SECONDS, result)
             return result
         except Exception:
             # Pricing is display metadata; a provider outage must not break billing configuration.

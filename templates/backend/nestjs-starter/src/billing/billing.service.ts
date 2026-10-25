@@ -73,7 +73,8 @@ export class BillingService {
       if (price.unit_amount === null) return null;
       const result = { unitAmount: price.unit_amount, currency: price.currency,
         interval: price.recurring?.interval ?? null, intervalCount: price.recurring?.interval_count ?? 1 };
-      this.priceCache.set(cacheKey, { expiresAt: Date.now() + 600_000, price: result });
+      // A Stripe price's amount and interval cannot change once created.
+      this.priceCache.set(cacheKey, { expiresAt: Date.now() + 86_400_000, price: result });
       return result;
     } catch {
       // Display metadata must not make configuration unavailable during a Stripe outage.
