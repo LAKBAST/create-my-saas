@@ -1,8 +1,9 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { PRODUCT_NAME } from '../lib/brand';
 interface Props { title: string; description: string; }
 const { title, description } = Astro.props;
 ---
-<BaseLayout {title} {description} noindex>
-  <section class="auth-page"><div class="auth-card"><slot /></div></section>
+<BaseLayout {title} {description} noindex bare>
+  <main class="auth-page"><section class="auth-card"><a class="brand" href="/"><span class="brand-mark" aria-hidden="true">{PRODUCT_NAME.slice(0, 1)}</span>{PRODUCT_NAME}</a><slot /></section></main>
 </BaseLayout>

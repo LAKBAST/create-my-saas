@@ -5,8 +5,35 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- React Router y Astro adoptan el diseño de Next.js: los mismos tokens de color
+  con modo claro y oscuro, iconos SVG, barra lateral con menú móvil y tarjetas
+  de inicio de sesión. Ambas añaden la página de Configuración y una portada
+  con el mismo estilo; el aviso de analítica usa los tokens.
+- El nombre del producto se define en un único sitio: `app/lib/brand.ts` en
+  React Router y `src/lib/brand.ts` en Astro (antes «SaaS starter» y
+  «LaunchKit» repetidos en títulos, metadatos y cabeceras).
+- Astro usa `lang="es"` y textos en español también en las páginas públicas.
+- La extensión de facturación de Astro ya no sustituye `BaseLayout.astro`:
+  añade su enlace con `src/lib/navigation.ts`, y su página y `auth.ts`
+  siguen el nuevo diseño.
+
+### Added
+
+- React Router: ESLint con `typescript-eslint` y `eslint-plugin-react-hooks`,
+  y el script `pnpm lint`, como en Next.js.
+
 ### Fixed
 
+- React Router: la verificación de correo y el aviso de analítica ya no
+  actualizan el estado de forma síncrona dentro de un efecto
+  (`react-hooks/set-state-in-effect`); el consentimiento se lee con
+  `useSyncExternalStore`, como en Next.js.
+- El icono de los pasos completados del inicio se veía gris sobre el círculo
+  verde (Next.js, React Router y Astro).
+- La extensión de facturación de Astro excluye del sitemap las páginas
+  privadas, como la plantilla Astro.
 - FastAPI envía los correos con un User-Agent propio: Resend (tras Cloudflare)
   rechazaba el de urllib con un 403 y el registro fallaba.
 - FastAPI: si el correo de verificación no se puede enviar al registrarse,

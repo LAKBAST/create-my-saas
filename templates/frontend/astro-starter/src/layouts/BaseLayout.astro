@@ -1,20 +1,29 @@
 ---
 import '../styles/global.css';
+import Icon from '../components/Icon.astro';
+import { PRODUCT_NAME } from '../lib/brand';
+import { appNavigation } from '../lib/navigation';
 
 interface Props {
+  /** Page name; the product name is appended unless the page is the product itself. */
   title: string;
   description: string;
   protected?: boolean;
   noindex?: boolean;
+  /** Renders only the page, without the site header or the app shell (sign-in pages). */
+  bare?: boolean;
 }
 
-const { title, description, protected: protectedPage = false, noindex = false } = Astro.props;
+const { title: pageTitle, description, protected: protectedPage = false, noindex = false, bare = false } = Astro.props;
+const title = pageTitle === PRODUCT_NAME ? pageTitle : `${pageTitle} | ${PRODUCT_NAME}`;
 const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const robots = protectedPage || noindex ? 'noindex, nofollow, noarchive' : 'index, follow';
+const current = appNavigation.find((item) => item.href === Astro.url.pathname);
+const initial = PRODUCT_NAME.slice(0, 1);
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -22,8 +31,8 @@ const robots = protectedPage || noindex ? 'noindex, nofollow, noarchive' : 'inde
     <meta name="robots" content={robots} />
     <link rel="canonical" href={canonicalUrl} />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="en_US" />
-    <meta property="og:site_name" content="LaunchKit" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content={PRODUCT_NAME} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonicalUrl} />
@@ -33,22 +42,51 @@ const robots = protectedPage || noindex ? 'noindex, nofollow, noarchive' : 'inde
     <title>{title}</title>
   </head>
   <body data-protected={protectedPage ? '' : undefined}>
-    <header class="site-header">
-      <a class="brand" href="/" aria-label="LaunchKit home">LaunchKit</a>
-      <button class="menu-button" type="button" data-mobile-menu-button aria-controls="main-navigation">Menú</button>
-      <nav id="main-navigation" data-mobile-menu aria-label="Main navigation">
-        <a href="/pricing">Pricing</a>
-        <a href="/docs">Docs</a>
-        <a href="/blog">Blog</a>
-        {protectedPage ? <><a href="/app/">Espacio</a><a href="/account/">Cuenta</a><button type="button" class="text-button" data-logout>Cerrar sesión</button></> : <><a href="/login/">Entrar</a><a class="nav-button" href="/register/">Crear cuenta</a></>}
-      </nav>
-    </header>
-    <main><slot /></main>
-    <footer class="site-footer">
-      <span>© {new Date().getFullYear()} LaunchKit</span>
-      <a href="/docs">Documentation</a>
-      <a href="/blog">Blog</a>
-    </footer>
+    {protectedPage ? (
+      <div class="app">
+        <aside class="sidebar" data-mobile-menu>
+          <a class="brand" href="/app/"><span class="brand-mark" aria-hidden="true">{initial}</span>{PRODUCT_NAME}</a>
+          <nav id="main-navigation" aria-label="Navegación principal">
+            <p class="nav-label">Menú</p>
+            {appNavigation.map((item) => <a href={item.href} aria-current={item === current ? 'page' : undefined}><Icon name={item.icon} />{item.label}</a>)}
+          </nav>
+          <div class="sidebar-user">
+            <a href="/account/" class="avatar" aria-label="Abrir cuenta" data-user-initials></a>
+            <div><strong data-user-name></strong><small data-user-email></small></div>
+            <button type="button" class="icon-button" data-logout aria-label="Cerrar sesión" title="Cerrar sesión"><Icon name="logout" /></button>
+          </div>
+        </aside>
+        <button type="button" class="backdrop" data-mobile-menu-button aria-label="Cerrar menú"></button>
+        <div class="app-main">
+          <header class="app-header">
+            <button class="menu-button" type="button" data-mobile-menu-button aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir menú"><Icon name="menu" /></button>
+            <p class="crumb"><span>{PRODUCT_NAME}</span>{current && <><i aria-hidden="true">/</i><strong>{current.label}</strong></>}</p>
+            <span class="session"><span class="status-dot"></span>Sesión activa</span>
+          </header>
+          <main class="app-content"><slot /></main>
+        </div>
+      </div>
+    ) : bare ? <slot /> : (
+      <div class="site">
+        <header class="site-header">
+          <a class="brand" href="/"><span class="brand-mark" aria-hidden="true">{initial}</span>{PRODUCT_NAME}</a>
+          <button class="menu-button" type="button" data-mobile-menu-button aria-controls="main-navigation" aria-expanded="false" aria-label="Abrir menú"><Icon name="menu" /></button>
+          <nav id="main-navigation" data-mobile-menu aria-label="Navegación principal">
+            <a href="/pricing">Precios</a>
+            <a href="/docs">Documentación</a>
+            <a href="/blog">Blog</a>
+            <a class="btn btn-ghost" href="/login/">Iniciar sesión</a>
+            <a class="btn btn-primary" href="/register/">Crear cuenta</a>
+          </nav>
+        </header>
+        <main class="site-main"><slot /></main>
+        <footer class="site-footer">
+          <span>© {new Date().getFullYear()} {PRODUCT_NAME}</span>
+          <a href="/docs">Documentación</a>
+          <a href="/blog">Blog</a>
+        </footer>
+      </div>
+    )}
     <script>
       import '../scripts/auth';
       import { initializePostHog } from '../scripts/posthog';

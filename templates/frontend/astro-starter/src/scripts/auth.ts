@@ -222,14 +222,22 @@ async function bindProtectedPage() {
     const session = await restoreSession();
     document.querySelectorAll<HTMLElement>("[data-user-name]").forEach((node) => { node.textContent = session.user.name; });
     document.querySelectorAll<HTMLElement>("[data-user-email]").forEach((node) => { node.textContent = session.user.email; });
+    document.querySelectorAll<HTMLElement>("[data-user-initials]").forEach((node) => { node.textContent = session.user.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(); });
     document.querySelectorAll<HTMLElement>("[data-verification]").forEach((node) => { node.textContent = session.user.emailVerified ? "Correo verificado" : "Correo pendiente de verificación"; });
+    document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
+    document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
     document.querySelector<HTMLElement>("[data-protected-content]")?.removeAttribute("hidden");
   } catch { window.location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`); }
 }
 
+function toggleMobileMenu() {
+  const open = document.querySelector("[data-mobile-menu]")?.classList.toggle("open") ?? false;
+  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button][aria-expanded]").forEach((button) => button.setAttribute("aria-expanded", String(open)));
+}
+
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
   bindForms(); bindOAuth(); void bindProtectedPage();
-  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", () => document.querySelector("[data-mobile-menu]")?.classList.toggle("open")));
+  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
   document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; resetAnalyticsUser(); window.location.assign("/login/"); } }));
   document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } }));
   if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión.", true));

@@ -29,7 +29,7 @@
       "overlay": "overlays/frontend",
       "replace": [
         "astro.config.mjs",
-        "src/layouts/BaseLayout.astro",
+        "src/lib/navigation.ts",
         "src/pages/pricing.astro",
         "src/scripts/auth.ts"
       ],

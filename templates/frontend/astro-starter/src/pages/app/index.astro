@@ -1,6 +1,38 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+import { appNavigation } from '../../lib/navigation';
+
+const shortcuts = appNavigation.filter((item) => item.shortcut);
+const hasBilling = appNavigation.some((item) => item.href === '/billing/');
+const steps = [
+  { title: 'Verifica tu correo', text: 'Necesario para recuperar la contraseña y recibir avisos.', href: '/account/', verification: true },
+  ...(hasBilling ? [{ title: 'Elige un plan', text: 'Activa la facturación de tu organización con Stripe.', href: '/billing/' }] : []),
+  { title: 'Construye tu producto', text: 'Sustituye esta página por el panel principal de tu SaaS.' },
+];
 ---
-<BaseLayout title="Espacio de trabajo" description="Tu espacio de trabajo protegido." protected>
-  <section class="dashboard" data-protected-content hidden><p class="eyebrow">ESPACIO DE TRABAJO</p><h1>Tu base de producto</h1><p class="lead">Tu sesión está conectada. Añade ahora las entidades y los flujos que hacen único a tu SaaS.</p><div class="card-grid"><article class="card"><h2>Tu cuenta</h2><p>Gestiona el perfil y el estado de verificación de la sesión actual.</p><a href="/account/">Abrir cuenta →</a></article><article class="card"><h2>Dominio de producto</h2><p>Este espacio está vacío deliberadamente: define aquí tus recursos reales.</p></article></div></section>
+<BaseLayout title="Inicio" description="Tu espacio de trabajo protegido." protected>
+  <section class="content" data-protected-content hidden>
+    <header>
+      <p class="eyebrow">Inicio</p>
+      <h1>Tu base de producto</h1>
+      <p class="lead">Hola, <span data-user-name></span>. La autenticación y las rutas protegidas ya están listas: empieza por lo que hace único a tu SaaS.</p>
+    </header>
+    <section class="panel" aria-labelledby="getting-started">
+      <div class="panel-header"><div><h2 id="getting-started">Primeros pasos</h2><p>Lo esencial antes de construir tu producto.</p></div></div>
+      <ol class="steps">
+        <li><span class="step-icon step-done"><Icon name="check" size={15} /></span><div><strong>Cuenta creada</strong><span>La sesión y las rutas protegidas ya funcionan.</span></div></li>
+        {steps.map((step) => <li>
+          {step.verification ? <><span class="step-icon step-done" data-if-verified hidden><Icon name="check" size={15} /></span><span class="step-icon" data-if-unverified></span></> : <span class="step-icon"></span>}
+          <div><strong>{step.title}</strong><span>{step.text}</span></div>
+          {step.href && <a class="btn btn-secondary btn-sm" href={step.href} data-if-unverified={step.verification ? '' : undefined}>Abrir</a>}
+        </li>)}
+      </ol>
+    </section>
+    <div class="grid">{shortcuts.map((item) => <article class="card">
+      <div class="card-icon"><Icon name={item.icon} /></div>
+      <p>{item.label}</p><strong>{item.shortcut?.title}</strong><span>{item.shortcut?.text}</span>
+      <a href={item.href}>{item.shortcut?.action} →</a>
+    </article>)}</div>
+  </section>
 </BaseLayout>

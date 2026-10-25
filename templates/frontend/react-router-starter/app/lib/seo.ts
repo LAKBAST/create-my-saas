@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from "./brand";
+
 const defaultSiteUrl = "https://example.com";
 
 export function absoluteUrl(path = "/") {
@@ -5,13 +7,15 @@ export function absoluteUrl(path = "/") {
 }
 
 type PageMetadata = {
+  /** Page name; the product name is appended unless the page is the product itself. */
   title: string;
   description: string;
   path: string;
 };
 
-function metadata({ title, description, path }: PageMetadata) {
+function metadata({ title: pageTitle, description, path }: PageMetadata) {
   const url = absoluteUrl(path);
+  const title = pageTitle === PRODUCT_NAME ? pageTitle : `${pageTitle} | ${PRODUCT_NAME}`;
 
   return [
     { title },
@@ -19,7 +23,7 @@ function metadata({ title, description, path }: PageMetadata) {
     { tagName: "link" as const, rel: "canonical", href: url },
     { property: "og:type", content: "website" },
     { property: "og:locale", content: "es_ES" },
-    { property: "og:site_name", content: "SaaS starter" },
+    { property: "og:site_name", content: PRODUCT_NAME },
     { property: "og:title", content: title },
     { property: "og:description", content: description },
     { property: "og:url", content: url },

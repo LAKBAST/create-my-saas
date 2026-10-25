@@ -2,23 +2,23 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 
 const posts = [
-  { title: 'Why static-first is a good SaaS default', date: '2026-09-12', excerpt: 'Start with pages that are easy to cache, index, and maintain.' },
-  { title: 'Keep interactivity deliberately small', date: '2026-09-05', excerpt: 'Hydrate only the parts of a public site that genuinely need JavaScript.' },
+  { title: 'Por qué lo estático es un buen punto de partida para un SaaS', date: '2026-09-12', excerpt: 'Empieza con páginas fáciles de cachear, indexar y mantener.' },
+  { title: 'Mantén la interactividad al mínimo', date: '2026-09-05', excerpt: 'Añade JavaScript sólo en las partes del sitio público que de verdad lo necesitan.' },
 ];
 ---
 
-<BaseLayout title="Blog — LaunchKit" description="Example content index for an Astro public site.">
-  <section class="content">
+<BaseLayout title="Blog" description="Índice de contenido de ejemplo para un sitio público con Astro.">
+  <section class="hero">
     <p class="eyebrow">Blog</p>
-    <h1>Useful notes for building a public product site.</h1>
-    <div class="card-grid">
-      {posts.map((post) => (
-        <article class="card">
-          <time datetime={post.date}>{post.date}</time>
-          <h2>{post.title}</h2>
-          <p>{post.excerpt}</p>
-        </article>
-      ))}
-    </div>
+    <h1>Notas útiles para construir el sitio público de un producto.</h1>
   </section>
+  <div class="features">
+    {posts.map((post) => (
+      <article class="feature">
+        <time datetime={post.date}>{post.date}</time>
+        <strong>{post.title}</strong>
+        <p>{post.excerpt}</p>
+      </article>
+    ))}
+  </div>
 </BaseLayout>

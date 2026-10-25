@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import styles from "../auth.module.css";
+import { AuthCard } from "../components/auth-card";
+import { OAuthButtons } from "../components/oauth-buttons";
 import { ApiError } from "../lib/api.client";
 import { useAuth } from "../lib/auth-context";
-import { OAuthButtons } from "../components/oauth-buttons";
 import { privatePageMetadata } from "../lib/seo";
 
-export function meta() { return privatePageMetadata({ title: "Entrar | SaaS starter", description: "Accede a tu espacio de trabajo.", path: "/login" }); }
+export function meta() { return privatePageMetadata({ title: "Iniciar sesión", description: "Accede a tu espacio de trabajo.", path: "/login" }); }
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -27,5 +29,5 @@ export default function Login() {
     } finally { setPending(false); }
   }
 
-  return <main className="auth-page"><section className="auth-card"><Link className="brand" to="/"><span>✦</span> SaaS starter</Link><h1>Bienvenido de nuevo</h1><p>Accede a tu espacio de trabajo.</p><form onSubmit={submit}>{error && <p className="error" role="alert">{error}</p>}<label>Email<input name="email" type="email" autoComplete="email" required /></label><label>Contraseña<input name="password" type="password" autoComplete="current-password" required /></label><button className="button" disabled={pending}>{pending ? "Entrando…" : "Entrar"}</button></form><OAuthButtons /><p className="form-footer"><Link to="/forgot-password">¿Has olvidado la contraseña?</Link><br />¿Aún no tienes cuenta? <Link to="/register">Regístrate</Link></p></section></main>;
+  return <AuthCard><h1>Inicia sesión</h1><p>Accede a tu espacio de trabajo.</p>{search.get("registered") && <p className={styles.notice} role="status">Revisa tu correo para verificar la cuenta.</p>}<form className={styles.form} onSubmit={submit}><label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@empresa.com" required /></label><label>Contraseña<input name="password" type="password" autoComplete="current-password" placeholder="••••••••" required /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={pending}>{pending ? "Iniciando sesión…" : "Iniciar sesión"}</button></form><OAuthButtons /><p className={styles.footer}><Link to="/forgot-password">¿Has olvidado tu contraseña?</Link></p><p className={styles.footer}>¿Aún no tienes cuenta? <Link to="/register">Crear cuenta</Link></p></AuthCard>;
 }

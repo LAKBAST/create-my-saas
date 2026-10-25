@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import styles from "../auth.module.css";
+import { AuthCard } from "../components/auth-card";
 import { ApiError, api } from "../lib/api.client";
 import { privatePageMetadata } from "../lib/seo";
 
-export function meta() { return privatePageMetadata({ title: "Verificar correo | SaaS starter", description: "Verifica el correo electrónico de tu cuenta.", path: "/verify-email" }); }
+export function meta() { return privatePageMetadata({ title: "Verificar correo", description: "Verifica el correo electrónico de tu cuenta.", path: "/verify-email" }); }
 
 export default function VerifyEmail() {
   const [search] = useSearchParams();
   const token = search.get("token");
-  const [message, setMessage] = useState("Verificando tu dirección de correo…");
+  const [state, setState] = useState<"loading" | "complete" | "error">("loading");
+  const [message, setMessage] = useState("Verificando tu correo…");
 
+  // A missing token is derived while rendering; only the request's outcome is state.
   useEffect(() => {
-    if (!token) { setMessage("El enlace no incluye un token de verificación válido."); return; }
-    void api.verifyEmail(token).then(() => setMessage("Tu email ha sido verificado. Ya puedes iniciar sesión.")).catch((cause) => setMessage(cause instanceof ApiError ? cause.message : "No se ha podido verificar el email."));
+    if (!token) return;
+    void api.verifyEmail(token).then(() => { setMessage("Tu correo se ha verificado correctamente."); setState("complete"); }).catch((cause) => {
+      setMessage(cause instanceof ApiError ? cause.message : "No se ha podido verificar el correo."); setState("error");
+    });
   }, [token]);
 
-  return <main className="auth-page"><section className="auth-card"><Link className="brand" to="/"><span>✦</span> SaaS starter</Link><h1>Verificación de email</h1><p className="success">{message}</p><p className="form-footer"><Link to="/login">Ir a entrar</Link></p></section></main>;
+  const invalidLink = !token;
+  return <AuthCard><h1>{state === "complete" ? "Correo verificado" : "Verificación de correo"}</h1><p role="status">{invalidLink ? "El enlace de verificación no es válido." : message}</p>{(state !== "loading" || invalidLink) && <p className={styles.footer}><Link to="/login">Iniciar sesión</Link></p>}</AuthCard>;
 }

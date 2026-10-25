@@ -1,0 +1,41 @@
+.app { min-height: 100vh; display: flex; }
+
+.sidebar { position: sticky; top: 0; height: 100vh; width: 244px; flex: none; display: flex; flex-direction: column; gap: 24px; padding: 18px 12px 14px; background: var(--surface); border-right: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px; color: var(--ink); font-size: 16px; font-weight: 700; letter-spacing: -.2px; text-decoration: none; }
+.brand span { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-size: 14px; font-weight: 800; }
+
+.sidebar nav { display: grid; gap: 2px; }
+.navLabel { margin: 0 0 6px; padding: 0 10px; color: var(--muted); font-size: 11.5px; font-weight: 600; letter-spacing: .3px; text-transform: uppercase; }
+.sidebar nav a { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border-radius: var(--radius-sm); color: var(--ink-soft); font-size: 13.5px; font-weight: 500; text-decoration: none; transition: background .15s, color .15s; }
+.sidebar nav a svg { color: var(--muted); }
+.sidebar nav a:hover { background: var(--surface-hover); color: var(--ink); }
+.sidebar nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.sidebar nav a.active svg { color: var(--accent); }
+
+.user { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 12px 6px 0; border-top: 1px solid var(--line); }
+.user div { display: grid; min-width: 0; flex: 1; }
+.user strong { overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.user small { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.avatar { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; text-decoration: none; }
+.iconButton { width: 32px; height: 32px; flex: none; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: none; color: var(--muted); }
+.iconButton:hover { background: var(--surface-hover); color: var(--ink); }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.header { position: sticky; top: 0; z-index: 5; height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 32px; background: color-mix(in srgb, var(--canvas) 85%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.crumb { margin: 0; display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13.5px; }
+.crumb i { color: var(--line-strong); font-style: normal; }
+.crumb strong { color: var(--ink); font-weight: 600; }
+.session { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12.5px; }
+.statusDot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.content { flex: 1; width: 100%; max-width: 1120px; margin: 0 auto; padding: 32px 32px 56px; }
+.menuButton, .backdrop { display: none; }
+
+@media (max-width: 860px) {
+  .sidebar { position: fixed; z-index: 30; inset: 0 auto 0 0; width: min(82vw, 280px); box-shadow: 0 0 40px rgb(15 23 42 / .2); transform: translateX(-105%); transition: transform .2s ease; }
+  .sidebarOpen { transform: translateX(0); }
+  .backdrop { display: block; position: fixed; inset: 0; z-index: 20; border: 0; background: rgb(15 23 42 / .35); }
+  .menuButton { display: grid; place-items: center; width: 36px; height: 36px; margin-left: -8px; border: 0; border-radius: var(--radius-sm); background: none; color: var(--ink); }
+  .header { padding: 0 16px; }
+  .session { display: none; }
+  .content { padding: 24px 16px 40px; }
+}

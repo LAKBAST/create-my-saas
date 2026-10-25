@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
+import styles from "../auth.module.css";
+import { AuthCard } from "../components/auth-card";
 import { ApiError, api } from "../lib/api.client";
 import { privatePageMetadata } from "../lib/seo";
 
-export function meta() { return privatePageMetadata({ title: "Recuperar cuenta | SaaS starter", description: "Solicita un enlace para restablecer tu contraseña.", path: "/forgot-password" }); }
+export function meta() { return privatePageMetadata({ title: "Recuperar cuenta", description: "Solicita un enlace para restablecer tu contraseña.", path: "/forgot-password" }); }
 
 export default function ForgotPassword() {
   const [error, setError] = useState<string>();
@@ -14,8 +16,8 @@ export default function ForgotPassword() {
     event.preventDefault();
     const email = String(new FormData(event.currentTarget).get("email"));
     setError(undefined); setPending(true);
-    try { await api.requestPasswordReset(email); setSent(true); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "No se ha podido solicitar la recuperación."); } finally { setPending(false); }
+    try { await api.requestPasswordReset(email); setSent(true); } catch (cause) { setError(cause instanceof ApiError ? cause.message : "No se ha podido solicitar el restablecimiento."); } finally { setPending(false); }
   }
 
-  return <main className="auth-page"><section className="auth-card"><Link className="brand" to="/"><span>✦</span> SaaS starter</Link><h1>Recupera tu cuenta</h1>{sent ? <p className="success">Si existe una cuenta con ese email, recibirás instrucciones para restablecer la contraseña.</p> : <><p>Te enviaremos un enlace de recuperación.</p><form onSubmit={submit}>{error && <p className="error" role="alert">{error}</p>}<label>Email<input name="email" type="email" autoComplete="email" required /></label><button className="button" disabled={pending}>{pending ? "Enviando…" : "Enviar instrucciones"}</button></form></>}<p className="form-footer"><Link to="/login">Volver a entrar</Link></p></section></main>;
+  return <AuthCard><h1>Restablece tu contraseña</h1>{sent ? <p role="status">Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña.</p> : <><p>Te enviaremos un enlace de un solo uso.</p><form className={styles.form} onSubmit={submit}><label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@empresa.com" required /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={pending}>{pending ? "Enviando…" : "Enviar enlace"}</button></form></>}<p className={styles.footer}><Link to="/login">Volver a iniciar sesión</Link></p></AuthCard>;
 }
