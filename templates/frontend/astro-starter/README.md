@@ -62,4 +62,3 @@ Configura `PUBLIC_PRIVACY_POLICY_URL` y `PUBLIC_COOKIE_POLICY_URL` con las URLs
 HTTPS o rutas del mismo sitio de tus políticas publicadas. El aviso muestra los
 enlaces configurados; los valores vacíos no generan enlaces a páginas
 inexistentes. El texto del aviso usa `PRODUCT_NAME` de `src/lib/brand.ts`.
-
