@@ -13,7 +13,7 @@ const environment = z.object({
   DATABASE_SSL: environmentBoolean(),
   FRONTEND_URL: z.string().url(),
   CORS_ORIGINS: z.string().min(1),
-  SECRET_KEY: z.string().min(32),
+  SECRET_KEY: z.string(),
   ACCESS_TOKEN_EXPIRE_MINUTES: z.coerce.number().int().positive().default(15),
   REFRESH_TOKEN_EXPIRE_DAYS: z.coerce.number().int().positive().default(30),
   PASSWORD_RESET_EXPIRE_MINUTES: z.coerce.number().int().positive().default(60),
@@ -60,6 +60,15 @@ export function loadConfig(input = process.env) {
   const trustedProxyIps = parsed.TRUSTED_PROXY_IPS.split(',').map((ip) => ip.trim()).filter(Boolean);
   const protectedEnvironment = appEnvironment === 'production' || appEnvironment === 'staging';
 
+  if (protectedEnvironment && (parsed.SECRET_KEY.length < 32 || ['development-only-secret-not-for-production-32b', 'change-me-in-production', 'replace-with-a-long-random-secret'].includes(parsed.SECRET_KEY))) {
+    throw new Error('SECRET_KEY must be a unique value of at least 32 characters in production.');
+  }
+  if (protectedEnvironment && parsed.DATABASE_URL.includes('localhost')) {
+    throw new Error('DATABASE_URL must point to the production database.');
+  }
+  if (!protectedEnvironment && parsed.SECRET_KEY.length < 32) {
+    throw new Error('SECRET_KEY must contain at least 32 characters.');
+  }
   if (protectedEnvironment && !parsed.COOKIE_SECURE) {
     throw new Error('COOKIE_SECURE must be true in staging and production.');
   }

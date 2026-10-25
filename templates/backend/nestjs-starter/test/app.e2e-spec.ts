@@ -72,7 +72,7 @@ describe('AppController (e2e)', () => {
       '/auth/password/reset/request',
       '/auth/password/reset/confirm',
     ]) {
-      await request(app.getHttpServer()).post(path).send({}).expect(400);
+      await request(app.getHttpServer()).post(path).send({}).expect(422);
       const limited = await request(app.getHttpServer()).post(path).send({}).expect(429);
       expect(limited.headers['retry-after']).toBe('120');
       expect(limited.body.error.code).toBe('RATE_LIMITED');
@@ -94,8 +94,8 @@ describe('AppController (e2e)', () => {
     expect(registerResponse.body).toMatchObject({
       email: registration.email,
       name: registration.name,
-      emailVerified: false,
-      isActive: true,
+      email_verified: false,
+      is_active: true,
     });
     expect(registerResponse.body.passwordHash).toBeUndefined();
 
@@ -158,7 +158,7 @@ describe('AppController (e2e)', () => {
   });
 
   it('uses the shared password policy and requires CSRF for cookie-session mutations', async () => {
-    await request(app.getHttpServer()).post('/auth/register').send({ email: 'weak@example.com', password: 'onlyletters', name: 'Weak' }).expect(400);
+    await request(app.getHttpServer()).post('/auth/register').send({ email: 'weak@example.com', password: 'onlyletters', name: 'Weak' }).expect(422);
     const agent = request.agent(app.getHttpServer());
     await agent.post('/auth/register').send({ email: 'csrf@example.com', password: 'password-with-number1', name: 'CSRF' }).expect(201);
     await agent.post('/auth/login').send({ email: 'csrf@example.com', password: 'password-with-number1' }).expect(200);
@@ -171,7 +171,7 @@ describe('AppController (e2e)', () => {
     const response = await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'not-an-email', password })
-      .expect(400);
+      .expect(422);
 
     expect(JSON.stringify(response.body)).not.toContain(password);
   });
@@ -216,7 +216,7 @@ describe('AppController (e2e)', () => {
       .post('/auth/email/verify')
       .send({ token: verificationToken })
       .expect(400)
-      .expect({ error: { code: 'INVALID_TOKEN', message: 'The token is invalid or expired.' } });
+      .expect({ error: { code: 'INVALID_VERIFICATION_TOKEN', message: 'Verification token is invalid or expired.' } });
 
     await request(app.getHttpServer()).post('/auth/password/reset/request').send({ email: credentials.email }).expect(204);
     const resetToken = tokenFrom(deliveries.at(-1)?.text);
@@ -228,7 +228,7 @@ describe('AppController (e2e)', () => {
       .post('/auth/password/reset/confirm')
       .send({ token: resetToken, newPassword: 'new-password1' })
       .expect(400)
-      .expect({ error: { code: 'INVALID_TOKEN', message: 'The token is invalid or expired.' } });
+      .expect({ error: { code: 'INVALID_RESET_TOKEN', message: 'Reset token is invalid or expired.' } });
     await request(app.getHttpServer()).post('/auth/login').send(loginPayload(credentials)).expect(401);
     await request(app.getHttpServer()).post('/auth/login').send({ ...loginPayload(credentials), password: 'new-password1' }).expect(200);
   });
@@ -423,7 +423,7 @@ describe('AppController (e2e)', () => {
     const organization = await request(app.getHttpServer())
       .post('/organizations')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ name: 'Webhook persistence' })
+      .send({ name: 'Webhook persistence', slug: 'webhook-persistence' })
       .expect(201);
     const stripeKey = 'sk_test_123456789012345678901234';
     const webhookSecret = 'whsec_webhook_persistence';
@@ -451,7 +451,7 @@ describe('AppController (e2e)', () => {
     const organization = await request(app.getHttpServer())
       .post('/organizations')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .send({ name: 'Ownership E2E' })
+      .send({ name: 'Ownership E2E', slug: 'ownership-e2e' })
       .expect(201);
 
     for (const invited of [
@@ -462,7 +462,7 @@ describe('AppController (e2e)', () => {
         .post(`/organizations/${organization.body.id}/invitations`)
         .set('Authorization', `Bearer ${owner.accessToken}`)
         .send({ email: invited.email, role: invited.role })
-        .expect(204);
+        .expect(201);
       const invitation = deliveries.findLast((delivery) =>
         delivery.recipient === invited.email && delivery.subject === 'Organization invitation');
       const token = invitation?.text.match(/token: (\S+)/)?.[1];
@@ -471,7 +471,7 @@ describe('AppController (e2e)', () => {
         .post('/organizations/invitations/accept')
         .set('Authorization', `Bearer ${invited.account.accessToken}`)
         .send({ token })
-        .expect(201);
+        .expect(204);
     }
 
     await request(app.getHttpServer())
@@ -490,13 +490,13 @@ describe('AppController (e2e)', () => {
         .set('Authorization', `Bearer ${account.accessToken}`)
         .send({ userId: member.userId })
         .expect(403)
-        .expect({ error: { code: 'ORGANIZATION_ACCESS_DENIED', message: 'You do not have permission for this organization.' } });
+        .expect({ error: { code: 'INSUFFICIENT_ROLE', message: 'This organization role cannot perform that action.' } });
     }
 
     await request(app.getHttpServer())
       .delete('/users/me')
       .set('Authorization', `Bearer ${member.accessToken}`)
-      .expect(200);
+      .expect(204);
     for (const userId of [member.userId, randomUUID()]) {
       await request(app.getHttpServer())
         .post(`/organizations/${organization.body.id}/ownership/transfer`)
@@ -516,8 +516,8 @@ describe('AppController (e2e)', () => {
       .set('Authorization', `Bearer ${admin.accessToken}`)
       .expect(200);
     expect(transferredMembers.body).toEqual(expect.arrayContaining([
-      expect.objectContaining({ userId: owner.userId, role: 'admin' }),
-      expect.objectContaining({ userId: admin.userId, role: 'owner' }),
+      expect.objectContaining({ user_id: owner.userId, role: 'admin' }),
+      expect.objectContaining({ user_id: admin.userId, role: 'owner' }),
     ]));
 
     await request(app.getHttpServer())
@@ -527,12 +527,12 @@ describe('AppController (e2e)', () => {
     await request(app.getHttpServer())
       .delete('/users/me')
       .set('Authorization', `Bearer ${owner.accessToken}`)
-      .expect(200);
+      .expect(204);
     const remainingMembers = await request(app.getHttpServer())
       .get(`/organizations/${organization.body.id}/members`)
       .set('Authorization', `Bearer ${admin.accessToken}`)
       .expect(200);
-    expect(remainingMembers.body.some((membership: { userId: string }) => membership.userId === owner.userId)).toBe(false);
+    expect(remainingMembers.body.some((membership: { user_id: string }) => membership.user_id === owner.userId)).toBe(false);
     expect(remainingMembers.body.filter((membership: { role: string }) => membership.role === 'owner')).toHaveLength(1);
 
     const firstAuditPage = await request(app.getHttpServer())
@@ -560,6 +560,112 @@ describe('AppController (e2e)', () => {
       if (deliveredToken) expect(serializedAudit).not.toContain(decodeURIComponent(deliveredToken));
     }
     expect(serializedAudit).not.toMatch(/tokenHash|sessionId|providerCustomerId|paymentMethod|card/i);
+  });
+
+  it('matches the public organization and billing contract while retaining deprecated aliases', async () => {
+    const configService = app.get(ConfigService);
+    configService.set('STRIPE_SECRET_KEY', '');
+    configService.set('STRIPE_WEBHOOK_SECRET', '');
+    configService.set('STRIPE_PRICE_PLANS', '{}');
+    const owner = await registerAndLogin(app, { email: 'contract-owner@example.com', password: 'password123', name: 'Contract owner' });
+    const invited = await registerAndLogin(app, { email: 'contract-member@example.com', password: 'password123', name: 'Contract member' });
+    const outside = await registerAndLogin(app, { email: 'outside@example.com', password: 'password123', name: 'Outside' });
+    const http = app.getHttpServer();
+    const ownerHeader = 'Bearer ' + owner.accessToken;
+    const created = await request(http).post('/organizations').set('Authorization', ownerHeader).send({ name: 'Contract', slug: 'contract' }).expect(201);
+    const organizationId = created.body.id;
+    expect(created.body).toEqual({ id: expect.any(String), name: 'Contract', slug: 'contract' });
+    await request(http).post('/organizations').set('Authorization', ownerHeader).send({ name: 'Duplicate', slug: 'contract' }).expect(409)
+      .expect({ error: { code: 'SLUG_ALREADY_EXISTS', message: 'Organization slug is already in use.' } });
+    await request(http).get('/organizations').set('Authorization', ownerHeader).expect(200, [created.body]);
+    for (const query of ['limit=0', 'limit=101', 'limit=1.5', 'limit=invalid', 'cursor=invalid']) {
+      await request(http).get('/organizations/' + organizationId + '/audit-logs?' + query).set('Authorization', ownerHeader).expect(422)
+        .expect({ error: { code: 'HTTP_422', message: 'The request payload is invalid.' } });
+    }
+    await request(http).get('/billing/organizations/not-a-uuid').set('Authorization', ownerHeader).expect(422);
+    await request(http).post('/organizations/' + organizationId + '/ownership/transfer').set('Authorization', ownerHeader).send({}).expect(422);
+    const canonical = '/billing/organizations/' + organizationId;
+    const legacy = '/organizations/' + organizationId + '/billing';
+    const snapshot = await request(http).get(canonical).set('Authorization', ownerHeader).expect(200);
+    expect(snapshot.body).toEqual({ organizationId, provider: 'manual', plan: 'free', status: 'active', seats: 1, currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, entitlements: [], usage: [] });
+    await request(http).get(legacy + '/subscription').set('Authorization', ownerHeader).expect(200, snapshot.body);
+    const config = await request(http).get(canonical + '/configuration').set('Authorization', ownerHeader).expect(200);
+    await request(http).get(legacy + '/configuration').set('Authorization', ownerHeader).expect(200, config.body);
+    for (const path of [canonical, legacy]) {
+      await request(http).post(path + '/checkout').set('Authorization', ownerHeader).send({ priceId: 'price_contract' }).expect(200, { configured: false, url: null, sessionId: null });
+      await request(http).post(path + '/checkout').set('Authorization', ownerHeader).send({ price_id: 'price_contract' }).expect(200, { configured: false, url: null, sessionId: null });
+      await request(http).post(path + '/portal').set('Authorization', ownerHeader).expect(200, { configured: false, url: null, reason: 'Stripe billing is not configured.' });
+    }
+    await request(http).get(canonical).set('Authorization', 'Bearer ' + outside.accessToken).expect(403)
+      .expect({ error: { code: 'MEMBERSHIP_REQUIRED', message: 'Organization membership is required.' } });
+    const invitationPath = '/organizations/' + organizationId + '/invitations';
+    await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com', role: 'owner' }).expect(400).expect({ error: { code: 'OWNER_ROLE_PROTECTED', message: 'Owner invitations are not permitted.' } });
+    const invitation = await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com' }).expect(201);
+    expect(invitation.body).toEqual({ id: expect.any(String), accepted: false });
+    const delivered = deliveries.findLast((message) => message.subject === 'Organization invitation');
+    const token = delivered?.text.match(/token: (\S+)/)?.[1];
+    expect(token).toBeDefined();
+    await request(http).post(invitationPath).set('Authorization', ownerHeader).send({ email: 'contract-member@example.com' }).expect(201, invitation.body);
+    const accepted = await request(http).post('/organizations/invitations/accept').set('Authorization', 'Bearer ' + invited.accessToken).send({ token }).expect(204);
+    expect(accepted.text).toBe('');
+    await request(http).post('/organizations/invitations/accept').set('Authorization', 'Bearer ' + invited.accessToken).send({ token }).expect(204);
+    const members = await request(http).get('/organizations/' + organizationId + '/members').set('Authorization', ownerHeader).expect(200);
+    const membership = members.body.find((item: { user_id: string }) => item.user_id === invited.userId);
+    expect(membership).toEqual({ id: expect.any(String), user_id: invited.userId, email: 'contract-member@example.com', name: 'Contract member', role: 'member' });
+    await request(http).get(canonical).set('Authorization', 'Bearer ' + invited.accessToken).expect(403)
+      .expect({ error: { code: 'INSUFFICIENT_ROLE', message: 'This organization role cannot perform that action.' } });
+    await request(http).patch('/organizations/' + organizationId + '/members/' + membership.id).set('Authorization', ownerHeader).send({ role: 'owner' }).expect(400).expect({ error: { code: 'OWNER_ROLE_PROTECTED', message: 'Owner role cannot be changed through this endpoint.' } });
+    await request(http).patch('/organizations/' + organizationId + '/members/' + membership.id).set('Authorization', ownerHeader).send({ role: 'admin' }).expect(204);
+    await request(http).get(canonical).set('Authorization', 'Bearer ' + invited.accessToken).expect(200);
+    await request(http).delete('/organizations/' + organizationId + '/members/' + randomUUID()).set('Authorization', ownerHeader).expect(404)
+      .expect(({ body }) => expect(body.error.code).toBe('MEMBERSHIP_NOT_FOUND'));
+    const ownerMembership = members.body.find((item: { user_id: string }) => item.user_id === owner.userId);
+    await request(http).delete('/organizations/' + organizationId + '/members/' + ownerMembership.id).set('Authorization', ownerHeader).expect(409)
+      .expect({ error: { code: 'OWNER_REQUIRED', message: 'Transfer ownership before removing the owner.' } });
+    await request(http).post('/users/me/deactivate').set('Authorization', ownerHeader).expect(409)
+      .expect(({ body }) => expect(body.error.code).toBe('LAST_ACTIVE_OWNER'));
+    await request(http).post('/users/me/deactivate').set('Authorization', 'Bearer ' + invited.accessToken).expect(204);
+    await request(http).delete('/users/me').set('Authorization', 'Bearer ' + outside.accessToken).expect(204);
+  });
+
+  it('exposes the users recovery, password and verification routes from FastAPI', async () => {
+    const credentials = { email: 'users-contract@example.com', password: 'password123', name: 'Users contract' };
+    const account = await registerAndLogin(app, credentials);
+    const http = app.getHttpServer();
+    const token = tokenFrom(deliveries.at(-1)?.text);
+    await request(http).patch('/users/me').set('Authorization', 'Bearer ' + account.accessToken).send({ name: null }).expect(200).expect(({ body }) => expect(body.name).toBe(credentials.name));
+    const verified = await request(http).post('/users/email-verification/confirm').send({ token }).expect(200);
+    expect(verified.body).toEqual({ id: account.userId, email: credentials.email, name: credentials.name, email_verified: true, is_active: true });
+    await request(http).post('/users/email-verification/request').set('Authorization', 'Bearer ' + account.accessToken).expect(202, { accepted: true });
+    for (const email of [credentials.email, 'missing@example.com']) {
+      await request(http).post('/users/password-reset/request').send({ email }).expect(202, { accepted: true });
+    }
+    const resetToken = tokenFrom(deliveries.at(-1)?.text);
+    await request(http).post('/users/password-reset/confirm').send({ token: resetToken, new_password: 'next-password1' }).expect(204);
+    await request(http).post('/users/password-reset/confirm').send({ token: resetToken, newPassword: 'next-password1' }).expect(400)
+      .expect({ error: { code: 'INVALID_RESET_TOKEN', message: 'Reset token is invalid or expired.' } });
+    const login = await request(http).post('/auth/login').send({ email: credentials.email, password: 'next-password1' }).expect(200);
+    expect(login.body).toEqual({ accessToken: expect.any(String), access_token: login.body.accessToken, token_type: 'bearer', expires_in: 900, user: verified.body });
+    await request(http).post('/users/me/password').set('Authorization', 'Bearer ' + login.body.accessToken).send({ current_password: 'next-password1', new_password: 'last-password1' }).expect(204);
+    await request(http).post('/auth/login').send({ email: credentials.email, password: 'last-password1' }).expect(200);
+    await request(http).post('/users/email-verification/confirm').send({ token }).expect(400)
+      .expect({ error: { code: 'INVALID_VERIFICATION_TOKEN', message: 'Verification token is invalid or expired.' } });
+  });
+
+  it('supports the redirect-based OAuth start route without removing the JSON route', async () => {
+    const config = app.get(ConfigService);
+    config.set('OAUTH_ENABLED', true);
+    config.set('OAUTH_GOOGLE_CLIENT_ID', 'google-client');
+    config.set('OAUTH_GOOGLE_CLIENT_SECRET', 'google-secret');
+    config.set('OAUTH_GOOGLE_REDIRECT_URI', 'https://app.example/auth/oauth/google/callback');
+    const http = app.getHttpServer();
+    const redirect = await request(http).get('/auth/oauth/google/start').expect(307);
+    const url = new URL(redirect.headers.location);
+    expect(url.searchParams.get('client_id')).toBe('google-client');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(url.searchParams.get('state')).toEqual(expect.any(String));
+    await request(http).get('/auth/oauth/google').expect(200).expect(({ body }) => expect(body.authorizationUrl).toEqual(expect.any(String)));
+    await request(http).get('/auth/oauth/google/callback').expect(422).expect({ error: { code: 'HTTP_422', message: 'The request payload is invalid.' } });
   });
 
   afterEach(async () => {

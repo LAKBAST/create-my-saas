@@ -9,7 +9,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       <dl class="rows">
         <div><dt>Nombre</dt><dd data-user-name></dd><span></span></div>
         <div><dt>Correo electrónico</dt><dd data-user-email></dd><span><span class="badge badge-success" data-if-verified hidden>Verificado</span><button type="button" class="btn btn-secondary btn-sm" data-resend-verification data-if-unverified>Reenviar verificación</button></span></div>
-        <div><dt>Estado</dt><dd data-verification></dd><span></span></div>
+        <div><dt>Estado</dt><dd data-account-state></dd><span class="badge" data-account-state-badge></span></div>
       </dl>
       <p data-account-status class="form-status" role="status"></p>
     </section>

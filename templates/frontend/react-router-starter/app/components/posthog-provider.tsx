@@ -2,11 +2,18 @@ import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import posthog from "posthog-js";
 
+import { PRODUCT_NAME } from "../lib/brand";
+
 type Consent = "granted" | "denied" | "unknown";
 
 const projectKey = import.meta.env.VITE_POSTHOG_KEY;
 const apiHost = import.meta.env.VITE_POSTHOG_HOST;
 const consentKey = "saas_analytics_consent";
+// Link only to policies supplied by the generated product; never invent legal pages.
+const legalLinks = [
+  { href: import.meta.env.VITE_PRIVACY_POLICY_URL, label: "Privacidad" },
+  { href: import.meta.env.VITE_COOKIE_POLICY_URL, label: "Política de cookies" },
+].filter((link): link is { href: string; label: string } => Boolean(link.href && ((link.href.startsWith("/") && !link.href.startsWith("//")) || link.href.startsWith("https://"))));
 let initialized = false;
 let consent: Consent = "unknown";
 let userId: string | null = null;
@@ -89,5 +96,5 @@ export function PostHogProvider({ children }: { children: ReactNode }) {
     notifyConsentListeners();
   }
 
-  return <>{children}{configured && currentConsent !== "unknown" ? <button className="analytics-consent-manage" type="button" onClick={changeConsent}>Preferencias de analítica</button> : null}{configured && currentConsent === "unknown" ? <aside className="analytics-consent" aria-label="Preferencias de analítica"><p>Usamos analítica opcional y sin autocaptura para mejorar el producto.</p><div><button type="button" onClick={() => choose("denied")}>Rechazar</button><button type="button" onClick={() => choose("granted")}>Aceptar analítica</button></div></aside> : null}</>;
+  return <>{children}{configured && currentConsent !== "unknown" ? <button className="analytics-consent-manage" type="button" onClick={changeConsent}>Preferencias de analítica</button> : null}{configured && currentConsent === "unknown" ? <aside className="analytics-consent" aria-label="Preferencias de analítica"><p>Usamos analítica opcional y sin autocaptura para mejorar {PRODUCT_NAME}.</p>{legalLinks.length > 0 && <p>{legalLinks.map((link, index) => <span key={link.href}>{index > 0 ? " · " : ""}<a href={link.href}>{link.label}</a></span>)}</p>}<div><button type="button" onClick={() => choose("denied")}>Rechazar</button><button type="button" onClick={() => choose("granted")}>Aceptar analítica</button></div></aside> : null}</>;
 }

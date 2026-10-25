@@ -124,10 +124,12 @@ export class AuthService {
     await this.revokeUserSessions(user.id);
   }
 
-  async verifyEmail(token: string): Promise<void> {
+  async verifyEmail(token: string): Promise<UserPublicDto> {
     const record = await this.consumeToken(token, 'email_verification');
     const user = await this.usersService.findById(record.userId);
-    if (user) { user.emailVerified = true; await this.usersService.save(user); }
+    if (!user) throw new AppError('INVALID_VERIFICATION_TOKEN', 'Verification token is invalid or expired.', 400);
+    user.emailVerified = true;
+    return UserPublicDto.fromEntity(await this.usersService.save(user));
   }
   async resendEmailVerification(user: User): Promise<void> { if (!user.emailVerified) await this.sendOneTimeToken(user, 'email_verification'); }
   oauthProviders(): Array<{ provider: string; configured: boolean }> { return ['google', 'github'].map((provider) => ({ provider, configured: Boolean(this.oauthConfig(provider)) })); }
@@ -257,9 +259,9 @@ export class AuthService {
   }
   private async consumeToken(raw: string, kind: TokenKind): Promise<AuthToken> {
     const record = await this.tokens.findOneBy({ tokenHash: this.hashToken(raw), kind, usedAt: IsNull() });
-    if (!record || record.expiresAt <= new Date()) throw new AppError('INVALID_TOKEN', 'The token is invalid or expired.', 400);
+    if (!record || record.expiresAt <= new Date()) throw new AppError(kind === 'password_reset' ? 'INVALID_RESET_TOKEN' : 'INVALID_VERIFICATION_TOKEN', kind === 'password_reset' ? 'Reset token is invalid or expired.' : 'Verification token is invalid or expired.', 400);
     const result = await this.tokens.update({ id: record.id, usedAt: IsNull() }, { usedAt: new Date() });
-    if (!result.affected) throw new AppError('INVALID_TOKEN', 'The token has already been used.', 400);
+    if (!result.affected) throw new AppError(kind === 'password_reset' ? 'INVALID_RESET_TOKEN' : 'INVALID_VERIFICATION_TOKEN', kind === 'password_reset' ? 'Reset token is invalid or expired.' : 'Verification token is invalid or expired.', 400);
     return record;
   }
   private revokeUserSessions(userId: string): Promise<unknown> { return this.sessions.update({ userId, revokedAt: IsNull() }, { revokedAt: new Date() }); }

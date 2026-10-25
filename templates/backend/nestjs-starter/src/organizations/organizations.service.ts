@@ -33,18 +33,25 @@ export class OrganizationsService {
     return organization;
    });
   } catch (error) {
-   if (this.isUniqueViolation(error)) throw new AppError('ORGANIZATION_SLUG_ALREADY_EXISTS', 'Organization slug is already in use.', 409);
+   if (this.isUniqueViolation(error)) throw new AppError('SLUG_ALREADY_EXISTS', 'Organization slug is already in use.', 409);
    throw error;
   }
  }
  async list(userId: string): Promise<Organization[]> {
   return this.organizations.createQueryBuilder('organization').innerJoin(Membership, 'membership', 'membership.organization_id = organization.id').where('membership.user_id = :userId', { userId }).orderBy('organization.created_at', 'ASC').getMany();
  }
- async members(organizationId: string): Promise<Membership[]> { return this.memberships.findBy({ organizationId }); }
- async invite(organizationId: string, actorUserId: string, email: string, role: 'admin' | 'member'): Promise<void> {
+ async members(organizationId: string) {
+  return this.memberships.createQueryBuilder('membership')
+   .innerJoin(User, 'user', 'user.id = membership.user_id')
+   .select('membership.id', 'id').addSelect('membership.user_id', 'user_id')
+   .addSelect('user.email', 'email').addSelect('user.name', 'name').addSelect('membership.role', 'role')
+   .where('membership.organization_id = :organizationId', { organizationId }).getRawMany();
+ }
+ async invite(organizationId: string, actorUserId: string, email: string, role: 'admin' | 'member'): Promise<{ id: string; accepted: false }> {
   const normalizedEmail = this.normalizeEmail(email);
   const raw = randomBytes(48).toString('base64url');
-  let created: Invitation | null;
+  let deliver = true;
+  let created: Invitation;
   try {
    created = await this.dataSource.transaction(async (manager) => {
     const invitations = manager.getRepository(Invitation);
@@ -52,7 +59,7 @@ export class OrganizationsService {
      .where('invitation.organization_id = :organizationId AND invitation.email = :email AND invitation.accepted_at IS NULL', { organizationId, email: normalizedEmail });
     if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
     const existing = await query.getOne();
-    if (existing && existing.expiresAt > new Date() && existing.deliveredAt) return null;
+    if (existing && existing.expiresAt > new Date() && existing.deliveredAt) { deliver = false; return existing; }
     if (existing && !existing.deliveredAt) {
      existing.role = role;
      existing.tokenHash = this.hash(raw);
@@ -76,17 +83,18 @@ export class OrganizationsService {
     if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
     const existing = await query.getOne();
     if (!existing || existing.expiresAt <= new Date()) throw error;
-    if (existing.deliveredAt) return null;
+    if (existing.deliveredAt) { deliver = false; return existing; }
     existing.role = role;
     existing.tokenHash = this.hash(raw);
     existing.expiresAt = new Date(Date.now() + 7 * 86_400_000);
     return invitations.save(existing);
    });
   }
-  if (created) {
+  if (deliver) {
    await this.secureEmail.send(normalizedEmail, 'Organization invitation', `Use this one-time invitation token: ${raw}`);
    await this.invitations.update({ id: created.id, tokenHash: this.hash(raw) }, { deliveredAt: new Date() });
   }
+  return { id: created.id, accepted: false };
  }
  async acceptInvitation(user: User, token: string): Promise<Membership> {
   const email = this.normalizeEmail(user.email);
@@ -118,19 +126,20 @@ export class OrganizationsService {
    return membership;
   });
  }
- async changeRole(organizationId: string, actorUserId: string, userId: string, role: OrganizationRole): Promise<void> {
+ async changeRole(organizationId: string, actorUserId: string, memberId: string, role: OrganizationRole): Promise<void> {
   await this.dataSource.transaction(async (manager) => {
    await this.lockOrganization(manager.getRepository(Organization), organizationId);
    const memberships = manager.getRepository(Membership);
    const query = memberships.createQueryBuilder('membership')
-    .where('membership.organization_id = :organizationId AND membership.user_id IN (:...userIds)', { organizationId, userIds: [...new Set([actorUserId, userId])].sort() })
+    .where('membership.organization_id = :organizationId AND (membership.user_id = :actorUserId OR membership.id = :memberId OR membership.user_id = :memberId)', { organizationId, actorUserId, memberId })
     .orderBy('membership.user_id', 'ASC');
    if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
    const lockedMemberships = await query.getMany();
    const actor = lockedMemberships.find((membership) => membership.userId === actorUserId);
-   const target = lockedMemberships.find((membership) => membership.userId === userId);
-   if (!actor || !['owner', 'admin'].includes(actor.role)) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'You do not have permission for this organization.', 403);
-   if (!target) throw new AppError('MEMBERSHIP_NOT_FOUND', 'Membership not found.', 404);
+   const target = lockedMemberships.find((membership) => membership.id === memberId) ?? lockedMemberships.find((membership) => membership.userId === memberId);
+   if (!actor) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
+   if (!['owner', 'admin'].includes(actor.role)) throw new AppError('INSUFFICIENT_ROLE', 'This organization role cannot perform that action.', 403);
+   if (!target) throw new AppError('MEMBERSHIP_NOT_FOUND', 'Membership was not found.', 404);
    if (target.role === 'owner' || role === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'Owner role cannot be transferred through this endpoint.', 400);
    if (target.role !== role) {
     const previousRole = target.role;
@@ -142,20 +151,21 @@ export class OrganizationsService {
    }
   });
  }
- async removeMember(organizationId: string, actorUserId: string, userId: string): Promise<void> {
+ async removeMember(organizationId: string, actorUserId: string, memberId: string): Promise<void> {
   await this.dataSource.transaction(async (manager) => {
    await this.lockOrganization(manager.getRepository(Organization), organizationId);
    const memberships = manager.getRepository(Membership);
    const query = memberships.createQueryBuilder('membership')
-    .where('membership.organization_id = :organizationId AND membership.user_id IN (:...userIds)', { organizationId, userIds: [...new Set([actorUserId, userId])].sort() })
+    .where('membership.organization_id = :organizationId AND (membership.user_id = :actorUserId OR membership.id = :memberId OR membership.user_id = :memberId)', { organizationId, actorUserId, memberId })
     .orderBy('membership.user_id', 'ASC');
    if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
    const lockedMemberships = await query.getMany();
    const actor = lockedMemberships.find((membership) => membership.userId === actorUserId);
-   const target = lockedMemberships.find((membership) => membership.userId === userId);
-   if (!actor || !['owner', 'admin'].includes(actor.role)) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'You do not have permission for this organization.', 403);
-   if (!target) return;
-   if (target.role === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'The organization owner cannot be removed.', 400);
+   const target = lockedMemberships.find((membership) => membership.id === memberId) ?? lockedMemberships.find((membership) => membership.userId === memberId);
+   if (!actor) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
+   if (!['owner', 'admin'].includes(actor.role)) throw new AppError('INSUFFICIENT_ROLE', 'This organization role cannot perform that action.', 403);
+   if (!target) throw new AppError('MEMBERSHIP_NOT_FOUND', 'Membership was not found.', 404);
+   if (target.role === 'owner') throw new AppError('OWNER_REQUIRED', 'Transfer ownership before removing the owner.', 409);
    await this.audit.record({
     organizationId, actorUserId, action: 'organization.member.removed', targetType: 'user', targetId: target.userId,
     metadata: { role: target.role },
@@ -188,7 +198,7 @@ export class OrganizationsService {
    const target = lockedMemberships.find((membership) => membership.userId === targetUserId);
 
    if (!actorUser?.isActive || !currentOwner || currentOwner.role !== 'owner') {
-    throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Only the current organization owner can transfer ownership.', 403);
+    throw new AppError('INSUFFICIENT_ROLE', 'Only the current organization owner can transfer ownership.', 403);
    }
    if (!targetUser?.isActive || !target) {
     throw new AppError('OWNERSHIP_TARGET_NOT_ELIGIBLE', 'Ownership can only be transferred to an active organization member.', 409);
@@ -198,7 +208,7 @@ export class OrganizationsService {
    await memberships.update(target.id, { role: 'owner' });
    const demoted = await memberships.update({ id: currentOwner.id, role: 'owner' }, { role: 'admin' });
    if (demoted.affected === 0) {
-    throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Only the current organization owner can transfer ownership.', 403);
+    throw new AppError('INSUFFICIENT_ROLE', 'Only the current organization owner can transfer ownership.', 403);
    }
    await this.audit.record({
     organizationId, actorUserId, action: 'organization.ownership.transferred', targetType: 'user', targetId: targetUserId,
@@ -209,7 +219,7 @@ export class OrganizationsService {
  private async lockOrganization(organizations: Repository<Organization>, organizationId: string): Promise<void> {
   const query = organizations.createQueryBuilder('organization').where('organization.id = :organizationId', { organizationId });
   if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
-  if (!await query.getOne()) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'You do not have permission for this organization.', 403);
+  if (!await query.getOne()) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
  }
  private hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
  private normalizeEmail(email: string): string {

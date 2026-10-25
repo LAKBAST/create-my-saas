@@ -1,3 +1,4 @@
+import { IsString, MinLength } from 'class-validator';
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -15,13 +16,15 @@ import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto, RequestPasswordResetDto, ResetPasswordDto } from './dto/password.dto';
 import { VerifyEmailDto } from './dto/verification.dto';
 
+class OAuthCallbackQuery { @IsString() @MinLength(1) state!: string; @IsString() @MinLength(1) code!: string; }
+
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService, private readonly config: ConfigService) {}
   @Post('register') @AuthRateLimit('register') @UseGuards(RateLimitGuard)
   register(@Body() body: RegisterDto): Promise<UserPublicDto> { return this.authService.register(body); }
   @Post('login') @HttpCode(HttpStatus.OK) @AuthRateLimit('login') @UseGuards(RateLimitGuard)
-  async login(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) response: Response): Promise<AuthenticationResult> {
+  async login(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) response: Response): Promise<AuthenticationResult & { access_token: string; token_type: string; expires_in: number }> {
     return this.setBrowserSession(response, await this.authService.login(body, this.metadata(req)));
   }
   @Post('refresh') @HttpCode(HttpStatus.OK) @UseGuards(RateLimitGuard)
@@ -48,9 +51,14 @@ export class AuthController {
   async resend(@CurrentUser() user: User): Promise<void> { await this.authService.resendEmailVerification(user); }
   @Get('oauth/providers') providers(): Array<{ provider: string; configured: boolean }> { return this.authService.oauthProviders(); }
   @Get('oauth/:provider') startOAuth(@Param('provider') provider: string): Promise<{ authorizationUrl: string }> { return this.authService.oauthStart(provider); }
+  @Get('oauth/:provider/start')
+  async redirectOAuth(@Param('provider') provider: string, @Res() response: Response): Promise<void> {
+    const { authorizationUrl } = await this.authService.oauthStart(provider);
+    response.redirect(HttpStatus.TEMPORARY_REDIRECT, authorizationUrl);
+  }
   @Get('oauth/:provider/callback')
-  async callbackOAuth(@Param('provider') provider: string, @Query('state') state: string, @Query('code') code: string, @Res({ passthrough: true }) response: Response): Promise<void> {
-    const session = await this.authService.oauthCallback(provider, state, code);
+  async callbackOAuth(@Param('provider') provider: string, @Query() query: OAuthCallbackQuery, @Res({ passthrough: true }) response: Response): Promise<void> {
+    const session = await this.authService.oauthCallback(provider, query.state, query.code);
     this.setBrowserSession(response, session);
     response.redirect(HttpStatus.SEE_OTHER, `${this.config.get<string>('FRONTEND_URL', 'http://localhost:3000').replace(/\/$/, '')}/auth/oauth/callback`);
   }
@@ -64,10 +72,10 @@ export class AuthController {
     // refresh/logout requests from outside /auth.
     return { httpOnly, secure: this.config.get<boolean>('COOKIE_SECURE', false), sameSite, path: httpOnly ? '/auth' : '/', maxAge: this.config.get<number>('REFRESH_TOKEN_EXPIRE_DAYS', 30) * 86_400_000 };
   }
-  private setBrowserSession(response: Response, session: BrowserAuthenticationResult): AuthenticationResult {
+  private setBrowserSession(response: Response, session: BrowserAuthenticationResult): AuthenticationResult & { access_token: string; token_type: string; expires_in: number } {
     response.cookie(this.refreshCookieName(), session.refreshToken, this.cookieOptions(true));
     response.cookie(this.csrfCookieName(), randomBytes(32).toString('base64url'), this.cookieOptions(false));
-    return session.authentication;
+    return { ...session.authentication, access_token: session.authentication.accessToken, token_type: 'bearer', expires_in: this.config.get<number>('ACCESS_TOKEN_EXPIRE_MINUTES', 15) * 60 };
   }
   private cookie(req: Request, name: string): string {
     return req.headers.cookie?.split(';').map((part) => part.trim().split('=', 2)).find(([key]) => key === name)?.[1] ?? '';
@@ -78,4 +86,20 @@ export class AuthController {
       throw new AppError('INVALID_CSRF_TOKEN', 'CSRF token is missing or invalid.', 403);
     }
   }
+}
+
+// User-management routes share the authentication services and rate-limit buckets.
+@Controller('users')
+export class UsersAuthController {
+  constructor(private readonly auth: AuthService) {}
+  @Post('me/password') @HttpCode(204) @UseGuards(JwtAuthGuard)
+  async password(@CurrentUser() user: User, @Body() body: ChangePasswordDto): Promise<void> { await this.auth.changePassword(user, body.currentPassword, body.newPassword); }
+  @Post('password-reset/request') @HttpCode(202) @AuthRateLimit('password-reset-request') @UseGuards(RateLimitGuard)
+  async requestReset(@Body() body: RequestPasswordResetDto) { await this.auth.requestPasswordReset(body.email.toLowerCase()); return { accepted: true }; }
+  @Post('password-reset/confirm') @HttpCode(204) @AuthRateLimit('password-reset-confirm') @UseGuards(RateLimitGuard)
+  async reset(@Body() body: ResetPasswordDto): Promise<void> { await this.auth.resetPassword(body.token, body.newPassword); }
+  @Post('email-verification/request') @HttpCode(202) @UseGuards(JwtAuthGuard, RateLimitGuard)
+  async resend(@CurrentUser() user: User) { await this.auth.resendEmailVerification(user); return { accepted: true }; }
+  @Post('email-verification/confirm') @HttpCode(200) @UseGuards(RateLimitGuard)
+  verify(@Body() body: VerifyEmailDto) { return this.auth.verifyEmail(body.token); }
 }

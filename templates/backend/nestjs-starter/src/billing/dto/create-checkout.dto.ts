@@ -1,9 +1,18 @@
-import { IsInt, IsNotEmpty, IsString, Max, Min } from 'class-validator';
+import { Expose, Transform } from 'class-transformer';
+import { IsInt, IsOptional, Matches, IsNotEmpty, IsString, Max, Min } from 'class-validator';
 
 export class CreateCheckoutDto {
+  @Expose()
+  @Transform(({ value, obj }) => value ?? obj.price_id)
   @IsString()
   @IsNotEmpty()
+  @Matches(/^price_[A-Za-z0-9]+$/)
   priceId!: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^price_[A-Za-z0-9]+$/)
+  price_id?: string;
 
   @IsInt()
   @Min(1)

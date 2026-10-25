@@ -16,8 +16,10 @@ export class OrganizationRoleGuard implements CanActivate {
   const value = req.params.organizationId ?? req.params.id;
   const organizationId = Array.isArray(value) ? value[0] : value;
   if (!organizationId || !req.user) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Organization access is required.', 403);
+  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(organizationId)) throw new AppError('HTTP_422', 'The request payload is invalid.', 422);
   const membership = await this.memberships.findOneBy({ organizationId, userId: req.user.id });
-  if (!membership || !roles.includes(membership.role)) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'You do not have permission for this organization.', 403);
+  if (!membership) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
+  if (!roles.includes(membership.role)) throw new AppError('INSUFFICIENT_ROLE', 'This organization role cannot perform that action.', 403);
   return true;
  }
 }

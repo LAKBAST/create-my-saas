@@ -1,4 +1,4 @@
-type User = { id: string; name: string; email: string; emailVerified: boolean };
+type User = { id: string; name: string; email: string; emailVerified: boolean; isActive: boolean };
 type Session = { accessToken: string; user: User };
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
 
@@ -92,7 +92,7 @@ function cookie(name: string) {
 }
 
 function user(value: Record<string, unknown>): User {
-  return { id: String(value.id), name: String(value.name), email: String(value.email), emailVerified: Boolean(value.emailVerified ?? value.email_verified) };
+  return { id: String(value.id), name: String(value.name), email: String(value.email), emailVerified: Boolean(value.emailVerified ?? value.email_verified), isActive: Boolean(value.isActive ?? value.is_active) };
 }
 
 async function request<T>(path: string, init: Omit<RequestInit, "body"> & { body?: unknown; token?: string | null } = {}) {
@@ -177,6 +177,14 @@ async function startOAuth(provider: "google" | "github") {
   }
 }
 
+function completeForm(form: HTMLFormElement, message: string, heading?: string) {
+  const status = form.querySelector("[data-form-status]");
+  setStatus(status, message);
+  form.querySelectorAll<HTMLElement>("label, button[type=submit]").forEach((node) => { node.hidden = true; });
+  if (heading) { const title = document.querySelector("h1"); if (title) title.textContent = heading; }
+  document.querySelector<HTMLElement>("[data-oauth]")?.setAttribute("hidden", "");
+}
+
 function bindForms() {
   document.querySelectorAll<HTMLFormElement>("[data-auth-form]").forEach((form) => form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -186,17 +194,21 @@ function bindForms() {
     const button = form.querySelector<HTMLButtonElement>("button[type=submit]");
     if (kind === "reset" && !new URLSearchParams(location.search).get("token")) return setStatus(status, "El enlace de restablecimiento no es válido.", true);
     button?.setAttribute("disabled", "true");
+    const originalText = button?.textContent ?? "";
+    if (button) button.textContent = kind === "login" ? "Iniciando sesión…" : kind === "register" ? "Creando cuenta…" : kind === "forgot" ? "Enviando…" : "Actualizando…";
     try {
+      const password = String(values.get("password") ?? "");
+      if (["register", "reset"].includes(kind ?? "") && (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password))) throw new Error("La contraseña debe tener al menos 8 caracteres, una letra y un número.");
       if (kind === "login") {
         const result = await request<Record<string, unknown>>("/auth/login", { method: "POST", body: { email: values.get("email"), password: values.get("password") } });
         accessToken = String(result.accessToken ?? result.access_token);
         window.location.assign("/app/"); return;
       }
-      if (kind === "register") { await request("/auth/register", { method: "POST", body: { name: values.get("name"), email: values.get("email"), password: values.get("password") } }); captureAnalyticsEvent("signup_requested"); setStatus(status, "Revisa tu correo para verificar la cuenta antes de iniciar sesión."); }
-      if (kind === "forgot") { await request("/auth/password/reset/request", { method: "POST", body: { email: values.get("email") } }); setStatus(status, "Si existe una cuenta con ese correo, recibirás un enlace de restablecimiento."); }
-      if (kind === "reset") { await request("/auth/password/reset/confirm", { method: "POST", body: { token: new URLSearchParams(location.search).get("token"), newPassword: values.get("password") } }); setStatus(status, "Contraseña actualizada. Ya puedes iniciar sesión."); }
+      if (kind === "register") { await request("/auth/register", { method: "POST", body: { name: values.get("name"), email: values.get("email"), password: values.get("password") } }); captureAnalyticsEvent("signup_requested"); completeForm(form, "Revisa tu correo. Hemos enviado un enlace de verificación a tu correo. Cuando termines, ya puedes iniciar sesión.", "Revisa tu correo"); }
+      if (kind === "forgot") { await request("/auth/password/reset/request", { method: "POST", body: { email: values.get("email") } }); completeForm(form, "Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña."); }
+      if (kind === "reset") { await request("/auth/password/reset/confirm", { method: "POST", body: { token: new URLSearchParams(location.search).get("token"), newPassword: values.get("password") } }); completeForm(form, "Tu contraseña se ha actualizado. Inicia sesión con la nueva contraseña."); }
     } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "La operación no se ha podido completar.", true); }
-    finally { button?.removeAttribute("disabled"); }
+    finally { button?.removeAttribute("disabled"); if (button) button.textContent = originalText; }
   }));
 }
 
@@ -223,6 +235,9 @@ async function bindProtectedPage() {
     document.querySelectorAll<HTMLElement>("[data-user-name]").forEach((node) => { node.textContent = session.user.name; });
     document.querySelectorAll<HTMLElement>("[data-user-email]").forEach((node) => { node.textContent = session.user.email; });
     document.querySelectorAll<HTMLElement>("[data-user-initials]").forEach((node) => { node.textContent = session.user.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(); });
+    document.querySelectorAll<HTMLElement>("[data-account-state]").forEach((node) => { node.textContent = session.user.isActive ? "Cuenta activa" : "Cuenta desactivada"; });
+    document.querySelectorAll<HTMLElement>("[data-account-state-badge]").forEach((node) => { node.textContent = session.user.isActive ? "Activa" : "Inactiva"; node.className = session.user.isActive ? "badge badge-success" : "badge badge-danger"; });
+    document.querySelectorAll<HTMLElement>("[data-onboarding-progress]").forEach((node) => { node.textContent = String(1 + Number(session.user.emailVerified)); });
     document.querySelectorAll<HTMLElement>("[data-verification]").forEach((node) => { node.textContent = session.user.emailVerified ? "Correo verificado" : "Correo pendiente de verificación"; });
     document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
     document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
@@ -234,7 +249,7 @@ async function bindProtectedPage() {
 type Organization = { id: string; name: string; slug: string };
 type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null> };
 type BillingConfiguration = { configured: boolean; plans: BillingPlan[] };
-type BillingSubscription = { plan: string; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean };
+type BillingSubscription = { plan: string; status: string; seats: number; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean };
 type BillingRedirect = { url: string | null; reason?: string };
 
 async function billingRequest<T>(organizationId: string, suffix: "subscription" | "configuration" | "checkout" | "portal", token: string, body?: unknown) {
@@ -270,7 +285,7 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
   const status = statusLabels[subscription.status] ?? { label: subscription.status, tone: "" };
   const header = element("div", "panel-header");
   const heading = element("div");
-  heading.append(element("h2", "", `Plan actual: ${subscription.plan} · ${subscription.status}`), element("p", "", renewal ? `${subscription.cancelAtPeriodEnd ? "Se cancela" : "Se renueva"} el ${renewal}` : "Sin fecha de renovación"));
+  heading.append(element("h2", "", `Plan actual: ${subscription.plan}`), element("p", "", (renewal ? `${subscription.cancelAtPeriodEnd ? "Se cancela" : "Se renueva"} el ${renewal}` : "Sin fecha de renovación") + ` · ${subscription.seats} plaza${subscription.seats === 1 ? "" : "s"}`));
   header.append(heading, element("span", `badge ${status.tone}`, status.label));
   const rows = element("dl", "rows");
   const management = element("div");
@@ -279,6 +294,8 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
   management.append(element("dt", "", "Gestión"), element("dd", "", "Cambia de plan, actualiza el método de pago o descarga facturas."), portal);
   rows.append(management);
   summary.append(header, rows); summary.hidden = false;
+  document.querySelector<HTMLElement>("[data-billing-unconfigured]")!.hidden = configuration.configured;
+  document.querySelector<HTMLElement>("[data-billing-plans-heading]")!.hidden = !configuration.configured;
   if (!configuration.configured) { billingStatus("Configura Stripe y los planes permitidos en el backend para habilitar Checkout."); return; }
   for (const plan of configuration.plans) {
     const current = subscription.plan === plan.name;
@@ -297,13 +314,43 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
 }
 
 async function startRedirect(kind: "checkout" | "portal", organizationId: string, token: string, button: HTMLButtonElement, priceId?: string) {
+  const originalText = button.textContent;
+  button.textContent = kind === "portal" ? "Abriendo…" : "Redirigiendo…";
   button.disabled = true; billingStatus("");
   try {
     const result = await billingRequest<BillingRedirect>(organizationId, kind, token, kind === "checkout" ? { priceId, quantity: 1 } : undefined);
     if (result.url) { window.location.assign(result.url); return; }
     billingStatus(result.reason ?? "La facturación de Stripe todavía no está configurada.", true);
   } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se ha podido abrir Stripe.", true); }
-  finally { button.disabled = false; }
+  finally { button.disabled = false; button.textContent = originalText; }
+}
+
+function bindCreateOrganization(token: string) {
+  const panel = document.querySelector<HTMLElement>("[data-create-organization]");
+  const form = panel?.querySelector<HTMLFormElement>("form");
+  const input = form?.querySelector<HTMLInputElement>('input[name="name"]');
+  const button = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  if (!panel || !form || !input || !button) return;
+  panel.hidden = false;
+  const slugify = () => input.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 160);
+  input.addEventListener("input", () => { panel.querySelector<HTMLElement>("[data-organization-slug]")!.textContent = slugify() ? `Identificador: ${slugify()}` : ""; });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = panel.querySelector("[data-create-organization-status]");
+    const slug = slugify();
+    if (slug.length < 3) { setStatus(status, "El nombre debe tener al menos 3 letras o números.", true); return; }
+    button.disabled = true; button.textContent = "Creando…"; setStatus(status, "");
+    const create = (candidate: string) => request<Organization>("/organizations", { method: "POST", token, body: { name: input.value.trim(), slug: candidate } });
+    try {
+      const organization = await create(slug).catch((cause: unknown) => {
+        if (cause instanceof ApiError && ["SLUG_ALREADY_EXISTS", "ORGANIZATION_SLUG_ALREADY_EXISTS"].includes(cause.code ?? "")) return create(`${slug.slice(0, 150)}-${Math.random().toString(36).slice(2, 7)}`);
+        throw cause;
+      });
+      const url = new URL(window.location.href); url.searchParams.set("organizationId", organization.id); window.history.replaceState(null, "", url);
+      panel.hidden = true; await bindBilling(token);
+    } catch (cause) { setStatus(status, cause instanceof ApiError ? cause.message : "No se ha podido crear la organización.", true); }
+    finally { button.disabled = false; button.textContent = "Crear organización"; }
+  });
 }
 
 async function bindBilling(token: string) {
@@ -314,12 +361,15 @@ async function bindBilling(token: string) {
   if (!select || !summary || !plans) return;
   try {
     const organizations = await request<Organization[]>("/organizations", { token });
-    if (!organizations.length) { billingStatus("Crea o acepta una organización antes de configurar su facturación."); return; }
+    if (!organizations.length) { bindCreateOrganization(token); return; }
     organizations.forEach((organization) => { const option = document.createElement("option"); option.value = organization.id; option.textContent = organization.name; select.append(option); });
     const requestedId = new URLSearchParams(window.location.search).get("organizationId");
     if (requestedId && organizations.some((organization) => organization.id === requestedId)) select.value = requestedId;
     if (organizations.length > 1 && organizationControl) organizationControl.hidden = false;
     const load = async () => {
+      summary.hidden = true; plans.replaceChildren();
+      document.querySelector<HTMLElement>("[data-billing-unconfigured]")!.hidden = true;
+      document.querySelector<HTMLElement>("[data-billing-plans-heading]")!.hidden = true;
       billingStatus("Cargando facturación…");
       try {
         const [configuration, subscription] = await Promise.all([
@@ -344,7 +394,7 @@ if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded
   bindForms(); bindOAuth(); void bindProtectedPage();
   document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
   document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; resetAnalyticsUser(); window.location.assign("/login/"); } }));
-  document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } }));
-  if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión.", true));
-  if (document.querySelector("[data-verify-email]")) { const token = new URLSearchParams(location.search).get("token"); const status = document.querySelector("[data-verify-status]"); if (!token) setStatus(status, "El enlace de verificación no es válido.", true); else void request("/auth/email/verify", { method: "POST", body: { token } }).then(() => setStatus(status, "Tu correo se ha verificado correctamente.")).catch((cause) => setStatus(status, cause instanceof Error ? cause.message : "No se ha podido verificar el correo.", true)); }
+  document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); button.disabled = true; button.textContent = "Enviando…"; try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } finally { button.disabled = false; button.textContent = "Reenviar verificación"; } }));
+  if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión. Vuelve a intentarlo.", true));
+  if (document.querySelector("[data-verify-email]")) { const token = new URLSearchParams(location.search).get("token"); const status = document.querySelector("[data-verify-status]"); if (!token) setStatus(status, "El enlace de verificación no es válido.", true); else void request("/auth/email/verify", { method: "POST", body: { token } }).then(() => { setStatus(status, "Tu correo se ha verificado correctamente."); const heading = document.querySelector("[data-verify-email] h1"); if (heading) heading.textContent = "Correo verificado"; }).catch((cause) => setStatus(status, cause instanceof Error ? cause.message : "No se ha podido verificar el correo.", true)); }
 });

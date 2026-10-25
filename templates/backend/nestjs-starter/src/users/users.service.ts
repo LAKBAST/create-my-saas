@@ -43,9 +43,8 @@ export class UsersService {
     return this.users.save(this.users.create(values));
   }
 
-  async updateProfile(user: User, values: Partial<Pick<User, 'name' | 'avatarUrl'>>): Promise<User> {
+  async updateProfile(user: User, values: Partial<Pick<User, 'name'>>): Promise<User> {
     if (values.name !== undefined) user.name = values.name;
-    if (values.avatarUrl !== undefined) user.avatarUrl = values.avatarUrl;
     return this.users.save(user);
   }
 

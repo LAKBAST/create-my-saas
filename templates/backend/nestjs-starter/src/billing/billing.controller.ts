@@ -8,16 +8,18 @@ import { User } from '../users/user.entity';
 import { BillingService } from './billing.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
 
-@Controller('organizations/:organizationId/billing')
+@Controller()
 @UseGuards(JwtAuthGuard, OrganizationRoleGuard)
 @OrganizationRoles('owner', 'admin')
 export class BillingController {
   constructor(private readonly billing: BillingService) {}
-  @Get('subscription') subscription(@Param('organizationId') id: string) { return this.billing.snapshot(id); }
-  @Get('configuration') configuration() { return this.billing.configuration(); }
-  @Post('checkout') @HttpCode(200)
+  // deprecated: /organizations/:organizationId/billing/* aliases are retained for generated clients.
+  @Get(['billing/organizations/:organizationId', 'organizations/:organizationId/billing/subscription']) subscription(@Param('organizationId') id: string) { return this.billing.snapshot(id); }
+  @Get(['billing/organizations/:organizationId/configuration', 'organizations/:organizationId/billing/configuration']) configuration() { return this.billing.configuration(); }
+  @Post(['billing/organizations/:organizationId/checkout', 'organizations/:organizationId/billing/checkout']) @HttpCode(200)
   checkout(@CurrentUser() user: User, @Param('organizationId') id: string, @Body() body: CreateCheckoutDto) { return this.billing.checkout(id, body.priceId, body.quantity, user.id); }
-  @Post('portal') portal(@CurrentUser() user: User, @Param('organizationId') id: string) { return this.billing.portal(id, user.id); }
+  @Post(['billing/organizations/:organizationId/portal', 'organizations/:organizationId/billing/portal']) @HttpCode(200)
+  portal(@CurrentUser() user: User, @Param('organizationId') id: string) { return this.billing.portal(id, user.id); }
 }
 
 @Controller('billing/webhooks')

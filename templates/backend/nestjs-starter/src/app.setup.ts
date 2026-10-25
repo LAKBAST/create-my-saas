@@ -1,5 +1,6 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { NextFunction, Request, Response } from 'express';
+import { AppError } from './common/errors/app.error';
 import { AppErrorFilter } from './common/errors/app-error.filter';
 
 export function configureApplication(app: INestApplication): void {
@@ -21,7 +22,7 @@ export function configureApplication(app: INestApplication): void {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     if (isProduction) response.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
-    if (request.path.startsWith('/auth')) {
+    if (request.path.startsWith('/auth') || request.path.startsWith('/users')) {
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('Pragma', 'no-cache');
     }
@@ -39,6 +40,7 @@ export function configureApplication(app: INestApplication): void {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: () => new AppError('HTTP_422', 'The request payload is invalid.', 422),
     }),
   );
   app.useGlobalFilters(new AppErrorFilter());

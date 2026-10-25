@@ -5,7 +5,40 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Cambios incompatibles (NestJS)
+
+Los proyectos NestJS ya generados que actualicen deben revisar los clientes que
+llamen a la API directamente (los frontends incluidos aceptan los dos formatos):
+
+- El usuario se devuelve como en FastAPI: `id`, `email`, `name`,
+  `email_verified` e `is_active`. Desaparecen `emailVerified`, `isActive`,
+  `avatarUrl`, `createdAt` y `updatedAt`, y `PATCH /users/me` solo acepta
+  `name`.
+- Los miembros de una organización se identifican por el `id` de la
+  membresía (antes, el `userId`); el usuario va en `user_id`.
+- Invitar responde 201 con `{ id, accepted }` (antes 204) y aceptar responde
+  204 (antes 201).
+- `POST /organizations` exige `slug`, con el mismo patrón que FastAPI.
+- Los errores de validación responden 422 con el código `HTTP_422` (antes
+  400), y los errores de Stripe, 502.
+- Login y refresh añaden `access_token`, `token_type` y `expires_in` a la
+  respuesta.
+
 ### Changed
+
+- NestJS adopta las rutas de facturación y desactivación de FastAPI; mantiene
+  las anteriores como alias obsoletos del mismo servicio. Iguala los códigos
+  HTTP, los cuerpos públicos de usuario, sesión, organización y miembros,
+  los errores y la validación 422. Añade las rutas de recuperación y
+  verificación bajo `/users` y el inicio OAuth con redirección 307.
+- La suscripción de NestJS incluye `seats`, con una migración para las
+  instalaciones existentes y actualización de plazas desde Stripe. Los
+  errores del proveedor de facturación responden 502.
+
+- FastAPI envía los correos de verificación, recuperación de contraseña e
+  invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
+  el enlace de respaldo, además de la versión en texto plano. Los asuntos
+  pasan a español.
 
 - El diseño y los textos de los correos viven en un único sitio,
   `templates/shared/email` (`layout.html` y `email.json`), que
@@ -15,15 +48,30 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Astro con facturación permite crear la primera organización desde el estado
+  vacío y reintenta con otro slug si el identificador ya está ocupado.
+- Los avisos de consentimiento de los tres frontends admiten enlaces
+  configurables de privacidad y cookies, documentados en sus `.env.example`.
+- La revisión de equivalencia, las excepciones intencionadas y las
+  comprobaciones se documentan en `docs/template-parity.md`. Las pruebas de
+  navegador crean la primera organización desde la interfaz y comprueban
+  el contrato común de invitaciones, miembros y facturación.
+
 - `EMAIL_ACCENT_COLOR` (FastAPI) para el color del botón y del logo de los
   correos.
 
-### Changed
+### Fixed
 
-- FastAPI envía los correos de verificación, recuperación de contraseña e
-  invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
-  el enlace de respaldo, además de la versión en texto plano. Los asuntos
-  pasan a español.
+- React Router y Astro igualan los estados de cuenta, la validación de
+  contraseñas y los mensajes de registro, recuperación y verificación con
+  Next.js. Astro muestra el progreso de inicio y los estados de espera de los
+  botones; la extensión de facturación muestra plazas, etiquetas de estado,
+  planes disponibles y el estado explícito de facturación sin configurar.
+- El aviso de consentimiento utiliza `PRODUCT_NAME` en los tres frontends.
+- NestJS y Fastify rechazan en staging y producción los secretos de ejemplo,
+  los secretos de menos de 32 caracteres y las conexiones de base de datos a
+  `localhost`, con las mismas reglas y mensajes que FastAPI. NestJS concentra
+  la validación en `src/config.ts` para comprobarla sin iniciar la aplicación.
 
 ## [1.4.0] - 2026-10-25
 

@@ -19,7 +19,7 @@ const steps = [
       <p class="lead">Hola, <span data-user-name></span>. La autenticación y las rutas protegidas ya están listas: empieza por lo que hace único a tu SaaS.</p>
     </header>
     <section class="panel" aria-labelledby="getting-started">
-      <div class="panel-header"><div><h2 id="getting-started">Primeros pasos</h2><p>Lo esencial antes de construir tu producto.</p></div></div>
+      <div class="panel-header"><div><h2 id="getting-started">Primeros pasos</h2><p><span data-onboarding-progress>1</span> de {steps.length + 1} completados</p></div></div>
       <ol class="steps">
         <li><span class="step-icon step-done"><Icon name="check" size={15} /></span><div><strong>Cuenta creada</strong><span>La sesión y las rutas protegidas ya funcionan.</span></div></li>
         {steps.map((step) => <li>
