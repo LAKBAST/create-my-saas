@@ -89,7 +89,15 @@ async def register(
             code="EMAIL_ALREADY_EXISTS",
             status_code=409,
         )
-    await auth.send_one_time_token(user, TokenPurpose.EMAIL_VERIFICATION)
+    try:
+        await auth.send_one_time_token(user, TokenPurpose.EMAIL_VERIFICATION)
+    except EmailDeliveryError as exc:
+        # The account exists; the user can ask for a new link once mail works again.
+        raise AppError(
+            "The verification email could not be sent.",
+            code="EMAIL_DELIVERY_UNAVAILABLE",
+            status_code=503,
+        ) from exc
     return user
 
 

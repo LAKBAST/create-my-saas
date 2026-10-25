@@ -28,6 +28,8 @@ async def send_secure_email(*, recipient: str, subject: str, body: str) -> None:
             headers={
                 "Authorization": f"Bearer {settings.email_delivery_token}",
                 "Content-Type": "application/json",
+                # Cloudflare-fronted providers such as Resend reject urllib's default agent (error 1010).
+                "User-Agent": "create-my-saas-email/1.0",
             },
             method="POST",
         )
