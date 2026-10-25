@@ -16,6 +16,11 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   instalaciones existentes y actualización de plazas desde Stripe. Los
   errores del proveedor de facturación responden 502.
 
+- FastAPI envía los correos de verificación, recuperación de contraseña e
+  invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
+  el enlace de respaldo, además de la versión en texto plano. Los asuntos
+  pasan a español.
+
 ### Added
 
 - Astro con facturación permite crear la primera organización desde el estado
@@ -26,6 +31,9 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   comprobaciones se documentan en `docs/template-parity.md`. Las pruebas de
   navegador crean la primera organización desde la interfaz y comprueban
   el contrato común de invitaciones, miembros y facturación.
+
+- `EMAIL_ACCENT_COLOR` (FastAPI) para el color del botón y del logo de los
+  correos.
 
 ### Fixed
 
@@ -39,13 +47,11 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   los secretos de menos de 32 caracteres y las conexiones de base de datos a
   `localhost`, con las mismas reglas y mensajes que FastAPI. NestJS concentra
   la validación en `src/config.ts` para comprobarla sin iniciar la aplicación.
-
-### Changed
-
-- FastAPI envía los correos de verificación, recuperación de contraseña e
-  invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
-  el enlace de respaldo, además de la versión en texto plano. Los asuntos
-  pasan a español.
+- El diseño y los textos de los correos viven en un único sitio,
+  `templates/shared/email` (`layout.html` y `email.json`), que
+  `scripts/sync-shared-email.mjs` copia en cada backend; un test de la CLI
+  avisa si una copia queda desfasada. FastAPI ya los usa; NestJS y Fastify se
+  sumarán con su propio renderizador.
 
 ## [1.4.0] - 2026-10-25
 

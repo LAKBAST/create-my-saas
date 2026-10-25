@@ -1,0 +1,36 @@
+{
+  "$comment": "Source of truth for transactional emails in every backend. Edit here and run `node scripts/sync-shared-email.mjs`. {{name}} is HTML-escaped, {{{name}}} is inserted as is. Inline styles only: most mail clients drop <style> blocks.",
+  "lang": "es",
+  "accent": "#6d5cf6",
+  "fragments": {
+    "paragraph": "<p style=\"margin:0 0 16px;font-size:15px;line-height:24px;color:#1f2330;\">{{text}}</p>",
+    "action": "<table role=\"presentation\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"margin:8px 0 24px;\"><tr><td style=\"border-radius:10px;background:{{accent}};\"><a href=\"{{url}}\" style=\"display:inline-block;padding:13px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;\">{{label}}</a></td></tr></table><p style=\"margin:0 0 16px;font-size:13px;line-height:20px;color:#636a7e;\">Si el botón no funciona, copia este enlace en tu navegador:<br><a href=\"{{url}}\" style=\"color:{{accent}};word-break:break-all;\">{{url}}</a></p>",
+    "code": "<p style=\"margin:0 0 6px;font-size:13px;color:#636a7e;\">{{label}}</p><p style=\"margin:0 0 20px;padding:12px 14px;border:1px solid #e6e8ef;border-radius:8px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#1f2330;word-break:break-all;\">{{value}}</p>",
+    "note": "<p style=\"margin:0;font-size:13px;line-height:20px;color:#636a7e;\">{{text}}</p>",
+    "footer": "Has recibido este correo porque se ha usado tu dirección en <a href=\"{{home}}\" style=\"color:#636a7e;\">{{product}}</a>. Si no has sido tú, puedes ignorarlo."
+  },
+  "messages": {
+    "email_verification": {
+      "subject": "Confirma tu correo electrónico",
+      "title": "Confirma tu correo electrónico",
+      "paragraphs": ["Hola, {{name}}. Confirma que esta dirección es tuya para proteger tu cuenta y poder recuperarla si olvidas la contraseña."],
+      "action": "Confirmar mi correo",
+      "note": "El enlace caduca en 24 horas y solo se puede usar una vez."
+    },
+    "password_reset": {
+      "subject": "Restablece tu contraseña",
+      "title": "Restablece tu contraseña",
+      "paragraphs": ["Hola, {{name}}. Hemos recibido una solicitud para cambiar la contraseña de tu cuenta."],
+      "action": "Elegir una contraseña nueva",
+      "note": "El enlace caduca en 1 hora y solo se puede usar una vez. Si no lo has pedido tú, tu contraseña sigue igual."
+    },
+    "organization_invitation": {
+      "$comment": "The subject keeps \"Organization invitation\" and the code label keeps \"token:\" for clients and tests that parse these emails.",
+      "subject": "Invitación a una organización (Organization invitation)",
+      "title": "Te han invitado a una organización",
+      "paragraphs": ["Alguien de tu equipo te ha invitado a unirte a su organización. Inicia sesión o crea una cuenta con esta dirección y acepta la invitación con este código."],
+      "code": "Invitation token",
+      "note": "El código solo se puede usar una vez. Si no esperabas esta invitación, ignora este correo."
+    }
+  }
+}
