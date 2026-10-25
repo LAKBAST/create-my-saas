@@ -489,7 +489,10 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         labels: { 'store.pro-api-keys': 'API keys' }, price: { unitAmount, currency: 'eur', interval, intervalCount },
       }));
       plans.push({ priceId: 'price_unavailable', name: 'Sin precio', entitlements: { legacy_key: 5 }, labels: {}, price: null });
-      const configurationRoute = (url) => url.pathname === billingPath(organization.id, 'configuration');
+      // NestJS clients still use its supported legacy alias; FastAPI has only the canonical route.
+      const configurationRoute = (url) => url.pathname === (backend === 'nestjs'
+        ? `/organizations/${organization.id}/billing/configuration`
+        : billingPath(organization.id, 'configuration'));
       await page.route(configurationRoute, (route) => route.fulfill({ json: {
         configured: true, provider: 'stripe', usageMeterConfigured: false, plans,
       } }));
