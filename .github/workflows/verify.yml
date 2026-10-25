@@ -4,8 +4,77 @@ on:
   pull_request:
   push:
     branches: [main]
+    tags: ["v*"]
+  schedule:
+    # Daily full run, so upstream drift (images, registries, browsers) shows
+    # up even when nobody touches a template.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer commit on the same pull request or branch cancels the run in
+# progress. Release tags have unique refs and are never cancelled, and the
+# daily run keeps its own group so a push to main cannot cancel it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && '-schedule' || '' }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'schedule' }}
 
 jobs:
+  changes:
+    name: Detect affected jobs
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.affected.outputs.full }}
+      generated_projects: ${{ steps.affected.outputs.generated_projects }}
+      generated_e2e: ${{ steps.affected.outputs.generated_e2e }}
+      static_site: ${{ steps.affected.outputs.static_site }}
+      billing_extension: ${{ steps.affected.outputs.billing_extension }}
+      fastapi: ${{ steps.affected.outputs.fastapi }}
+      fastify: ${{ steps.affected.outputs.fastify }}
+      nestjs: ${{ steps.affected.outputs.nestjs }}
+      astro: ${{ steps.affected.outputs.astro }}
+      nextjs: ${{ steps.affected.outputs.nextjs }}
+      react_router: ${{ steps.affected.outputs.react_router }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: List changed files and build the job matrix
+        id: affected
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          changed="$RUNNER_TEMP/changed-files.txt"
+          full=false
+          case "$EVENT_NAME" in
+            pull_request)
+              # HEAD is the merge commit, so this is exactly what the PR changes.
+              git diff --name-only "$PR_BASE_SHA" HEAD > "$changed" || full=true
+              ;;
+            push)
+              if [[ "$GITHUB_REF" == refs/tags/* || -z "$PUSH_BEFORE_SHA" || "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+                full=true
+              else
+                git diff --name-only "$PUSH_BEFORE_SHA" "$GITHUB_SHA" > "$changed" || full=true
+              fi
+              ;;
+            *)
+              # schedule and workflow_dispatch always run everything.
+              full=true
+              ;;
+          esac
+          if [ "$full" = true ]; then
+            node .github/scripts/affected-jobs.mjs --full
+          else
+            node .github/scripts/affected-jobs.mjs < "$changed"
+          fi
+
+  # Always runs: it is fast, validates template READMEs and audits every
+  # tracked file, so documentation-only changes are still checked.
   generator:
     name: Generator CLI
     runs-on: ubuntu-latest
@@ -23,23 +92,14 @@ jobs:
 
   generated-projects:
     name: Generated ${{ matrix.backend }} and ${{ matrix.frontend }} starter
+    needs: changes
+    if: needs.changes.outputs.generated_projects != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - backend: fastapi
-            frontend: nextjs
-            api_port: 8000
-          - backend: fastapi
-            frontend: react-router
-            api_port: 8000
-          - backend: nestjs
-            frontend: nextjs
-            api_port: 3001
-          - backend: nestjs
-            frontend: react-router
-            api_port: 3001
+        # The combinations are defined in .github/scripts/affected-jobs.mjs.
+        include: ${{ fromJSON(needs.changes.outputs.generated_projects) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +118,8 @@ jobs:
 
   generated-static-site:
     name: Generated Astro site and FastAPI API
+    needs: changes
+    if: needs.changes.outputs.static_site == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +140,8 @@ jobs:
 
   generated-billing-extension:
     name: Generated Astro Billing extension
+    needs: changes
+    if: needs.changes.outputs.billing_extension == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +151,15 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-fastapi-astro-${{ hashFiles('templates/frontend/astro-starter/pnpm-lock.yaml', 'pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-fastapi-astro-
       - name: Generate FastAPI and Astro with Community Billing
         run: >-
           node packages/cli/bin/create-my-saas.js
@@ -104,31 +177,14 @@ jobs:
 
   generated-project-e2e:
     name: Generated ${{ matrix.backend }} + ${{ matrix.frontend }}${{ matrix.features && format(' + {0}', matrix.features) || '' }} HTTP contract E2E
+    needs: changes
+    if: needs.changes.outputs.generated_e2e != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - backend: fastapi
-            frontend: nextjs
-          - backend: fastapi
-            frontend: react-router
-          - backend: fastapi
-            frontend: astro
-          - backend: nestjs
-            frontend: nextjs
-          - backend: nestjs
-            frontend: react-router
-          - backend: nestjs
-            frontend: astro
-          - backend: fastapi
-            frontend: astro
-            features: billing
-          - backend: nestjs
-            frontend: astro
-            features: billing
-          - backend: fastify
-            frontend: astro
+        # The combinations are defined in .github/scripts/affected-jobs.mjs.
+        include: ${{ fromJSON(needs.changes.outputs.generated_e2e) }}
     services:
       postgres:
         image: postgres:17-alpine
@@ -160,10 +216,26 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-${{ matrix.backend }}-${{ matrix.frontend }}-${{ hashFiles(format('templates/backend/{0}-starter/pnpm-lock.yaml', matrix.backend), format('templates/frontend/{0}-starter/pnpm-lock.yaml', matrix.frontend), 'pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-${{ matrix.backend }}-${{ matrix.frontend }}-
+      # Only the FastAPI backend uses Python and uv. Enabling the uv cache in
+      # a job that never creates it makes the post-job cache step fail.
       - uses: actions/setup-python@v5
+        if: matrix.backend == 'fastapi'
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
+        if: matrix.backend == 'fastapi'
+        with:
+          enable-cache: true
+          cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
       - name: Generate, install, boot, and exercise the HTTP contract
         run: >-
           node scripts/e2e-generated-projects.mjs
@@ -172,31 +244,14 @@ jobs:
 
   generated-project-browser-e2e:
     name: Generated ${{ matrix.backend }} + ${{ matrix.frontend }}${{ matrix.features && format(' + {0}', matrix.features) || '' }} Playwright E2E
+    needs: changes
+    if: needs.changes.outputs.generated_e2e != '[]'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - backend: fastapi
-            frontend: nextjs
-          - backend: fastapi
-            frontend: react-router
-          - backend: fastapi
-            frontend: astro
-          - backend: fastapi
-            frontend: astro
-            features: billing
-          - backend: nestjs
-            frontend: nextjs
-          - backend: nestjs
-            frontend: react-router
-          - backend: nestjs
-            frontend: astro
-          - backend: nestjs
-            frontend: astro
-            features: billing
-          - backend: fastify
-            frontend: astro
+        # The combinations are defined in .github/scripts/affected-jobs.mjs.
+        include: ${{ fromJSON(needs.changes.outputs.generated_e2e) }}
     services:
       postgres:
         image: postgres:17-alpine
@@ -228,14 +283,44 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-${{ matrix.backend }}-${{ matrix.frontend }}-${{ hashFiles(format('templates/backend/{0}-starter/pnpm-lock.yaml', matrix.backend), format('templates/frontend/{0}-starter/pnpm-lock.yaml', matrix.frontend), 'pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-${{ matrix.backend }}-${{ matrix.frontend }}-
+      # Only the FastAPI backend uses Python and uv. Enabling the uv cache in
+      # a job that never creates it makes the post-job cache step fail.
       - uses: actions/setup-python@v5
+        if: matrix.backend == 'fastapi'
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
+        if: matrix.backend == 'fastapi'
+        with:
+          enable-cache: true
+          cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
       - name: Install the Playwright test runner
         run: pnpm install --frozen-lockfile
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(node -p "require('./package.json').devDependencies['@playwright/test']")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
       - name: Install Chromium and its system dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
+      # The browser comes from the cache; the apt packages it needs do not.
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
       - name: Exercise the generated project in Chromium
         run: pnpm run test:e2e:browser
         env:
@@ -255,6 +340,8 @@ jobs:
 
   nestjs:
     name: NestJS starter
+    needs: changes
+    if: needs.changes.outputs.nestjs == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -296,6 +383,15 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-nestjs-starter-${{ hashFiles('templates/backend/nestjs-starter/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-nestjs-starter-
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec tsc --noEmit -p tsconfig.json
       - run: pnpm run lint
@@ -305,6 +401,8 @@ jobs:
 
   fastapi:
     name: FastAPI starter
+    needs: changes
+    if: needs.changes.outputs.fastapi == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -344,12 +442,17 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
       - run: uv sync --locked
       - run: uv run alembic upgrade heads
       - run: uv run python -m unittest discover -s tests
 
   nextjs:
     name: Next.js starter
+    needs: changes
+    if: needs.changes.outputs.nextjs == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -362,12 +465,23 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-nextjs-starter-${{ hashFiles('templates/frontend/nextjs-starter/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-nextjs-starter-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run lint
       - run: pnpm run build
 
   react-router:
     name: React Router starter
+    needs: changes
+    if: needs.changes.outputs.react_router == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -380,12 +494,23 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-react-router-starter-${{ hashFiles('templates/frontend/react-router-starter/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-react-router-starter-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm run build
 
   astro:
     name: Astro starter
+    needs: changes
+    if: needs.changes.outputs.astro == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -398,12 +523,23 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-astro-starter-${{ hashFiles('templates/frontend/astro-starter/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-astro-starter-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm run build
 
   fastify:
     name: Fastify starter
+    needs: changes
+    if: needs.changes.outputs.fastify == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -446,6 +582,15 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 11
+      - name: Locate the pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - name: Cache the pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-v1-${{ runner.os }}-fastify-starter-${{ hashFiles('templates/backend/fastify-starter/pnpm-lock.yaml') }}
+          restore-keys: pnpm-store-v1-${{ runner.os }}-fastify-starter-
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
       - run: pnpm run db:migrate
