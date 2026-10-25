@@ -5,6 +5,18 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Los proyectos generados incluyen `.create-my-saas.json` con las opciones de
+  generación, las versiones de las extensiones y los hashes de los archivos,
+  como base del futuro comando `upgrade`.
+
+### Fixed
+
+- La generación normaliza los archivos de texto a LF y fija el orden de lectura
+  y los permisos, para producir el mismo resultado desde distintos directorios
+  y sistemas. Los secretos siguen siendo marcadores que hay que configurar.
+
 ## [1.5.2] - 2026-10-25
 
 ### Fixed
