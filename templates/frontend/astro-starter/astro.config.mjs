@@ -23,6 +23,7 @@ export default defineConfig(() => {
     '/login/',
     '/register/',
     '/reset-password/',
+    '/settings/',
     '/verify-email/',
   ]);
   return {

@@ -222,7 +222,10 @@ async function bindProtectedPage() {
     const session = await restoreSession();
     document.querySelectorAll<HTMLElement>("[data-user-name]").forEach((node) => { node.textContent = session.user.name; });
     document.querySelectorAll<HTMLElement>("[data-user-email]").forEach((node) => { node.textContent = session.user.email; });
+    document.querySelectorAll<HTMLElement>("[data-user-initials]").forEach((node) => { node.textContent = session.user.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(); });
     document.querySelectorAll<HTMLElement>("[data-verification]").forEach((node) => { node.textContent = session.user.emailVerified ? "Correo verificado" : "Correo pendiente de verificación"; });
+    document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
+    document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
     document.querySelector<HTMLElement>("[data-protected-content]")?.removeAttribute("hidden");
     if (document.querySelector("[data-billing]")) void bindBilling(session.accessToken);
   } catch { window.location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`); }
@@ -245,22 +248,52 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
 
 function billingStatus(message: string, error = false) { setStatus(document.querySelector("[data-billing-status]"), message, error); }
 
+const statusLabels: Record<string, { label: string; tone: string }> = {
+  active: { label: "Activa", tone: "badge-success" },
+  trialing: { label: "En prueba", tone: "badge-accent" },
+  past_due: { label: "Pago pendiente", tone: "badge-warning" },
+  unpaid: { label: "Impagada", tone: "badge-danger" },
+  canceled: { label: "Cancelada", tone: "badge-danger" },
+  incomplete: { label: "Incompleta", tone: "badge-warning" },
+};
+
+function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", text = "") {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text) node.textContent = text;
+  return node;
+}
+
 function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: BillingConfiguration, subscription: BillingSubscription, organizationId: string, token: string) {
   summary.replaceChildren(); plans.replaceChildren();
-  const current = document.createElement("div"); current.textContent = `Plan actual: ${subscription.plan} · ${subscription.status}${subscription.cancelAtPeriodEnd ? " · cancela al final del periodo" : ""}`;
-  const renewal = document.createElement("div"); renewal.textContent = `Renovación: ${subscription.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "medium" }).format(new Date(subscription.currentPeriodEnd)) : "Sin fecha"}`;
-  const portal = document.createElement("button"); portal.type = "button"; portal.textContent = "Gestionar suscripción"; portal.disabled = !configuration.configured;
+  const renewal = subscription.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "long" }).format(new Date(subscription.currentPeriodEnd)) : null;
+  const status = statusLabels[subscription.status] ?? { label: subscription.status, tone: "" };
+  const header = element("div", "panel-header");
+  const heading = element("div");
+  heading.append(element("h2", "", `Plan actual: ${subscription.plan} · ${subscription.status}`), element("p", "", renewal ? `${subscription.cancelAtPeriodEnd ? "Se cancela" : "Se renueva"} el ${renewal}` : "Sin fecha de renovación"));
+  header.append(heading, element("span", `badge ${status.tone}`, status.label));
+  const rows = element("dl", "rows");
+  const management = element("div");
+  const portal = element("button", "btn btn-secondary btn-sm", "Gestionar suscripción"); portal.type = "button"; portal.disabled = !configuration.configured;
   portal.addEventListener("click", () => void startRedirect("portal", organizationId, token, portal));
-  summary.append(current, renewal, portal); summary.hidden = false;
+  management.append(element("dt", "", "Gestión"), element("dd", "", "Cambia de plan, actualiza el método de pago o descarga facturas."), portal);
+  rows.append(management);
+  summary.append(header, rows); summary.hidden = false;
   if (!configuration.configured) { billingStatus("Configura Stripe y los planes permitidos en el backend para habilitar Checkout."); return; }
   for (const plan of configuration.plans) {
-    const card = document.createElement("article"); card.className = "card";
-    const title = document.createElement("h2"); title.textContent = plan.name;
-    const details = document.createElement("p"); details.textContent = Object.entries(plan.entitlements).map(([key, limit]) => `${key}: ${limit === null ? "sin límite" : `${limit} incluidos`}`).join(" · ") || "Sin límites definidos";
-    const checkout = document.createElement("button"); checkout.type = "button"; checkout.textContent = "Elegir este plan";
+    const current = subscription.plan === plan.name;
+    const card = element("article", current ? "card featured" : "card");
+    const entitlements = element("ul");
+    for (const [key, limit] of Object.entries(plan.entitlements)) {
+      const item = element("li");
+      item.append(element("strong", "", key), element("span", "", limit === null ? "Sin límite" : `${limit} incluidos`));
+      entitlements.append(item);
+    }
+    const checkout = element("button", current ? "btn btn-secondary" : "btn btn-primary", current ? "Plan actual" : "Elegir este plan"); checkout.type = "button"; checkout.disabled = current;
     checkout.addEventListener("click", () => void startRedirect("checkout", organizationId, token, checkout, plan.priceId));
-    card.append(title, details, checkout); plans.append(card);
+    card.append(element("p", "", current ? "Tu plan" : "Plan"), element("h2", "", plan.name), entitlements, checkout); plans.append(card);
   }
+  plans.hidden = configuration.plans.length === 0;
 }
 
 async function startRedirect(kind: "checkout" | "portal", organizationId: string, token: string, button: HTMLButtonElement, priceId?: string) {
@@ -302,9 +335,14 @@ async function bindBilling(token: string) {
   } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se han podido cargar las organizaciones.", true); }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+function toggleMobileMenu() {
+  const open = document.querySelector("[data-mobile-menu]")?.classList.toggle("open") ?? false;
+  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button][aria-expanded]").forEach((button) => button.setAttribute("aria-expanded", String(open)));
+}
+
+if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
   bindForms(); bindOAuth(); void bindProtectedPage();
-  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", () => document.querySelector("[data-mobile-menu]")?.classList.toggle("open")));
+  document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
   document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; resetAnalyticsUser(); window.location.assign("/login/"); } }));
   document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } }));
   if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión.", true));

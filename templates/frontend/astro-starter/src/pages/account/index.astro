@@ -2,5 +2,19 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 <BaseLayout title="Cuenta" description="Perfil y verificación de la sesión actual." protected>
-  <section class="dashboard" data-protected-content hidden><p class="eyebrow">CUENTA</p><h1>Tu perfil</h1><div class="account-card"><dl><div><dt>Nombre</dt><dd data-user-name></dd></div><div><dt>Correo</dt><dd data-user-email></dd></div><div><dt>Estado</dt><dd data-verification></dd></div></dl><button type="button" data-resend-verification>Reenviar verificación</button><p data-account-status class="form-status" role="status"></p></div></section>
+  <section class="content" data-protected-content hidden>
+    <header><p class="eyebrow">Cuenta</p><h1>Perfil</h1><p class="lead">Tu identidad y el estado de verificación de esta sesión.</p></header>
+    <section class="panel" aria-labelledby="profile">
+      <div class="panel-header"><div><h2 id="profile">Datos personales</h2><p>Se usan para iniciar sesión y para los avisos de tu cuenta.</p></div></div>
+      <dl class="rows">
+        <div><dt>Nombre</dt><dd data-user-name></dd><span></span></div>
+        <div><dt>Correo electrónico</dt><dd data-user-email></dd><span><span class="badge badge-success" data-if-verified hidden>Verificado</span><button type="button" class="btn btn-secondary btn-sm" data-resend-verification data-if-unverified>Reenviar verificación</button></span></div>
+        <div><dt>Estado</dt><dd data-verification></dd><span></span></div>
+      </dl>
+      <p data-account-status class="form-status" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="session">
+      <div class="panel-header"><div><h2 id="session">Sesión</h2><p>Cierra la sesión en este navegador.</p></div><button type="button" class="btn btn-secondary" data-logout>Cerrar sesión</button></div>
+    </section>
+  </section>
 </BaseLayout>

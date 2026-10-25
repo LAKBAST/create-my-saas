@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useSyncExternalStore, type ReactNode } from "react";
 import { useLocation } from "react-router";
 import posthog from "posthog-js";
 
@@ -10,6 +10,25 @@ const consentKey = "saas_analytics_consent";
 let initialized = false;
 let consent: Consent = "unknown";
 let userId: string | null = null;
+const consentListeners = new Set<() => void>();
+
+function subscribeToConsent(listener: () => void) {
+  consentListeners.add(listener);
+  return () => { consentListeners.delete(listener); };
+}
+
+function savedConsent(): Consent {
+  const saved = projectKey && apiHost ? window.localStorage.getItem(consentKey) : null;
+  return saved === "granted" || saved === "denied" ? saved : "unknown";
+}
+
+function serverConsent(): Consent {
+  return "unknown";
+}
+
+function notifyConsentListeners() {
+  consentListeners.forEach((listener) => listener());
+}
 
 function initialize() {
   if (!projectKey || !apiHost || initialized) return Boolean(projectKey && apiHost);
@@ -44,26 +63,30 @@ export function resetAnalyticsUser() {
 
 export function PostHogProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
-  const [currentConsent, setCurrentConsent] = useState<Consent>("unknown");
+  // The saved choice lives in localStorage, which the server render cannot read.
+  const currentConsent = useSyncExternalStore(subscribeToConsent, savedConsent, serverConsent);
   const configured = Boolean(projectKey && apiHost);
 
   useEffect(() => {
     if (!configured || !initialize()) return;
-    const saved = window.localStorage.getItem(consentKey);
-    if (saved === "granted" || saved === "denied") { applyConsent(saved); setCurrentConsent(saved); }
+    const saved = savedConsent();
+    if (saved !== "unknown") applyConsent(saved);
   }, [configured]);
 
   useEffect(() => {
     if (currentConsent === "granted") captureAnalyticsEvent("$pageview", { $current_url: window.location.href, $pathname: location.pathname });
   }, [currentConsent, location.pathname, location.search]);
 
-  function choose(value: Exclude<Consent, "unknown">) { applyConsent(value); setCurrentConsent(value); }
+  function choose(value: Exclude<Consent, "unknown">) {
+    applyConsent(value);
+    notifyConsentListeners();
+  }
 
   function changeConsent() {
     if (initialized) posthog.opt_out_capturing();
     consent = "unknown";
     window.localStorage.removeItem(consentKey);
-    setCurrentConsent("unknown");
+    notifyConsentListeners();
   }
 
   return <>{children}{configured && currentConsent !== "unknown" ? <button className="analytics-consent-manage" type="button" onClick={changeConsent}>Preferencias de analítica</button> : null}{configured && currentConsent === "unknown" ? <aside className="analytics-consent" aria-label="Preferencias de analítica"><p>Usamos analítica opcional y sin autocaptura para mejorar el producto.</p><div><button type="button" onClick={() => choose("denied")}>Rechazar</button><button type="button" onClick={() => choose("granted")}>Aceptar analítica</button></div></aside> : null}</>;

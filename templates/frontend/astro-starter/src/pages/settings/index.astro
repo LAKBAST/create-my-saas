@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Icon from '../../components/Icon.astro';
+---
+<BaseLayout title="Configuración" description="Ajustes de tu espacio de trabajo." protected>
+  <section class="content" data-protected-content hidden>
+    <header><p class="eyebrow">Configuración</p><h1>Espacio de trabajo</h1><p class="lead">Ajustes comunes que cualquier producto puede necesitar.</p></header>
+    <div class="empty">
+      <div><Icon name="settings" size={22} /></div>
+      <h2>Aún no hay ajustes</h2>
+      <p>Añade aquí preferencias del producto, integraciones o equipos cuando tu SaaS los necesite. Edita <code>src/pages/settings/index.astro</code>.</p>
+    </div>
+  </section>
+</BaseLayout>

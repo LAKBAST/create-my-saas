@@ -31,6 +31,8 @@ ruta del mismo origen que conserve el alcance de las cookies `HttpOnly` y CSRF.
 
 ## Qué incluye
 
+- Mismo diseño que las plantillas Next.js y React Router: tokens claro/oscuro en `src/styles/global.css`, nombre del producto en `src/lib/brand.ts` y barra lateral del área protegida en `src/lib/navigation.ts`.
+
 - Páginas públicas de inicio, pricing, documentación y blog, sin precios ni métricas inventadas.
 - Etiquetas `description`, canonical, Open Graph y Twitter Card por página.
 - Las rutas de autenticación y las áreas protegidas incluyen `noindex, nofollow, noarchive` y se excluyen del sitemap.

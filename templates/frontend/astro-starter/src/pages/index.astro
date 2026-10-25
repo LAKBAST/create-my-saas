@@ -1,17 +1,24 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import Icon from '../components/Icon.astro';
+import { PRODUCT_NAME } from '../lib/brand';
+import type { IconName } from '../lib/icons';
+
+const features: Array<{ icon: IconName; title: string; text: string }> = [
+  { icon: 'sparkle', title: 'Rápido por defecto', text: 'Las páginas se generan como HTML estático y no envían un framework de cliente para el contenido.' },
+  { icon: 'mail', title: 'Listo para contenido', text: 'El blog y la documentación incluidos son el punto de partida de tu propio modelo de contenido.' },
+  { icon: 'user', title: 'Cuentas reales', text: 'Registro, inicio de sesión, recuperación y un área protegida conectados a tu backend.' },
+];
 ---
 
-<BaseLayout title="LaunchKit — ship your product site" description="A fast, static-first public website for your next SaaS.">
+<BaseLayout title={PRODUCT_NAME} description="Un sitio público rápido y estático para tu próximo SaaS.">
   <section class="hero">
-    <p class="eyebrow">Static-first SaaS marketing</p>
-    <h1>Make the public side of your product feel instant.</h1>
-    <p class="lead">LaunchKit is the small, focused site template for a landing page, content, and SEO — without pulling in a dashboard or a complex auth flow.</p>
-    <a class="button" href="/register/">Crear cuenta</a><a class="text-link" href="/login/">Ya tengo una cuenta</a>
-    <div class="card-grid">
-      <article class="card"><h2>Fast by default</h2><p>Pages are pre-rendered to HTML and ship no framework runtime for static content.</p></article>
-      <article class="card"><h2>Content-ready</h2><p>Use the included blog and docs routes as a starting point for your own content model.</p></article>
-      <article class="card"><h2>Focused interactivity</h2><p>The contact form adds only a tiny script where the page needs it.</p></article>
-    </div>
+    <p class="eyebrow">Astro · Sitio público</p>
+    <h1>Haz que la parte pública de tu producto se sienta instantánea.</h1>
+    <p class="lead">Una plantilla pequeña y enfocada para tu landing, tu contenido y el SEO, con cuentas de usuario reales cuando las necesites.</p>
+    <div class="actions"><a class="btn btn-primary" href="/register/">Crear cuenta <Icon name="arrow" size={16} /></a><a class="btn btn-secondary" href="/login/">Ya tengo una cuenta</a></div>
+  </section>
+  <section class="features" aria-label="Incluido">
+    {features.map((feature) => <article class="feature"><div class="feature-icon"><Icon name={feature.icon} /></div><strong>{feature.title}</strong><span>{feature.text}</span></article>)}
   </section>
 </BaseLayout>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, type OAuthProvider } from "../lib/api.client";
+import styles from "../auth.module.css";
 
 export function OAuthButtons() {
   const [error, setError] = useState<string>();
@@ -13,9 +14,12 @@ export function OAuthButtons() {
     catch (cause) { setPending(undefined); setError(cause instanceof ApiError ? cause.message : "No se ha podido iniciar sesión con este proveedor."); }
   }
   if (!available.length) return null;
-  return <div className="oauth" aria-label="Acceder con un proveedor externo">
-    <p className="divider"><span>o continúa con</span></p>
-    {error && <p className="error" role="alert">{error}</p>}
-    <div className="oauth-actions">{available.includes("google") && <button type="button" className="secondary-button" disabled={Boolean(pending)} onClick={() => void start("google")}>{pending === "google" ? "Abriendo Google…" : "Google"}</button>}{available.includes("github") && <button type="button" className="secondary-button" disabled={Boolean(pending)} onClick={() => void start("github")}>{pending === "github" ? "Abriendo GitHub…" : "GitHub"}</button>}</div>
+  return <div className={styles.oauth} aria-label="Acceder con un proveedor externo">
+    <p className={styles.divider}><span>o continúa con</span></p>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    <div className={styles.oauthActions}>
+      {available.includes("google") && <button type="button" className={styles.secondaryButton} disabled={Boolean(pending)} onClick={() => void start("google")}>{pending === "google" ? "Abriendo Google…" : "Google"}</button>}
+      {available.includes("github") && <button type="button" className={styles.secondaryButton} disabled={Boolean(pending)} onClick={() => void start("github")}>{pending === "github" ? "Abriendo GitHub…" : "GitHub"}</button>}
+    </div>
   </div>;
 }

@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import { ApiError, api } from "../lib/api.client";
+import styles from "../auth.module.css";
+import { AuthCard } from "../components/auth-card";
 import { OAuthButtons } from "../components/oauth-buttons";
-import { privatePageMetadata } from "../lib/seo";
 import { captureAnalyticsEvent } from "../components/posthog-provider";
+import { ApiError, api } from "../lib/api.client";
+import { privatePageMetadata } from "../lib/seo";
 
-export function meta() { return privatePageMetadata({ title: "Crear cuenta | SaaS starter", description: "Crea una cuenta para acceder al producto.", path: "/register" }); }
+export function meta() { return privatePageMetadata({ title: "Crear cuenta", description: "Crea una cuenta para acceder al producto.", path: "/register" }); }
 
 export default function Register() {
   const navigate = useNavigate();
@@ -25,5 +27,5 @@ export default function Register() {
     } finally { setPending(false); }
   }
 
-  return <main className="auth-page"><section className="auth-card"><Link className="brand" to="/"><span>✦</span> SaaS starter</Link><h1>Crea tu cuenta</h1><p>La contraseña debe tener al menos ocho caracteres, una letra y un número.</p><form onSubmit={submit}>{error && <p className="error" role="alert">{error}</p>}<label>Nombre<input name="name" autoComplete="name" required /></label><label>Email<input name="email" type="email" autoComplete="email" required /></label><label>Contraseña<input name="password" type="password" autoComplete="new-password" minLength={8} required /></label><button className="button" disabled={pending}>{pending ? "Creando…" : "Crear cuenta"}</button></form><OAuthButtons /><p className="form-footer">¿Ya tienes cuenta? <Link to="/login">Entra</Link></p></section></main>;
+  return <AuthCard><h1>Crea tu cuenta</h1><p>Empieza con la base de tu nuevo producto.</p><form className={styles.form} onSubmit={submit}><label>Nombre<input name="name" autoComplete="name" placeholder="Tu nombre" required /></label><label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@empresa.com" required /></label><label>Contraseña<input name="password" type="password" autoComplete="new-password" placeholder="8 caracteres, letra y número" minLength={8} required /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={pending}>{pending ? "Creando cuenta…" : "Crear cuenta"}</button></form><OAuthButtons /><p className={styles.footer}>¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link></p></AuthCard>;
 }

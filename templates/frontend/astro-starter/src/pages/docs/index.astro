@@ -2,15 +2,15 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 ---
 
-<BaseLayout title="Documentation — LaunchKit" description="Getting started documentation for the public-site starter.">
-  <article class="content prose">
-    <p class="eyebrow">Documentation</p>
-    <h1>Start with content, not infrastructure.</h1>
-    <h2>Install</h2>
-    <p>Run <code>pnpm install --frozen-lockfile</code>, copy <code>.env.example</code>, then run <code>pnpm dev</code>.</p>
-    <h2>Make it yours</h2>
-    <p>Replace the sample copy and pages first. Add a CMS or markdown content collection when content authors need an editing workflow.</p>
-    <h2>Connect forms later</h2>
-    <p>The contact form is client-side validation only. Point it at an API endpoint or form provider when you are ready to collect leads.</p>
+<BaseLayout title="Documentación" description="Primeros pasos con el starter del sitio público.">
+  <article class="prose">
+    <p class="eyebrow">Documentación</p>
+    <h1>Empieza por el contenido, no por la infraestructura.</h1>
+    <h2>Instalación</h2>
+    <p>Ejecuta <code>pnpm install --frozen-lockfile</code>, copia <code>.env.example</code> a <code>.env</code> y lanza <code>pnpm dev</code>.</p>
+    <h2>Hazlo tuyo</h2>
+    <p>Cambia el nombre del producto en <code>src/lib/brand.ts</code> y los colores en <code>src/styles/global.css</code>. Después sustituye los textos y las páginas de ejemplo; añade un CMS o una colección de contenido en Markdown cuando lo necesites.</p>
+    <h2>Área protegida</h2>
+    <p>Las páginas con <code>protected</code> restauran la sesión desde la cookie de refresco y redirigen al inicio de sesión cuando no la hay. Añade sus enlaces a la barra lateral en <code>src/lib/navigation.ts</code>.</p>
   </article>
 </BaseLayout>

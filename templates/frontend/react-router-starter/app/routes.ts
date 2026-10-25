@@ -11,6 +11,7 @@ export default [
   route("app", "routes/app.tsx"),
   route("account", "routes/account.tsx"),
   route("billing", "routes/billing.tsx"),
+  route("settings", "routes/settings.tsx"),
   route("robots.txt", "routes/robots.txt.ts"),
   route("sitemap.xml", "routes/sitemap.xml.ts"),
   route("auth/*", "routes/auth-proxy.ts"),

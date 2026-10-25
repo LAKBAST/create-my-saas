@@ -47,7 +47,7 @@
 .steps strong { display: block; font-size: 14px; }
 .steps span { color: var(--muted); font-size: 13px; }
 .stepIcon { width: 28px; height: 28px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); }
-.stepDone { border-color: var(--success); background: var(--success); color: var(--surface); }
+.steps .stepDone { border-color: var(--success); background: var(--success); color: var(--surface); }
 
 .empty { padding: 40px 24px; text-align: center; border-style: dashed; box-shadow: none; }
 .empty > div { width: 44px; height: 44px; display: grid; place-items: center; margin: 0 auto; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 20px; }
