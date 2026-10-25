@@ -566,7 +566,7 @@ describe('AppController (e2e)', () => {
     const configService = app.get(ConfigService);
     configService.set('STRIPE_SECRET_KEY', '');
     configService.set('STRIPE_WEBHOOK_SECRET', '');
-    configService.set('STRIPE_PRICE_PLANS', '{}');
+    configService.set('STRIPE_PRICE_PLANS', '{"price_contract":{"name":"Pro","entitlements":{"api_calls":null}}}');
     const owner = await registerAndLogin(app, { email: 'contract-owner@example.com', password: 'password123', name: 'Contract owner' });
     const invited = await registerAndLogin(app, { email: 'contract-member@example.com', password: 'password123', name: 'Contract member' });
     const outside = await registerAndLogin(app, { email: 'outside@example.com', password: 'password123', name: 'Outside' });
@@ -590,6 +590,8 @@ describe('AppController (e2e)', () => {
     expect(snapshot.body).toEqual({ organizationId, provider: 'manual', plan: 'free', status: 'active', seats: 1, currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false, entitlements: [], usage: [] });
     await request(http).get(legacy + '/subscription').set('Authorization', ownerHeader).expect(200, snapshot.body);
     const config = await request(http).get(canonical + '/configuration').set('Authorization', ownerHeader).expect(200);
+    expect(config.body).toEqual({ configured: false, provider: 'stripe', usageMeterConfigured: false,
+      plans: [{ priceId: 'price_contract', name: 'Pro', entitlements: { api_calls: null }, labels: {}, price: null }] });
     await request(http).get(legacy + '/configuration').set('Authorization', ownerHeader).expect(200, config.body);
     for (const path of [canonical, legacy]) {
       await request(http).post(path + '/checkout').set('Authorization', ownerHeader).send({ priceId: 'price_contract' }).expect(200, { configured: false, url: null, sessionId: null });

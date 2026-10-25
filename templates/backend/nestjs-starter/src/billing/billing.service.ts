@@ -12,14 +12,16 @@ import { BillingWebhookEvent } from './billing-webhook-event.entity';
 import { Subscription } from './subscription.entity';
 import { UsageRecord } from './usage-record.entity';
 
-type Plan = { name: string; entitlements: Record<string, number | null> };
-type PublicPlan = Plan & { priceId: string };
+type Plan = { name: string; entitlements: Record<string, number | null>; labels: Record<string, string> };
+type PlanPrice = { unitAmount: number; currency: string; interval: Stripe.Price.Recurring.Interval | null; intervalCount: number };
+type PublicPlan = Plan & { priceId: string; price: PlanPrice | null };
 type PortalResult = { configured: boolean; url: string | null; reason?: string };
 type UsageTotal = { metric: string; quantity: number };
 type UsageInput = { organizationId: string; metric: string; quantity: number; idempotencyKey: string; recordedAt?: Date };
 
 @Injectable()
 export class BillingService {
+  private readonly priceCache = new Map<string, { expiresAt: number; price: PlanPrice }>();
   constructor(
     @InjectRepository(BillingCustomer) private readonly customers: Repository<BillingCustomer>,
     @InjectRepository(Subscription) private readonly subscriptions: Repository<Subscription>,
@@ -56,9 +58,27 @@ export class BillingService {
     };
   }
 
-  configuration(): { configured: boolean; provider: 'stripe'; usageMeterConfigured: boolean; plans: PublicPlan[] } {
-    const plans = [...this.pricePlans()].map(([priceId, plan]) => ({ priceId, ...plan }));
+  async configuration(): Promise<{ configured: boolean; provider: 'stripe'; usageMeterConfigured: boolean; plans: PublicPlan[] }> {
+    const plans = await Promise.all([...this.pricePlans()].map(async ([priceId, plan]) => ({ priceId, ...plan, price: await this.price(priceId) })));
     return { configured: this.isStripeConfigured(), provider: 'stripe', usageMeterConfigured: Boolean(this.config.get<string>('STRIPE_USAGE_EVENT_NAME')?.trim()), plans };
+  }
+
+  private async price(priceId: string): Promise<PlanPrice | null> {
+    if (!this.isStripeConfigured()) return null;
+    const cacheKey = `${this.config.get<string>('STRIPE_SECRET_KEY')}:${priceId}`;
+    const cached = this.priceCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.price;
+    try {
+      const price = await this.stripe().prices.retrieve(priceId);
+      if (price.unit_amount === null) return null;
+      const result = { unitAmount: price.unit_amount, currency: price.currency,
+        interval: price.recurring?.interval ?? null, intervalCount: price.recurring?.interval_count ?? 1 };
+      this.priceCache.set(cacheKey, { expiresAt: Date.now() + 600_000, price: result });
+      return result;
+    } catch {
+      // Display metadata must not make configuration unavailable during a Stripe outage.
+      return null;
+    }
   }
 
   async checkout(organizationId: string, priceId: string, quantity: number, actorUserId: string): Promise<{ configured: boolean; url: string | null; sessionId: string | null }> {
@@ -296,9 +316,15 @@ export class BillingService {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} must be an object.`, 500);
     return new Map(Object.entries(value as Record<string, unknown>).map(([priceId, plan]) => {
       if (!/^price_[A-Za-z0-9]+$/.test(priceId) || !plan || typeof plan !== 'object' || Array.isArray(plan)) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} contains an invalid plan.`, 500);
-      const typed = plan as { name?: unknown; entitlements?: unknown };
+      const typed = plan as { name?: unknown; entitlements?: unknown; labels?: unknown };
       if (typeof typed.name !== 'string' || !typed.name.trim()) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} plans require a name.`, 500);
-      return [priceId, { name: typed.name, entitlements: this.parseEntitlements(JSON.stringify(typed.entitlements ?? {}), setting) }];
+      const entitlements = this.parseEntitlements(JSON.stringify(typed.entitlements ?? {}), setting);
+      const labels = typed.labels === undefined ? {} : typed.labels;
+      if (!labels || typeof labels !== 'object' || Array.isArray(labels) ||
+          Object.entries(labels).some(([key, label]) => !Object.hasOwn(entitlements, key) || typeof label !== 'string')) {
+        throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} contains invalid labels.`, 500);
+      }
+      return [priceId, { name: typed.name, entitlements, labels: labels as Record<string, string> }];
     }));
   }
 

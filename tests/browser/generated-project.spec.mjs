@@ -58,6 +58,7 @@ const e2eEnvironment = Object.fromEntries(Object.entries({
   OAUTH_GITHUB_CLIENT_SECRET: '',
   STRIPE_SECRET_KEY: '',
   STRIPE_WEBHOOK_SECRET: '',
+  STRIPE_PRICE_PLANS: '{"price_browsere2e":{"name":"Pro E2E","entitlements":{"api_calls":null},"labels":{"api_calls":"Llamadas API"}}}',
   EMAIL_DELIVERY_URL: '',
   EMAIL_DELIVERY_TOKEN: 'generated-browser-e2e-email-token',
   API_PROXY_TARGET: apiOrigin,
@@ -447,6 +448,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         accessToken: ownerSession.accessToken ?? ownerSession.access_token,
       });
       expect(configuration).toMatchObject({ status: 200, body: { configured: false, provider: 'stripe' } });
+      expect(configuration.body.plans).toEqual([{ priceId: 'price_browsere2e', name: 'Pro E2E', entitlements: { api_calls: null }, labels: { api_calls: 'Llamadas API' }, price: null }]);
       const checkout = await browserApi(page, billingPath(organization.id, 'checkout'), {
         method: 'POST', accessToken: ownerSession.accessToken ?? ownerSession.access_token, body: { priceId: 'price_browsere2e', quantity: 1 },
       });
@@ -461,6 +463,41 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         await expect(page.getByRole('button', { name: 'Gestionar suscripción' })).toBeDisabled();
       } else {
         await expect(page.getByRole('heading', { name: 'Facturación no configurada' })).toBeVisible();
+      }
+    });
+
+    await test.step('billing cards format prices and labels without contacting Stripe', async () => {
+      const fixtures = [
+        { name: 'Mensual', unitAmount: 2900, interval: 'month', intervalCount: 1, expected: '29 €/mes' },
+        { name: 'Anual', unitAmount: 29000, interval: 'year', intervalCount: 1, expected: '290 €/año' },
+        { name: 'Trimestral', unitAmount: 7900, interval: 'month', intervalCount: 3, expected: '79 € cada 3 meses' },
+        { name: 'Semanal', unitAmount: 900, interval: 'week', intervalCount: 1, expected: '9 €/semana' },
+        { name: 'Diario', unitAmount: 150, interval: 'day', intervalCount: 1, expected: '1,50 €/día' },
+        { name: 'Único', unitAmount: 4900, interval: null, intervalCount: 1, expected: '49 €' },
+      ];
+      const plans = fixtures.map(({ name, unitAmount, interval, intervalCount }, index) => ({
+        priceId: `price_fixture${index}`, name, entitlements: { 'store.pro-api-keys': null, legacy_key: 5 },
+        labels: { 'store.pro-api-keys': 'API keys' }, price: { unitAmount, currency: 'eur', interval, intervalCount },
+      }));
+      plans.push({ priceId: 'price_unavailable', name: 'Sin precio', entitlements: { legacy_key: 5 }, labels: {}, price: null });
+      const configurationRoute = /\/(?:billing\/organizations\/[^/]+|organizations\/[^/]+\/billing)\/configuration(?:\?.*)?$/;
+      await page.route(configurationRoute, (route) => route.fulfill({ json: {
+        configured: true, provider: 'stripe', usageMeterConfigured: false, plans,
+      } }));
+      try {
+        await page.reload();
+        for (const { name, expected } of fixtures) {
+          const card = page.locator('article').filter({ has: page.getByRole('heading', { name, exact: true }) });
+          await expect(card).toContainText(expected);
+          await expect(card).toContainText('API keys');
+          await expect(card).toContainText('legacy_key');
+          await expect(card).not.toContainText('store.pro-api-keys');
+        }
+        const unavailable = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Sin precio', exact: true }) });
+        await expect(unavailable).toContainText('legacy_key');
+        await expect(unavailable).not.toContainText('€');
+      } finally {
+        await page.unroute(configurationRoute);
       }
     });
   }

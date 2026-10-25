@@ -144,7 +144,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export type Authentication = { accessToken: string; user: User };
 export type OAuthProvider = "google" | "github";
 export type Organization = { id: string; name: string; slug: string };
-export type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null> };
+export type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; price: import("./billing-price").BillingPrice | null };
 export type BillingConfiguration = { configured: boolean; provider: "stripe"; usageMeterConfigured: boolean; plans: BillingPlan[] };
 export type BillingSubscription = {
   organizationId: string; provider: string; plan: string; status: string; seats: number;

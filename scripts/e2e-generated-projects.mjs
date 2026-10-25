@@ -54,6 +54,7 @@ const e2eEnvironment = Object.fromEntries(Object.entries({
   OAUTH_GITHUB_CLIENT_SECRET: '',
   STRIPE_SECRET_KEY: '',
   STRIPE_WEBHOOK_SECRET: '',
+  STRIPE_PRICE_PLANS: '{"price_browsere2e":{"name":"Pro E2E","entitlements":{"api_calls":null},"labels":{"api_calls":"Llamadas API"}}}',
   EMAIL_DELIVERY_URL: '',
   EMAIL_DELIVERY_TOKEN: '',
   API_PROXY_TARGET: apiOrigin,
@@ -192,6 +193,19 @@ async function verifyBrowserSessionThroughProxy() {
   const currentUserBody = await currentUser.json();
   const publicUser = backend === 'fastify' ? currentUserBody.user : currentUserBody;
   assert.equal(publicUser.email, credentials.email);
+
+  if (backend !== 'fastify') {
+    const organization = await request('/organizations', { method: 'POST',
+      headers: { Authorization: `Bearer ${loginBody.accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Billing contract', slug: 'billing-contract' }),
+    });
+    await expectStatus(organization, 201, 'create billing organization failed');
+    const { id } = await organization.json();
+    const configuration = await request(`/billing/organizations/${id}/configuration`, { headers: { Authorization: `Bearer ${loginBody.accessToken}` } });
+    await expectStatus(configuration, 200, 'billing configuration failed');
+    assert.deepEqual(await configuration.json(), { configured: false, provider: 'stripe', usageMeterConfigured: false,
+      plans: [{ priceId: 'price_browsere2e', name: 'Pro E2E', entitlements: { api_calls: null }, labels: { api_calls: 'Llamadas API' }, price: null }] });
+  }
 
   const csrf = jar.get('csrf_token');
   const refresh = await request('/auth/refresh', {
