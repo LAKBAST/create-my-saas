@@ -194,7 +194,9 @@ test('generates selected templates and omits local artifacts', (t) => {
   assert.equal(existsSync(join(destination, 'frontend', 'Dockerfile')), true);
   assert.equal(existsSync(join(destination, 'deployment', 'compose.yaml')), true);
   assert.equal(existsSync(join(destination, 'deployment', 'compose.dev.yaml')), true);
-  assert.match(readFileSync(join(destination, 'LICENSE'), 'utf8'), /^MIT License$/m);
+  assert.equal(existsSync(join(destination, 'LICENSE')), false);
+  assert.match(readFileSync(join(destination, 'THIRD_PARTY_NOTICES.md'), 'utf8'), /^MIT License$/m);
+  assert.match(readFileSync(join(destination, 'frontend', 'package.json'), 'utf8'), /"license": "UNLICENSED"/);
 
   const deploymentCompose = readFileSync(join(destination, 'deployment', 'compose.yaml'), 'utf8');
   assert.match(deploymentCompose, /target: migrate/);

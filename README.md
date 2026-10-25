@@ -189,3 +189,8 @@ distribuirse, también como productos comerciales o propietarios, conservando el
 aviso de copyright y la licencia en las partes procedentes de estas plantillas.
 Las dependencias mantienen sus licencias respectivas.
 
+Un proyecto generado es tuyo y no nace con licencia MIT: la CLI no crea
+`LICENSE`, declara `"license": "UNLICENSED"` (y `LicenseRef-Proprietary` en
+FastAPI) y guarda el aviso MIT de las plantillas en `THIRD_PARTY_NOTICES.md`.
+Añade tu propio `LICENSE` si quieres publicarlo con otras condiciones.
+
