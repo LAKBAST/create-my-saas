@@ -7,7 +7,7 @@ export type RateLimitResult = 'allowed' | 'limited' | 'unavailable';
 const incrementScript = "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end; return count";
 const within = <T>(operation: Promise<T>, timeoutMs: number): Promise<T> => new Promise<T>((resolve, reject) => {
   const timer = setTimeout(() => reject(new Error('Redis timeout')), timeoutMs);
-  operation.then((value) => { clearTimeout(timer); resolve(value); }, (error) => { clearTimeout(timer); reject(error); });
+  operation.then((value) => { clearTimeout(timer); resolve(value); }, (error: unknown) => { clearTimeout(timer); reject(error instanceof Error ? error : new Error(String(error))); });
 });
 const redisCommandTimeoutMs = 300;
 const redisConnectTimeoutMs = 1_000;
@@ -91,7 +91,8 @@ export class RateLimitService implements OnModuleDestroy {
         clearTimeout(timer);
         client.off('ready', ready);
         client.off('error', failed);
-        error ? reject(error) : resolve(client);
+        if (error) reject(error);
+        else resolve(client);
       };
       const ready = () => finish();
       const failed = (error: Error) => finish(error);

@@ -12,6 +12,14 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   `THIRD_PARTY_NOTICES.md`; las plantillas declaran `"license": "UNLICENSED"`
   (`LicenseRef-Proprietary` en FastAPI) hasta que el autor elija su licencia.
 
+### Fixed
+
+- NestJS incluye ya la configuración de ESLint (`eslint.config.mjs`) que su
+  script `lint` necesitaba; antes `pnpm lint` fallaba en todos los proyectos
+  generados. `lint` ya no modifica archivos (la corrección automática pasa a
+  `lint:fix`), se quitan `eslint-plugin-prettier`, `eslint-config-prettier` y
+  `@eslint/eslintrc`, que no se usaban, y el CI ejecuta el lint del starter.
+
 ## [1.5.0] - 2026-10-25
 
 ### Cambios incompatibles (NestJS)

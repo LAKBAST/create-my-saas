@@ -15,7 +15,7 @@ export class RateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const authBucket = this.reflector.get<string>(AUTH_RATE_LIMIT_BUCKET, context.getHandler());
-    const routeBucket = `route:${request.method}:${request.route?.path ?? request.path}`;
+    const routeBucket = `route:${request.method}:${(request.route as { path?: string } | undefined)?.path ?? request.path}`;
     const key = `${authBucket ? `auth:${authBucket}` : routeBucket}:${request.ip}`;
     const limit = authBucket
       ? this.config.get<number>('AUTH_RATE_LIMIT_REQUESTS', 5)

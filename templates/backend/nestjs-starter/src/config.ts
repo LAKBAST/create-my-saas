@@ -53,7 +53,7 @@ export const validateEnvironment = (environment: Record<string, string | undefin
   }
   if (stripeSecret) {
     try {
-      const plans = JSON.parse(environment.STRIPE_PRICE_PLANS ?? '{}');
+      const plans: unknown = JSON.parse(environment.STRIPE_PRICE_PLANS ?? '{}');
       if (!plans || typeof plans !== 'object' || Array.isArray(plans) || !Object.keys(plans).length) throw new Error();
     } catch {
       throw new Error('STRIPE_PRICE_PLANS must be a non-empty JSON object when Stripe is configured.');

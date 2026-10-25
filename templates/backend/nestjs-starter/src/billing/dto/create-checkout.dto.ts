@@ -3,7 +3,7 @@ import { IsInt, IsOptional, Matches, IsNotEmpty, IsString, Max, Min } from 'clas
 
 export class CreateCheckoutDto {
   @Expose()
-  @Transform(({ value, obj }) => value ?? obj.price_id)
+  @Transform(({ value, obj }: { value: unknown; obj: { price_id?: unknown } }) => value ?? obj.price_id)
   @IsString()
   @IsNotEmpty()
   @Matches(/^price_[A-Za-z0-9]+$/)
