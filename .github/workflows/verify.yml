@@ -19,7 +19,8 @@ permissions:
 # daily run keeps its own group so a push to main cannot cancel it.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}${{ github.event_name == 'schedule' && '-schedule' || '' }}
-  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'schedule' }}
+  # Every commit on main and every release keeps its own result.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') && github.event_name != 'schedule' }}
 
 jobs:
   changes:
