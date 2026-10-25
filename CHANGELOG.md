@@ -7,6 +7,19 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- El diseño y los textos de los correos viven en un único sitio,
+  `templates/shared/email` (`layout.html` y `email.json`), que
+  `scripts/sync-shared-email.mjs` copia en cada backend; un test de la CLI
+  avisa si una copia queda desfasada. FastAPI ya los usa; NestJS y Fastify se
+  sumarán con su propio renderizador.
+
+### Added
+
+- `EMAIL_ACCENT_COLOR` (FastAPI) para el color del botón y del logo de los
+  correos.
+
+### Changed
+
 - FastAPI envía los correos de verificación, recuperación de contraseña e
   invitación en HTML con el nombre del producto (`PRODUCT_NAME`), un botón y
   el enlace de respaldo, además de la versión en texto plano. Los asuntos
