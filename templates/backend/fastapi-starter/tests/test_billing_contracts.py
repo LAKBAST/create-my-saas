@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import json
+from threading import Barrier
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -47,6 +48,38 @@ class BillingContractTests(unittest.TestCase):
             unconfigured = BillingService(AsyncMock(), replace(config, stripe_secret_key=None, stripe_webhook_secret=None))
             self.assertIsNone(asyncio.run(unconfigured.configuration())["plans"][0]["price"])
             retrieve.assert_not_called()
+
+    def test_prices_are_requested_in_parallel(self):
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans=json.dumps({price: {"name": price, "entitlements": {}} for price in ["price_a", "price_b", "price_c"]}))
+        rendezvous = Barrier(3, timeout=5)
+
+        def retrieve(price_id, **kwargs):
+            # Sequential requests break the barrier and return null prices.
+            rendezvous.wait()
+            return {"unit_amount": 2900, "currency": "eur", "recurring": None}
+
+        with patch("src.modules.billing.service.stripe.Price.retrieve", side_effect=retrieve) as provider:
+            plans = asyncio.run(BillingService(AsyncMock(), config).configuration())["plans"]
+        self.assertEqual(provider.call_count, 3)
+        self.assertEqual([plan["priceId"] for plan in plans], ["price_a", "price_b", "price_c"])
+        self.assertTrue(all(plan["price"] and plan["price"]["unitAmount"] == 2900 for plan in plans))
+
+    def test_prices_cache_lasts_one_day(self):
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans='{"price_allowed":{"name":"Pro","entitlements":{}}}')
+        service = BillingService(AsyncMock(), config)
+        with patch("src.modules.billing.service.monotonic", return_value=100) as clock, patch(
+            "src.modules.billing.service.stripe.Price.retrieve",
+            return_value={"unit_amount": 2900, "currency": "eur", "recurring": None},
+        ) as provider:
+            asyncio.run(service.configuration())
+            clock.return_value = 100 + 86_399
+            asyncio.run(service.configuration())
+            self.assertEqual(provider.call_count, 1)
+            clock.return_value = 100 + 86_401
+            asyncio.run(service.configuration())
+            self.assertEqual(provider.call_count, 2)
 
     def test_labels_must_be_strings_for_existing_entitlements(self):
         for labels in [None, [], "API calls", {"unknown": "Unknown"}, {"api_calls": 3}, {"api_calls": None}]:

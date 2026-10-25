@@ -175,8 +175,11 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
     nest: `/organizations/${organizationId}/billing/${suffix}`,
     fastapi: `/billing/organizations/${organizationId}${suffix === "subscription" ? "" : `/${suffix}`}`,
   };
-  const known = await billingRoutes;
-  if (known) return request<T>(paths[known], options);
+  // Claim detection synchronously; awaiting undefined lets concurrent callers race.
+  while (billingRoutes) {
+    const known = await billingRoutes;
+    if (known) return request<T>(paths[known], options);
+  }
   let settle: (routes: BillingRoutes | undefined) => void = () => undefined;
   billingRoutes = new Promise((resolve) => { settle = resolve; });
   try {
