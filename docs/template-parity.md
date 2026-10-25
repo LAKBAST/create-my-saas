@@ -102,7 +102,7 @@ mismo motivo de compatibilidad. No se encontraron llamadas consumidoras a
 
 | Comprobación | Resultado |
 | --- | --- |
-| FastAPI: `uv run python -m unittest discover -s tests` | 61 correctos, 9 omitidos |
+| FastAPI: `uv run python -m unittest discover -s tests` | 62 correctos, 9 omitidos |
 | NestJS: `npx tsc --noEmit -p tsconfig.json` y `pnpm test --runInBand` | Correctos; 51 tests correctos, 1 de Redis omitido |
 | NestJS: `pnpm run test:e2e --runInBand` | 18 correctos con SQL.js |
 | Fastify: `pnpm run typecheck` y `pnpm test` | Correctos; 23 tests correctos, 1 de Redis omitido |
@@ -110,7 +110,7 @@ mismo motivo de compatibilidad. No se encontraron llamadas consumidoras a
 | Astro: `pnpm run check` | 24 archivos, 0 errores, avisos e indicaciones |
 | Astro generado con facturación: `pnpm run check` | 25 archivos, 0 errores, avisos e indicaciones |
 | Next.js: `pnpm lint` y `npx tsc --noEmit` | Correctos |
-| CLI: `node --test --test-concurrency=1` en `packages/cli` | 38 correctos; 2 fallos conocidos `EPERM` al crear enlaces simbólicos en Windows |
+| CLI: `node --test --test-concurrency=1` en `packages/cli` | 39 correctos; 2 fallos conocidos `EPERM` al crear enlaces simbólicos en Windows |
 | Pro: `npm test` | 11 correctos, 6 omitidos; también con Community 1.4.0 |
 | Pro api-keys + NestJS: typecheck y tests | 68 correctos, 1 de Redis omitido |
 | Pro background-jobs + NestJS: typecheck y tests | 71 correctos, 15 omitidos |
