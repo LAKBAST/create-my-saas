@@ -81,6 +81,23 @@ function configureFrontendApiProxyTarget(destinationDirectory, backend) {
 
 // Routes the backend owns behind the gateway. Backend capabilities count too:
 // Stripe webhooks reach /billing even when the frontend has no billing page.
+function thirdPartyNotices(templateLicense) {
+  return `# Third-party notices
+
+This project was generated with [create-my-saas](https://github.com/SoyManoolo/create-my-saas)
+and includes code from its templates. That code is distributed under the
+licence below, which must be kept with it. The rest of the project is yours:
+add a LICENSE file with the terms you choose (generated projects declare
+\`"license": "UNLICENSED"\` until you do).
+
+\`\`\`text
+${templateLicense.trim()}
+\`\`\`
+
+Dependencies keep their own licences.
+`;
+}
+
 function frontendApiPrefixes(backend, frontend, extensions = []) {
   const requiredCapabilities = [
     ...(backend?.capabilities ?? []),
@@ -663,9 +680,11 @@ export function generateProject({
     mkdirSync(outputParentDirectory, { recursive: true });
     temporaryDirectory = mkdtempSync(join(outputParentDirectory, `.${basename(outputDirectory)}-`));
 
+    // The project belongs to whoever generates it, so it gets no LICENSE of its
+    // own; the MIT notice of the template code it contains goes in a notice file.
     const templateLicense = join(templatesDirectory, 'LICENSE');
     if (existsSync(templateLicense)) {
-      copyFileSync(templateLicense, join(temporaryDirectory, 'LICENSE'));
+      writeFileSync(join(temporaryDirectory, 'THIRD_PARTY_NOTICES.md'), thirdPartyNotices(readFileSync(templateLicense, 'utf8')), 'utf8');
     }
 
     if (backend) {

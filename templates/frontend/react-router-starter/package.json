@@ -1,7 +1,7 @@
 {
   "name": "react-router-starter",
   "version": "0.1.0",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "private": true,
   "type": "module",
   "scripts": {

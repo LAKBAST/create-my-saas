@@ -5,6 +5,13 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Los proyectos generados ya no quedan declarados como MIT. La CLI no crea
+  `LICENSE` en la raíz y guarda el aviso MIT del código de las plantillas en
+  `THIRD_PARTY_NOTICES.md`; las plantillas declaran `"license": "UNLICENSED"`
+  (`LicenseRef-Proprietary` en FastAPI) hasta que el autor elija su licencia.
+
 ## [1.5.0] - 2026-10-25
 
 ### Cambios incompatibles (NestJS)
