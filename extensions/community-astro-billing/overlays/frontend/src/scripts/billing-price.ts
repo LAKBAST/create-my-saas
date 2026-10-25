@@ -11,7 +11,8 @@ export function formatBillingPrice(price: BillingPrice): string {
   // Stripe amounts use the currency's minor unit (including zero-decimal currencies).
   const amount = price.unitAmount / 10 ** digits;
   const formatted = new Intl.NumberFormat("es-ES", {
-    style: "currency", currency: price.currency, minimumFractionDigits: 0,
+    // Whole amounts without decimals ("29 €"), others with all of them ("9,90 €").
+    style: "currency", currency: price.currency, minimumFractionDigits: Number.isInteger(amount) ? 0 : digits,
   }).format(amount);
   if (!price.interval) return formatted;
   const units = { month: ["mes", "meses"], year: ["año", "años"], week: ["semana", "semanas"], day: ["día", "días"] };

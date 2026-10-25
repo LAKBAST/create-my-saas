@@ -472,7 +472,7 @@ test(`${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} exercises 
         { name: 'Anual', unitAmount: 29000, interval: 'year', intervalCount: 1, expected: '290 €/año' },
         { name: 'Trimestral', unitAmount: 7900, interval: 'month', intervalCount: 3, expected: '79 € cada 3 meses' },
         { name: 'Semanal', unitAmount: 900, interval: 'week', intervalCount: 1, expected: '9 €/semana' },
-        { name: 'Diario', unitAmount: 150, interval: 'day', intervalCount: 1, expected: '1,5 €/día' },
+        { name: 'Diario', unitAmount: 150, interval: 'day', intervalCount: 1, expected: '1,50 €/día' },
         { name: 'Único', unitAmount: 4900, interval: null, intervalCount: 1, expected: '49 €' },
       ];
       const plans = fixtures.map(({ name, unitAmount, interval, intervalCount }, index) => ({
