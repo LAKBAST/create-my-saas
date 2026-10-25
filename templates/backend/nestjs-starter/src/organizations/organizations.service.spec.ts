@@ -90,13 +90,13 @@ describe('OrganizationsService', () => {
     invitations.update.mockImplementation(async () => { if (stored) stored.deliveredAt = new Date(); });
 
     await expect(service.invite('organization-1', user.id, 'member@example.com', 'member')).rejects.toThrow('mail unavailable');
-    const firstHash = (stored as Invitation | undefined)?.tokenHash;
+    const firstHash = stored?.tokenHash;
     await service.invite('organization-1', user.id, 'member@example.com', 'member');
     await service.invite('organization-1', user.id, 'member@example.com', 'member');
 
-    expect((stored as Invitation | undefined)?.tokenHash).not.toBe(firstHash);
+    expect(stored?.tokenHash).not.toBe(firstHash);
     const deliveredToken = (secureEmail.send as jest.Mock).mock.calls[1][2].match(/token:\s*(\S+)/i)?.[1] ?? '';
-    expect((stored as Invitation | undefined)?.tokenHash).toBe(createHash('sha256').update(deliveredToken).digest('hex'));
+    expect(stored?.tokenHash).toBe(createHash('sha256').update(deliveredToken).digest('hex'));
     expect(invitations.save).toHaveBeenCalledTimes(2);
     expect(secureEmail.send).toHaveBeenCalledTimes(2);
     expect(invitations.update).toHaveBeenCalledTimes(1);

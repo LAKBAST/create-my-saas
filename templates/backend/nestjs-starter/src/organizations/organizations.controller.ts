@@ -11,10 +11,10 @@ import { OrganizationsService } from './organizations.service';
 import { OrganizationRoles } from './roles.decorator';
 const memberIdPipe = new ParseUUIDPipe({ exceptionFactory: () => new AppError('HTTP_422', 'The request payload is invalid.', 422) });
 class CreateOrganizationDto { @IsString() @MinLength(1) @MaxLength(160) name!: string; @IsString() @Matches(/^[a-z0-9][a-z0-9-]{1,158}[a-z0-9]$/) slug!: string; }
-class InviteDto { @IsEmail() @MaxLength(320) email!: string; @Transform(({ value }) => { if (value === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'Owner invitations are not permitted.', 400); return value; }) @IsIn(['admin', 'member']) role: 'admin' | 'member' = 'member'; }
+class InviteDto { @IsEmail() @MaxLength(320) email!: string; @Transform(({ value }: { value: unknown }) => { if (value === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'Owner invitations are not permitted.', 400); return value; }) @IsIn(['admin', 'member']) role: 'admin' | 'member' = 'member'; }
 class AcceptInvitationDto { @IsString() token!: string; }
-class ChangeRoleDto { @Transform(({ value }) => { if (value === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'Owner role cannot be changed through this endpoint.', 400); return value; }) @IsIn(['admin', 'member']) role!: OrganizationRole; }
-class TransferOwnershipDto { @Expose() @Transform(({ value, obj }) => value ?? obj.user_id) @IsUUID() userId!: string; @IsOptional() @IsUUID() user_id?: string; }
+class ChangeRoleDto { @Transform(({ value }: { value: unknown }) => { if (value === 'owner') throw new AppError('OWNER_ROLE_PROTECTED', 'Owner role cannot be changed through this endpoint.', 400); return value; }) @IsIn(['admin', 'member']) role!: OrganizationRole; }
+class TransferOwnershipDto { @Expose() @Transform(({ value, obj }: { value: unknown; obj: { user_id?: unknown } }) => value ?? obj.user_id) @IsUUID() userId!: string; @IsOptional() @IsUUID() user_id?: string; }
 @Controller('organizations') @UseGuards(JwtAuthGuard)
 export class OrganizationsController {
  constructor(private readonly organizations: OrganizationsService) {}

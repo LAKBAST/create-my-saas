@@ -220,7 +220,7 @@ export class AuthService {
     const headers = { Authorization: `Bearer ${token.access_token}`, Accept: 'application/json', 'User-Agent': 'create-my-saas' };
     const profile = await this.oauthJson(config.userInfoUrl, { headers });
     if (provider === 'github') {
-      const emails = await this.oauthJson('https://api.github.com/user/emails', { headers }) as Array<Record<string, unknown>>;
+      const emails = await this.oauthJson('https://api.github.com/user/emails', { headers }) as unknown as Array<Record<string, unknown>>;
       if (Array.isArray(emails)) {
         if (profile.email) {
           if (!emails.some((item) => item.email === profile.email && item.verified === true)) profile.email = undefined;
@@ -235,14 +235,14 @@ export class AuthService {
     if (typeof profile.email !== 'string' || !profile.email || !verified) throw new AppError('OAUTH_EMAIL_UNVERIFIED', 'The OAuth provider did not provide a verified email address.', 400);
     const providerAccountId = provider === 'google' ? profile.sub : profile.id;
     if ((typeof providerAccountId !== 'string' && typeof providerAccountId !== 'number') || !String(providerAccountId)) throw new AppError('OAUTH_PROVIDER_ERROR', 'The OAuth provider did not return a stable account identifier.', 502);
-    return { email: profile.email.toLowerCase(), name: String(profile.name ?? profile.login ?? profile.email.split('@')[0]).slice(0, 120), providerAccountId: String(providerAccountId) };
+    return { email: profile.email.toLowerCase(), name: (typeof profile.name === 'string' ? profile.name : typeof profile.login === 'string' ? profile.login : profile.email.split('@')[0]).slice(0, 120), providerAccountId: String(providerAccountId) };
   }
-  private async oauthJson(url: string, options: RequestInit): Promise<any> {
+  private async oauthJson(url: string, options: RequestInit): Promise<Record<string, unknown>> {
     let response: Response;
     try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(10_000) }); }
     catch { throw new AppError('OAUTH_PROVIDER_ERROR', 'The OAuth provider could not complete sign-in.', 502); }
     if (!response.ok) throw new AppError('OAUTH_PROVIDER_ERROR', 'The OAuth provider could not complete sign-in.', 502);
-    try { return await response.json(); }
+    try { return await response.json() as Record<string, unknown>; }
     catch { throw new AppError('OAUTH_PROVIDER_ERROR', 'The OAuth provider returned an invalid response.', 502); }
   }
   private async createOneTimeToken(userId: string, kind: TokenKind): Promise<string> {

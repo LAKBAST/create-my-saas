@@ -172,7 +172,7 @@ export class BillingService {
 
   private async applyStripeEvent(manager: EntityManager, event: Stripe.Event): Promise<void> {
     if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
+      const session = event.data.object;
       const organizationId = this.organizationId(session.metadata?.organization_id ?? session.client_reference_id);
       const customerId = this.objectId(session.customer);
       if (organizationId && customerId) await this.upsertCustomer(manager, organizationId, customerId);

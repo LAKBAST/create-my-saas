@@ -258,7 +258,7 @@ describe('AppController (e2e)', () => {
       const stateRecord = (await database.getRepository(OAuthState).find()).at(-1);
       expect(stateRecord).toBeDefined();
       globalThis.fetch = (async (_input, init) => {
-        requests.push(init!);
+        requests.push(init);
         if (init?.method === 'POST') return { ok: true, json: async () => ({ access_token: 'provider-token' }) } as Response;
         return { ok: true, json: async () => ({ sub: 'google-subject-1', email: 'person@example.com', email_verified: true, name: 'Person' }) } as Response;
       }) as typeof fetch;
