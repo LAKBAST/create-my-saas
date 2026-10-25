@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.email import send_secure_email
-from src.core.email_templates import render_email
+from src.core.email_templates import render_message
 from src.core.exceptions import AppError
 from src.modules.audit.service import AuditAction, record_audit_event
 from src.modules.auth.security.tokens import opaque_token, token_hash, utc_now
@@ -102,14 +102,7 @@ async def invite(
         raise
 
     if deliver:
-        message = render_email(
-            # Keeps "Organization invitation" and "token:" for clients that parse these emails.
-            subject="Invitación a una organización (Organization invitation)",
-            title="Te han invitado a una organización",
-            paragraphs=["Alguien de tu equipo te ha invitado a unirte a su organización. Inicia sesión o crea una cuenta con esta dirección y acepta la invitación con este código."],
-            code=("Invitation token", raw_token),
-            note="El código solo se puede usar una vez. Si no esperabas esta invitación, ignora este correo.",
-        )
+        message = render_message("organization_invitation", code=raw_token)
         await send_secure_email(recipient=email, subject=message.subject, body=message.text, html=message.html)
         # A concurrent retry may already have replaced this token. Only mark
         # the token actually sent as delivered if it is still current.
