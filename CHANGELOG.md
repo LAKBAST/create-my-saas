@@ -5,6 +5,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- El gateway generado sirve desde el frontend las páginas `/billing` y
+  `/auth/oauth/callback`, que comparten prefijo con la API. Al recargarlas, o al
+  volver de Google o GitHub, devolvían el 404 en JSON de la API.
+
 ## [1.5.1] - 2026-10-25
 
 ### Changed

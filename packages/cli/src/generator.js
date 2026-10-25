@@ -432,6 +432,17 @@ ${backend ? `  location = /ready {
     proxy_set_header Host $host;
   }
 
+  # Frontend pages under an API prefix (regexes match in order): without this,
+  # reloading them returned the API's 404.
+  location ~ ^/(billing|auth/oauth/callback)/?$ {
+    proxy_pass http://frontend:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+  }
+
   location ~ ^/(${apiPrefixes})(/|$) {
     proxy_pass http://api:8000;
     proxy_set_header Host $host;
