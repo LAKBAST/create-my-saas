@@ -89,6 +89,22 @@ test('readManifest returns null only for absent manifests and rejects invalid sc
   assert.throws(() => readManifest(directory), /malformed JSON/);
 });
 
+test('readManifest normalizes schema 2 manifests from projects generated before 1.6.0', (t) => {
+  const directory = workspace(t);
+  const templates = { backend: { id: 'backend:fastapi', version: '0.1.0', source: 'backend/fastapi-starter' } };
+  writeFileSync(join(directory, MANIFEST_FILE), JSON.stringify({ schemaVersion: 2, templates }));
+  assert.deepEqual(readManifest(directory), { schemaVersion: 2, cliVersion: null, templates, features: [], extensions: [], files: null, unmanaged: [] });
+  // Pro bundles keep each extension at the root of its directory, so its source is ''.
+  const extensions = [{ id: 'pro:api-keys', version: '1.1.0', source: '', manifestSchemaVersion: 1 }];
+  writeFileSync(join(directory, MANIFEST_FILE), JSON.stringify({ schemaVersion: 2, templates, extensions }));
+  assert.deepEqual(readManifest(directory).features, ['pro:api-keys']);
+  writeFileSync(join(directory, MANIFEST_FILE), JSON.stringify({ schemaVersion: 2, templates, files: {} }));
+  assert.throws(() => readManifest(directory), /unexpected manifest field/);
+  const v3 = buildManifest(directory, { ...options, extensions: [{ id: 'pro:api-keys', version: '1.1.0', directory: '', schemaVersion: 1 }] });
+  writeManifest(directory, v3);
+  assert.equal(readManifest(directory).extensions[0].source, '');
+});
+
 test('v3 extends v2 template and extension metadata without dropping legacy fields', (t) => {
   const directory = workspace(t);
   const templates = {

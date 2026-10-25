@@ -73,28 +73,46 @@ const safePath = (value) => typeof value === 'string' && value.length > 0
   && !/[\\:\x00-\x1f]/.test(value) && value.split('/').every((part) => part && part !== '.' && part !== '..');
 const strings = (value) => Array.isArray(value) && value.every((item) => typeof item === 'string' && item.length > 0);
 
-function validateManifest(manifest) {
-  const require = (condition, message) => {
-    if (!condition) throw new Error(`Invalid ${MANIFEST_FILE}: ${message}`);
-  };
-  require(isObject(manifest), 'expected an object.');
-  require(manifest.schemaVersion === 3, 'schemaVersion must be 3.');
-  require(typeof manifest.cliVersion === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.cliVersion), 'cliVersion must be a version string.');
+const require = (condition, message) => {
+  if (!condition) throw new Error(`Invalid ${MANIFEST_FILE}: ${message}`);
+};
+
+function validateSelection(manifest) {
   require(isObject(manifest.templates) && Object.keys(manifest.templates).length > 0
     && Object.entries(manifest.templates).every(([kind, template]) => ['backend', 'frontend'].includes(kind)
       && isObject(template) && typeof template.id === 'string' && new RegExp(`^${kind}:[a-z][a-z0-9-]*$`).test(template.id)
       && typeof template.version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(template.version)
       && safePath(template.source) && Object.keys(template).every((key) => ['id', 'version', 'source'].includes(key))),
   'templates must contain backend and/or frontend entries with id, version and relative source.');
-  require(strings(manifest.features) && manifest.features.every((id, index) => /^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?$/.test(id)
-    && (index === 0 || manifest.features[index - 1] <= id)), 'features must be a sorted array of feature IDs.');
   require(Array.isArray(manifest.extensions) && manifest.extensions.every((extension) => isObject(extension)
     && typeof extension.id === 'string' && /^[a-z][a-z0-9-]*:[a-z][a-z0-9-]*$/.test(extension.id)
     && (extension.version === null || (typeof extension.version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(extension.version)))
-    && safePath(extension.source) && Number.isInteger(extension.manifestSchemaVersion) && extension.manifestSchemaVersion >= 1
+    && (extension.source === '' || safePath(extension.source)) && Number.isInteger(extension.manifestSchemaVersion) && extension.manifestSchemaVersion >= 1
     && Object.keys(extension).every((key) => ['id', 'version', 'source', 'manifestSchemaVersion'].includes(key))),
   'extensions must contain { id, version, source, manifestSchemaVersion } entries.');
   require(new Set(manifest.extensions.map(({ id }) => id)).size === manifest.extensions.length, 'extension IDs must be unique.');
+}
+
+// Projects generated before 1.6.0 carry schema 2: templates and, with extensions,
+// their metadata, but no CLI version or file hashes. upgrade needs --from for them.
+function validateLegacyManifest(manifest) {
+  require(Object.keys(manifest).every((key) => ['schemaVersion', 'templates', 'extensions'].includes(key)), 'unexpected manifest field.');
+  validateSelection({ ...manifest, extensions: manifest.extensions ?? [] });
+  const extensions = manifest.extensions ?? [];
+  return {
+    schemaVersion: 2, cliVersion: null, templates: manifest.templates, features: extensions.map(({ id }) => id).sort(),
+    extensions, files: null, unmanaged: [],
+  };
+}
+
+function validateManifest(manifest) {
+  require(isObject(manifest), 'expected an object.');
+  if (manifest.schemaVersion === 2) return validateLegacyManifest(manifest);
+  require(manifest.schemaVersion === 3, 'schemaVersion must be 2 or 3.');
+  require(typeof manifest.cliVersion === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.cliVersion), 'cliVersion must be a version string.');
+  validateSelection(manifest);
+  require(strings(manifest.features) && manifest.features.every((id, index) => /^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?$/.test(id)
+    && (index === 0 || manifest.features[index - 1] <= id)), 'features must be a sorted array of feature IDs.');
   require(isObject(manifest.files), 'files must be an object.');
   for (const [path, digest] of Object.entries(manifest.files)) {
     require(safePath(path) && path !== MANIFEST_FILE, `files contains an unsafe or reserved path: ${path}`);
