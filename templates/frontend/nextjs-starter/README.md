@@ -61,6 +61,30 @@ El proxy selecciona el backend sin acoplar el navegador a su framework. `NEXT_PU
 
 El access token se conserva exclusivamente en memoria durante la pestaña. Al cargar, la aplicación intenta renovar la sesión con la refresh cookie; si falla, redirige al login.
 
+## Administración global
+
+La ruta `/admin` ofrece un resumen global y consultas paginadas de usuarios,
+organizaciones y suscripciones. La primera implementación requiere el backend
+NestJS con sus migraciones aplicadas y un permiso global concedido mediante
+su comando de administración. Los roles `owner` y `admin` de una organización
+no conceden acceso global. La cuenta también debe estar habilitada y verificada.
+
+El enlace Administración sólo aparece cuando `GET /admin/access` confirma el
+permiso. Con FastAPI, que todavía no implementa este contrato, se oculta el
+enlace y la ruta muestra que la administración no está disponible. Las
+combinaciones existentes siguen siendo compatibles.
+
+Con el proxy integrado, el navegador consulta `/api/admin/*`, que Next.js
+redirige a `/admin/*` del backend, para evitar un conflicto con la página.
+Si configuras `NEXT_PUBLIC_API_BASE_URL`, ese origen o prefijo debe exponer las
+rutas `/admin/*` de la API. Las consultas usan la sesión existente y no se
+almacenan en caché. El servidor vuelve a comprobar el permiso en cada consulta.
+
+El periodo seleccionable afecta a las altas de usuarios y organizaciones;
+los totales y las distribuciones de suscripciones reflejan el estado actual.
+Las cuentas habilitadas no representan usuarios activos durante el periodo.
+No se calculan ingresos, MRR ni actividad de producto a partir de esos totales.
+
 ## Analítica de producto
 
 PostHog está incluido pero permanece inactivo hasta configurar `NEXT_PUBLIC_POSTHOG_KEY` y `NEXT_PUBLIC_POSTHOG_HOST` con la clave pública y el endpoint de ingestión del proyecto. La primera visita muestra un consentimiento explícito; hasta aceptarlo no se inicializa la captura. La integración desactiva autocapture y session replay, registra páginas, `signup_requested` y `user_signed_in`, e identifica al usuario con su ID interno estable, nunca con su email o nombre. Al cerrar sesión restablece esa identidad. Para añadir eventos de producto usa `captureAnalyticsEvent` desde `app/components/posthog-provider.tsx`; los pagos y otros eventos críticos deben enviarse después desde el backend.

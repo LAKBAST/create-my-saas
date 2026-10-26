@@ -20,6 +20,7 @@
     "organizations.rbac",
     "organizations.invitations",
     "audit.organization-actions",
+    "admin.platform.read",
     "billing.stripe",
     "oauth.pkce",
     "oauth.google",

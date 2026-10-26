@@ -22,8 +22,8 @@ export function configureApplication(app: INestApplication): void {
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Frame-Options', 'DENY');
     if (isProduction) response.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
-    if (request.path.startsWith('/auth') || request.path.startsWith('/users')) {
-      response.setHeader('Cache-Control', 'no-store');
+    if (request.path.startsWith('/auth') || request.path.startsWith('/users') || request.path.startsWith('/admin')) {
+      response.setHeader('Cache-Control', request.path.startsWith('/admin') ? 'private, no-store' : 'no-store');
       response.setHeader('Pragma', 'no-cache');
     }
     next();

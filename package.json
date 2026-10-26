@@ -43,6 +43,7 @@
     "test": "node --test packages/cli/test/*.test.js",
     "test:cli": "node --test packages/cli/test/*.test.js",
     "test:e2e:browser": "playwright test",
+    "test:e2e:admin": "playwright test --config playwright.admin.config.mjs",
     "test:e2e:contract": "node scripts/e2e-generated-projects.mjs --backend fastapi --frontend nextjs",
     "test:e2e:generated": "node scripts/e2e-generated-projects.mjs --backend fastapi --frontend nextjs",
     "audit:public": "node scripts/audit-public-repository.mjs",

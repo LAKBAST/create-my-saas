@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
     const target = process.env.API_PROXY_TARGET?.replace(/\/$/, "");
     if (!target) return [];
     return [
+      { source: "/api/admin/:path*", destination: `${target}/admin/:path*` },
       { source: "/auth/:path*", destination: `${target}/auth/:path*` },
       { source: "/users/:path*", destination: `${target}/users/:path*` },
       { source: "/organizations/:path*", destination: `${target}/organizations/:path*` },

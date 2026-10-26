@@ -4,6 +4,7 @@ const combination = `${process.env.E2E_BACKEND ?? 'fastapi'}-${process.env.E2E_F
 
 export default defineConfig({
   testDir: './tests/browser',
+  testMatch: 'generated-project.spec.mjs',
   outputDir: `test-results/${combination}`,
   globalTimeout: 20 * 60 * 1_000,
   timeout: 2 * 60 * 1_000,

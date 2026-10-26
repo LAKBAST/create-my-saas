@@ -7,6 +7,7 @@ import styles from "./app-shell.module.css";
 import { useAuth } from "./auth-provider";
 import { Icon, type IconName } from "./icons";
 import { PRODUCT_NAME } from "../lib/brand";
+import { useAdminAccess } from "./admin-access";
 
 const items: Array<{ href: string; label: string; icon: IconName }> = [
   { href: "/", label: "Inicio", icon: "home" },
@@ -19,14 +20,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const adminAccess = useAdminAccess();
+  const navigation = adminAccess?.status === "allowed" ? [...items, { href: "/admin", label: "Administración", icon: "building" as const }] : items;
   const initials = user?.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() ?? "";
-  const current = items.find((item) => item.href === pathname);
+  const current = navigation.find((item) => item.href === pathname);
   return <div className={styles.app}>
     <aside className={`${styles.sidebar} ${menuOpen ? styles.sidebarOpen : ""}`}>
       <Link className={styles.brand} href="/"><span aria-hidden="true">{PRODUCT_NAME.slice(0, 1)}</span>{PRODUCT_NAME}</Link>
       <nav id="main-navigation" aria-label="Navegación principal">
         <p className={styles.navLabel}>Menú</p>
-        {items.map((item) => <Link key={item.href} onClick={() => setMenuOpen(false)} className={pathname === item.href ? styles.active : ""} aria-current={pathname === item.href ? "page" : undefined} href={item.href}><Icon name={item.icon} />{item.label}</Link>)}
+        {navigation.map((item) => <Link key={item.href} onClick={() => setMenuOpen(false)} className={pathname === item.href ? styles.active : ""} aria-current={pathname === item.href ? "page" : undefined} href={item.href}><Icon name={item.icon} />{item.label}</Link>)}
       </nav>
       <div className={styles.user}>
         <Link href="/account" className={styles.avatar} aria-label="Abrir cuenta">{initials}</Link>

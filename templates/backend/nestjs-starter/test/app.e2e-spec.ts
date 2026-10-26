@@ -15,6 +15,7 @@ import { UsersService } from '../src/users/users.service';
 import { User } from '../src/users/user.entity';
 import { BillingCustomer } from '../src/billing/billing-customer.entity';
 import { BillingWebhookEvent } from '../src/billing/billing-webhook-event.entity';
+import { setPlatformAdmin } from '../src/admin/manage-admin.service';
 import Stripe from 'stripe';
 import { jest } from '@jest/globals';
 
@@ -43,6 +44,29 @@ describe('AppController (e2e)', () => {
     if (process.env.POSTGRES_INTEGRATION_TESTS === '1') {
       expect(app.get(DataSource).options.type).toBe('postgres');
     }
+  });
+
+  it('integrates platform access with real authentication and database grants', async () => {
+    const email = 'platform-admin@example.com';
+    await request(app.getHttpServer()).post('/auth/register').send({ email, password: 'password123', name: 'Operator' }).expect(201);
+    const login = await request(app.getHttpServer()).post('/auth/login').send({ email, password: 'password123' }).expect(200);
+    const header = `Bearer ${login.body.accessToken}`;
+    const db = app.get(DataSource);
+    const user = await db.getRepository(User).findOneByOrFail({ email });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: false });
+    await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(403);
+    await db.getRepository(User).update(user.id, { emailVerified: true });
+    await setPlatformAdmin(db, 'grant', user.id);
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: true });
+    const users = await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(200);
+    expect(users.headers['cache-control']).toBe('private, no-store');
+    expect(users.body.items[0]).toMatchObject({ email, emailVerified: true });
+    expect(users.body.items[0].passwordHash).toBeUndefined();
+    await request(app.getHttpServer()).get('/admin/overview').set('Authorization', header).expect(200);
+    await request(app.getHttpServer()).get('/admin/organizations').set('Authorization', header).expect(200);
+    await request(app.getHttpServer()).get('/admin/subscriptions').set('Authorization', header).expect(200);
+    await setPlatformAdmin(db, 'revoke', user.id);
+    await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(403);
   });
 
   it('/ (GET)', async () => {

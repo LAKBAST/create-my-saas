@@ -47,6 +47,14 @@ La base común buscada incluye autenticación segura para navegador, usuarios y
 organizaciones, permisos, configuración de PostgreSQL y migraciones, límites de
 peticiones, flujos de cuenta y una interfaz lista para empezar un producto.
 
+## Administración global
+
+La combinación NestJS + Next.js incluye un panel global de consulta en `/admin`
+para el propietario del SaaS: resumen de estadísticas y búsqueda paginada de
+usuarios, organizaciones y suscripciones. Requiere un permiso global concedido
+desde el servidor; ser administrador de una organización no da acceso. Consulta
+[la configuración y el alcance del panel](docs/admin-dashboard.md).
+
 ## Requisitos para producción
 
 Antes de poner un SaaS real en línea todavía hay que conectar las integraciones

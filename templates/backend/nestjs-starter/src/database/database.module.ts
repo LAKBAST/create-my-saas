@@ -15,6 +15,7 @@ import { BillingWebhookEvent } from '../billing/billing-webhook-event.entity';
 import { OAuthState } from '../auth/oauth-state.entity';
 import { OAuthAccount } from '../auth/oauth-account.entity';
 import { AuditLog } from '../audit/audit-log.entity';
+import { PlatformAdmin } from '../admin/platform-admin.entity';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { AuditLog } from '../audit/audit-log.entity';
             type: 'sqljs',
             autoSave: false,
             synchronize: true,
-            entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog],
+            entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin],
           };
         }
 

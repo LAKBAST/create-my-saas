@@ -3,6 +3,19 @@
 FastAPI define el contrato HTTP de referencia. Las diferencias de alcance
 declaradas en los manifiestos siguen siendo intencionadas.
 
+## Administración global
+
+NestJS añade `admin.platform.read`: concesiones globales separadas de los roles
+de organización y endpoints de consulta `/admin/*`. Next.js ofrece la interfaz
+`admin.platform.ui` en `/admin`, con proxy `/api/admin/*` hacia el backend. El
+acceso requiere cuenta activa, correo verificado y concesión persistida.
+
+Esta capacidad es opcional para Next.js: no cambia sus requisitos de backend ni
+el contrato común de FastAPI. Con FastAPI el enlace no se muestra; React Router
+y Astro no incluyen todavía la interfaz. El resumen representa datos actuales y
+altas por periodo, sin atribuirles métricas de actividad o ingresos.
+Consulta [la guía de administración](admin-dashboard.md).
+
 ## Contrato de NestJS
 
 | Operación | Contrato compartido |

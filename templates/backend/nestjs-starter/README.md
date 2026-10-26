@@ -276,6 +276,38 @@ No incorpora entidades ni reglas de negocio del producto final. Stripe, correo,
 Redis y los proveedores OAuth requieren configuración propia en cada despliegue;
 sin ella, las integraciones quedan desactivadas o fallan de forma segura.
 
+## Administración global de consulta
+
+NestJS ofrece `/admin/access`, `/admin/overview`, `/admin/users`,
+`/admin/organizations` y `/admin/subscriptions`. La interfaz inicial está
+disponible en `/admin` al combinarlo con Next.js. No se asignan permisos
+automáticamente: un `owner` o `admin` de organización no tiene acceso global.
+
+Ejecuta las migraciones y compila, con `DATABASE_URL` y, si corresponde,
+`DATABASE_SSL` exportados en el entorno. Estos comandos no cargan `.env`
+automáticamente:
+
+```sh
+pnpm migration:run
+pnpm build
+node dist/admin/manage-admin.js grant <uuid-del-usuario>
+node dist/admin/manage-admin.js revoke <uuid-del-usuario>
+```
+
+Sólo se puede conceder acceso a una cuenta activa con correo verificado. El
+permiso se comprueba en la base de datos en cada petición y su revocación se
+aplica también a sesiones existentes. El comando es una herramienta de operador
+con acceso a la base de datos; no existe una API pública para otorgar permisos.
+Emite un registro JSON con operación, UUID y fecha para conservarlo en los logs.
+
+Los listados admiten `page` (1–10000), `pageSize` (1–100, por defecto 25) y
+`search` (máximo 120 caracteres). La búsqueda es literal, sin comodines SQL.
+`overview?days=30` acepta 1–365 días; el periodo sólo afecta a las altas nuevas.
+Los totales y distribuciones representan el estado actual. Las cuentas
+habilitadas no equivalen a usuarios activos durante el periodo; tampoco se
+calculan ingresos, MRR ni churn. Las respuestas no incluyen hashes, tokens ni
+identificadores privados del proveedor y llevan `Cache-Control: private, no-store`.
+
 ## Diagnóstico de fallos
 
 La configuración se valida al iniciar y el proceso sale con un mensaje
