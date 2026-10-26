@@ -11,6 +11,7 @@
     "packageManager": "pnpm@11.11.0"
   },
   "capabilities": [
+    "admin.platform.ui",
     "content.blog",
     "content.documentation",
     "marketing.landing-page",

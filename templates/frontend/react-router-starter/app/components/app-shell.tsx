@@ -4,6 +4,7 @@ import { useAuth } from "../lib/auth-context";
 import { PRODUCT_NAME } from "../lib/brand";
 import styles from "./app-shell.module.css";
 import { Icon, type IconName } from "./icons";
+import { useAdminAccess } from "./admin-access";
 
 const items: Array<{ href: string; label: string; icon: IconName }> = [
   { href: "/app", label: "Inicio", icon: "home" },
@@ -17,8 +18,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const adminAccess = useAdminAccess();
+  const navigation = adminAccess?.status === "allowed" ? [...items, { href: "/admin", label: "Administración", icon: "building" as const }] : items;
   const initials = user?.name.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() ?? "";
-  const current = items.find((item) => item.href === pathname);
+  const current = navigation.find((item) => item.href === pathname);
 
   async function logout() {
     await signOut();
@@ -30,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Link className={styles.brand} to="/app"><span aria-hidden="true">{PRODUCT_NAME.slice(0, 1)}</span>{PRODUCT_NAME}</Link>
       <nav id="main-navigation" aria-label="Navegación principal">
         <p className={styles.navLabel}>Menú</p>
-        {items.map((item) => <NavLink key={item.href} end onClick={() => setMenuOpen(false)} className={({ isActive }) => isActive ? styles.active : ""} to={item.href}><Icon name={item.icon} />{item.label}</NavLink>)}
+        {navigation.map((item) => <NavLink key={item.href} end onClick={() => setMenuOpen(false)} className={({ isActive }) => isActive ? styles.active : ""} to={item.href}><Icon name={item.icon} />{item.label}</NavLink>)}
       </nav>
       <div className={styles.user}>
         <Link to="/account" className={styles.avatar} aria-label="Abrir cuenta">{initials}</Link>

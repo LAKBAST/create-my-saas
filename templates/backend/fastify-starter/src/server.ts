@@ -2,12 +2,14 @@ import postgres from 'postgres';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { PostgresSessionRepository } from './db/postgres-repository.js';
+import { PostgresAdminRepository } from './admin/repository.js';
 
 const config = loadConfig();
 const sql = postgres(config.DATABASE_URL, { ssl: config.DATABASE_SSL ? 'verify-full' : false });
 const app = await createApp({
   config,
   repository: new PostgresSessionRepository(sql),
+  adminRepository: new PostgresAdminRepository(sql),
   databaseReady: async () => {
     await sql`select 1`;
   },

@@ -11,7 +11,7 @@ import { PlatformAdminGuard } from './platform-admin.guard';
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
-  @Get('access') access(@CurrentUser() user: User) { return this.admin.hasAccess(user).then((allowed) => ({ allowed })); }
+  @Get('access') access(@CurrentUser() user: User) { return this.admin.hasAccess(user).then((allowed) => ({ allowed, resources: ['users', 'organizations', 'subscriptions'] })); }
   @Get('overview') @UseGuards(PlatformAdminGuard)
   overview(@Query() query: AdminOverviewQuery) { return this.admin.overview(query.days); }
   @Get('users') @UseGuards(PlatformAdminGuard)

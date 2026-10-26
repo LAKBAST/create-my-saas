@@ -49,9 +49,10 @@ peticiones, flujos de cuenta y una interfaz lista para empezar un producto.
 
 ## Administración global
 
-La combinación NestJS + Next.js incluye un panel global de consulta en `/admin`
+Las tres plantillas de frontend incluyen un panel global de consulta en `/admin`
 para el propietario del SaaS: resumen de estadísticas y búsqueda paginada de
-usuarios, organizaciones y suscripciones. Requiere un permiso global concedido
+usuarios y, con FastAPI o NestJS, organizaciones y suscripciones. Fastify ofrece
+usuarios y sus estadísticas. Requiere un permiso global concedido
 desde el servidor; ser administrador de una organización no da acceso. Consulta
 [la configuración y el alcance del panel](docs/admin-dashboard.md).
 

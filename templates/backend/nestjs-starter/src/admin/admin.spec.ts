@@ -65,7 +65,7 @@ describe('Platform administration HTTP authorization and queries', () => {
   });
 
   it('does not confuse an organization admin with a platform admin', async () => {
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(ordinary)).expect(200, { allowed: false });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(ordinary)).expect(200, { allowed: false, resources: ['users', 'organizations', 'subscriptions'] });
     for (const path of ['overview', 'users', 'organizations', 'subscriptions']) {
       const response = await request(app.getHttpServer()).get(`/admin/${path}`).set('Authorization', token(ordinary)).expect(403);
       expect(response.body.error.code).toBe('PLATFORM_ADMIN_REQUIRED');
@@ -73,7 +73,7 @@ describe('Platform administration HTTP authorization and queries', () => {
   });
 
   it('requires active users and verified emails even when a grant exists', async () => {
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(unverified)).expect(200, { allowed: false });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(unverified)).expect(200, { allowed: false, resources: ['users', 'organizations', 'subscriptions'] });
     await request(app.getHttpServer()).get('/admin/users').set('Authorization', token(unverified)).expect(403);
     await request(app.getHttpServer()).get('/admin/users').set('Authorization', token(inactive)).expect(401);
   });
@@ -113,9 +113,9 @@ describe('Platform administration HTTP authorization and queries', () => {
 
   it('revokes access immediately even for an existing JWT', async () => {
     const header = token(admin);
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: true });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: true, resources: ['users', 'organizations', 'subscriptions'] });
     await db.getRepository(PlatformAdmin).delete({ userId: admin.id });
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: false });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: false, resources: ['users', 'organizations', 'subscriptions'] });
     await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(403);
   });
 
@@ -128,7 +128,7 @@ describe('Platform administration HTTP authorization and queries', () => {
     expect(() => validateAdminCommand('grant', admin.id, ['extra'])).toThrow('Usage:');
     await setPlatformAdmin(db, 'grant', ordinary.id);
     await setPlatformAdmin(db, 'grant', ordinary.id);
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(ordinary)).expect(200, { allowed: true });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', token(ordinary)).expect(200, { allowed: true, resources: ['users', 'organizations', 'subscriptions'] });
     expect(await db.getRepository(PlatformAdmin).countBy({ userId: ordinary.id })).toBe(1);
     await setPlatformAdmin(db, 'revoke', ordinary.id);
     await setPlatformAdmin(db, 'revoke', ordinary.id);

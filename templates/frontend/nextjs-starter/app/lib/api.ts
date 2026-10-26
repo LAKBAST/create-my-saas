@@ -161,7 +161,7 @@ export type BillingRedirect = { configured: boolean; url: string | null; reason?
 
 export type AdminOverview = {
   periodDays: number; totalUsers: number; enabledUsers: number; verifiedUsers: number; newUsers: number;
-  totalOrganizations: number; newOrganizations: number; totalSubscriptions: number;
+  totalOrganizations: number | null; newOrganizations: number | null; totalSubscriptions: number | null;
   subscriptionsByStatus: Array<{ status: string; count: number }>;
   subscriptionsByPlan: Array<{ plan: string; count: number }>;
 };
@@ -172,6 +172,7 @@ export type AdminSubscription = {
   provider: string; cancelAtPeriodEnd: boolean; currentPeriodStart: string | null; currentPeriodEnd: string | null;
 };
 export type AdminPage<T> = { items: T[]; total: number; page: number; pageSize: number };
+export type AdminResource = 'users' | 'organizations' | 'subscriptions';
 export type AdminQuery = { page: number; pageSize: number; search: string };
 
 // Keep the page at /admin separate from the API proxy at /api/admin.
@@ -246,7 +247,7 @@ export function accessTokenLifetime(accessToken: string): number | null {
 }
 
 export const api = {
-  adminAccess: (accessToken: string, signal?: AbortSignal) => adminRequest<{ allowed: boolean }>("access", accessToken, signal),
+  adminAccess: (accessToken: string, signal?: AbortSignal) => adminRequest<{ allowed: boolean; resources?: AdminResource[] }>("access", accessToken, signal),
   adminOverview: (days: number, accessToken: string, signal?: AbortSignal) => adminRequest<AdminOverview>(`overview?days=${days}`, accessToken, signal),
   adminUsers: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminUser>>(`users?${adminQuery(query)}`, accessToken, signal),
   adminOrganizations: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminOrganization>>(`organizations?${adminQuery(query)}`, accessToken, signal),

@@ -67,6 +67,10 @@ const migration = `
   alter table users add column if not exists email_verified boolean not null default false;
   alter table users add column if not exists is_active boolean not null default true;
   alter table users alter column password_hash drop not null;
+  create table if not exists platform_admins (
+    user_id uuid primary key references users(id) on delete cascade,
+    created_at timestamptz not null default now()
+  );
 `;
 
 const config = loadConfig();
@@ -84,8 +88,9 @@ try {
     await transaction`
       insert into schema_migrations (id) values ('0003_oauth_accounts') on conflict (id) do nothing
     `;
+    await transaction`insert into schema_migrations (id) values ('0004_platform_admins') on conflict (id) do nothing`;
   });
-  console.log('Database migrations through 0003_oauth_accounts are applied.');
+  console.log('Database migrations through 0004_platform_admins are applied.');
 } finally {
   await sql.end();
 }

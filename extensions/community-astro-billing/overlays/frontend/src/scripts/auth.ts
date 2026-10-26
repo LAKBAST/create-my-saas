@@ -1,6 +1,7 @@
 type User = { id: string; name: string; email: string; emailVerified: boolean; isActive: boolean };
 type Session = { accessToken: string; user: User };
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
+import { initializeAdmin, clearAdminSession, adminUnavailable } from "./admin";
 
 const baseUrl = (import.meta.env?.PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 const csrfCookieName = import.meta.env?.PUBLIC_CSRF_COOKIE_NAME ?? "csrf_token";
@@ -151,7 +152,7 @@ function scheduleRenewal(token: string) {
   const lifetime = accessTokenLifetime(token);
   if (lifetime === null) return;
   const expiresAt = Date.now() + lifetime * 1000;
-  const renew = () => { if (Date.now() >= expiresAt - 60_000) void restoreSession().catch(() => { accessToken = null; }); };
+  const renew = () => { if (Date.now() >= expiresAt - 60_000) void restoreSession().catch(() => { accessToken = null; clearAdminSession(); }); };
   renewalTimer = setTimeout(renew, Math.max(expiresAt - 60_000 - Date.now(), 5_000));
   // Timers are throttled in background tabs, so also check when the tab is shown.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && accessToken === token) renew(); });
@@ -242,8 +243,13 @@ async function bindProtectedPage() {
     document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
     document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
     document.querySelector<HTMLElement>("[data-protected-content]")?.removeAttribute("hidden");
+    await initializeAdmin((path, signal) => request(`${baseUrl ? "/admin" : "/api/admin"}/${path}`, { token: accessToken, signal, cache: "no-store" }));
     if (document.querySelector("[data-billing]")) void bindBilling(session.accessToken);
-  } catch { window.location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`); }
+  } catch (error) {
+    clearAdminSession();
+    if (document.querySelector('[data-admin-page]') && error instanceof ApiError && [0, 404].includes(error.status)) adminUnavailable();
+    else window.location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`);
+  }
 }
 
 type Organization = { id: string; name: string; slug: string };
@@ -421,7 +427,7 @@ function toggleMobileMenu() {
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
   bindForms(); bindOAuth(); void bindProtectedPage();
   document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
-  document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; resetAnalyticsUser(); window.location.assign("/login/"); } }));
+  document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; clearAdminSession(); resetAnalyticsUser(); window.location.assign("/login/"); } }));
   document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); button.disabled = true; button.textContent = "Enviando…"; try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } finally { button.disabled = false; button.textContent = "Reenviar verificación"; } }));
   if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión. Vuelve a intentarlo.", true));
   if (document.querySelector("[data-verify-email]")) { const token = new URLSearchParams(location.search).get("token"); const status = document.querySelector("[data-verify-status]"); if (!token) setStatus(status, "El enlace de verificación no es válido.", true); else void request("/auth/email/verify", { method: "POST", body: { token } }).then(() => { setStatus(status, "Tu correo se ha verificado correctamente."); const heading = document.querySelector("[data-verify-email] h1"); if (heading) heading.textContent = "Correo verificado"; }).catch((cause) => setStatus(status, cause instanceof Error ? cause.message : "No se ha podido verificar el correo.", true)); }

@@ -434,6 +434,17 @@ ${backend ? `  location = /ready {
     proxy_set_header Host $host;
   }
 
+  # Keep the admin page on the frontend; proxy its data under a distinct alias.
+  location ^~ /api/admin/ {
+    rewrite ^/api/admin/(.*)$ /admin/$1 break;
+    proxy_pass http://api:8000;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto https;
+  }
+
   # Frontend pages under an API prefix (regexes match in order): without this,
   # reloading them returned the API's 404.
   location ~ ^/(billing|auth/oauth/callback)/?$ {

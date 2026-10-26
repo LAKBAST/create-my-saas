@@ -10,13 +10,14 @@ function localEnvironment() {
   }));
 }
 
-export default defineConfig(() => {
+export default defineConfig((() => {
   const values = localEnvironment();
   const environment = { ...values, ...process.env };
   const site = environment.PUBLIC_SITE_URL ?? 'https://example.com';
   const apiTarget = environment.API_PROXY_TARGET?.replace(/\/$/, '');
   const noindexPaths = new Set([
     '/account/',
+    '/admin/',
     '/app/',
     '/auth/oauth/callback/',
     '/forgot-password/',
@@ -32,10 +33,11 @@ export default defineConfig(() => {
     vite: apiTarget ? {
       server: {
         proxy: {
+          '/api/admin': { target: apiTarget, rewrite: (path) => path.replace(/^\/api\/admin/, '/admin') },
           '/auth': apiTarget,
           '/users': apiTarget,
         },
       },
     } : undefined,
   };
-});
+})());

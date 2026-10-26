@@ -131,6 +131,31 @@ The included migrations create users, refreshable browser sessions, one-time
 authentication tokens and OAuth states. Add your own domain tables and
 migrations rather than storing application data in a cookie or process memory.
 
+## Administración global
+
+Incluye administración de consulta para usuarios en `/admin/access`,
+`/admin/overview` y `/admin/users`. `/admin/access` declara `resources: ["users"]`;
+las organizaciones y suscripciones no existen en este backend y sus totales
+se devuelven como `null`. El panel Astro oculta esas secciones.
+
+El permiso global exige cuenta activa, correo verificado y una concesión
+persistida independiente de cualquier organización. Con las variables de base
+de datos exportadas en el entorno, ejecuta:
+
+```sh
+pnpm db:migrate
+pnpm build
+node dist/admin/manage-admin.js grant <user-uuid>
+node dist/admin/manage-admin.js revoke <user-uuid>
+```
+
+La migración `0004_platform_admins` no concede permisos automáticamente. La
+herramienta de operador registra UUID, operación y fecha; no hay una API pública
+para otorgar privilegios. Las consultas comprueban el permiso en cada petición,
+usan `Cache-Control: private, no-store` y excluyen contraseñas y sesiones.
+`page` acepta 1–10000, `pageSize` 1–100, `search` hasta 120 caracteres y `days`
+1–365. Las cuentas habilitadas no son una medida de usuarios activos.
+
 ## Límites deliberados
 
 No incluye organizaciones, RBAC ni Stripe Billing. Añade las entidades de

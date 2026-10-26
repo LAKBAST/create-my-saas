@@ -154,6 +154,32 @@ export type BillingSubscription = {
 };
 export type BillingRedirect = { configured: boolean; url: string | null; reason?: string; sessionId?: string | null };
 
+export type AdminResource = "users" | "organizations" | "subscriptions";
+export type AdminAccess = { allowed: boolean; resources?: AdminResource[] };
+export type AdminOverview = {
+  periodDays: number; totalUsers: number; enabledUsers: number; verifiedUsers: number; newUsers: number;
+  totalOrganizations: number | null; newOrganizations: number | null; totalSubscriptions: number | null;
+  subscriptionsByStatus: Array<{ status: string; count: number }>;
+  subscriptionsByPlan: Array<{ plan: string; count: number }>;
+};
+export type AdminUser = { id: string; email: string; name: string; emailVerified: boolean; isActive: boolean; createdAt: string };
+export type AdminOrganization = { id: string; name: string; slug: string; createdAt: string; memberCount: number };
+export type AdminSubscription = {
+  id: string; organizationId: string; organizationName: string; plan: string; status: string; seats: number;
+  provider: string; cancelAtPeriodEnd: boolean; currentPeriodStart: string | null; currentPeriodEnd: string | null;
+};
+export type AdminPage<T> = { items: T[]; total: number; page: number; pageSize: number };
+export type AdminQuery = { page: number; pageSize: number; search: string };
+
+// Keep the page at /admin separate from the API proxy at /api/admin.
+function adminRequest<T>(path: string, accessToken: string, signal?: AbortSignal): Promise<T> {
+  return request<T>(`/api/admin/${path}`, { accessToken, signal, cache: "no-store" });
+}
+
+function adminQuery(query: AdminQuery): string {
+  return new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize), search: query.search }).toString();
+}
+
 function authentication(input: Record<string, unknown>): Authentication {
   return { accessToken: String(input.accessToken ?? input.access_token), user: normaliseUser(input.user as Record<string, unknown>) };
 }
@@ -217,6 +243,12 @@ export function accessTokenLifetime(accessToken: string): number | null {
 }
 
 export const api = {
+  adminAccess: (accessToken: string, signal?: AbortSignal) => adminRequest<AdminAccess>("access", accessToken, signal),
+  adminOverview: (days: number, accessToken: string, signal?: AbortSignal) => adminRequest<AdminOverview>(`overview?days=${days}`, accessToken, signal),
+  adminUsers: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminUser>>(`users?${adminQuery(query)}`, accessToken, signal),
+  adminOrganizations: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminOrganization>>(`organizations?${adminQuery(query)}`, accessToken, signal),
+  adminSubscriptions: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminSubscription>>(`subscriptions?${adminQuery(query)}`, accessToken, signal),
+
   register: (payload: { name: string; email: string; password: string }) => request<User>("/auth/register", { method: "POST", body: payload }),
   login: async (payload: { email: string; password: string }) => authentication(await request<Record<string, unknown>>("/auth/login", { method: "POST", body: payload })),
   refresh: refreshSession,

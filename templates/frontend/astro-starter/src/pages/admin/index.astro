@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import '../../styles/admin.css';
+---
+<BaseLayout title="Administración" description="Administración global del SaaS." protected>
+  <section class="content" data-protected-content data-admin-page hidden>
+    <header class="page-header"><div><p class="eyebrow">Administración</p><h1>Administración global</h1><p class="lead">Consulta usuarios, organizaciones y suscripciones según las capacidades de tu backend.</p></div><button class="btn btn-secondary" type="button" data-admin-refresh>Actualizar</button></header>
+    <section class="panel admin-status" data-admin-gate aria-live="polite"><h2 data-admin-gate-title>Comprobando acceso…</h2><p data-admin-gate-detail>Consultando los permisos globales de tu cuenta.</p><button class="btn btn-secondary" type="button" data-admin-refresh>Reintentar</button></section>
+    <div class="content" data-admin-body hidden>
+      <div class="admin-summary"><h2>Resumen</h2><label class="field">Periodo de altas<select data-admin-days><option value="7">Últimos 7 días</option><option value="30" selected>Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="365">Últimos 365 días</option></select></label></div>
+      <p role="status" data-admin-overview-status></p>
+      <div class="admin-metrics" data-admin-metrics></div>
+      <div class="admin-breakdowns" data-admin-breakdowns></div>
+      <p class="admin-note">Las altas corresponden al periodo seleccionado. Los totales y suscripciones reflejan el estado actual; las cuentas habilitadas no miden actividad de uso ni las suscripciones equivalen a ingresos cobrados.</p>
+      <nav class="admin-sections" aria-label="Consultas de administración">{[{key:'users',label:'Usuarios'},{key:'organizations',label:'Organizaciones'},{key:'subscriptions',label:'Suscripciones'}].map((item) => <button class="btn btn-secondary" type="button" data-admin-resource={item.key} aria-pressed={item.key === 'users'} hidden>{item.label}</button>)}</nav>
+      <section class="panel" aria-labelledby="admin-list-title">
+        <div class="panel-header"><h2 id="admin-list-title" data-admin-list-title>Usuarios</h2></div>
+        <form class="admin-search" data-admin-search-form><label class="field"><span data-admin-search-label>Buscar usuarios</span><input type="search" maxlength="120" data-admin-search /></label><button type="submit" class="btn btn-secondary">Buscar</button><button type="button" class="btn btn-secondary" data-admin-list-retry hidden>Reintentar consulta</button></form>
+        <p class="admin-status" data-admin-list-status role="status"></p>
+        <div class="admin-table-scroller" data-admin-table hidden tabindex="0" role="region" aria-label="Resultados de administración"><table><caption class="sr-only">Resultados de la consulta de administración</caption><thead><tr data-admin-columns></tr></thead><tbody data-admin-rows></tbody></table></div>
+        <div class="admin-pagination"><span role="status" data-admin-pagination></span><div><button type="button" class="btn btn-secondary btn-sm" data-admin-previous disabled>Anterior</button><button type="button" class="btn btn-secondary btn-sm" data-admin-next disabled>Siguiente</button></div></div>
+      </section>
+    </div>
+  </section>
+</BaseLayout>

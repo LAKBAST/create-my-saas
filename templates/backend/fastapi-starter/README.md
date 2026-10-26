@@ -105,6 +105,47 @@ and card data are never audit metadata. The invited email is retained for
 incident investigation, so define retention/export rules appropriate to the
 product before using the log for enterprise or compliance purposes.
 
+## Administración global de consulta
+
+FastAPI expone `/admin/access`, `/admin/overview`, `/admin/users`,
+`/admin/organizations` y `/admin/subscriptions`. El contrato de acceso devuelve
+`allowed` y `resources: ["users", "organizations", "subscriptions"]`; las interfaces
+de administración de las plantillas muestran las secciones disponibles.
+
+Las concesiones globales se guardan en `platform_admins` y son independientes de
+los roles de organización. Ni ser `owner` o `admin` de una organización ni ser el
+primer usuario registrado concede este acceso. La cuenta debe estar activa y
+tener el correo verificado; el backend comprueba la concesión en cada petición.
+
+Aplica la nueva migración antes de servir las rutas y utiliza el comando de
+operador desde la carpeta del backend, con `DATABASE_URL` y las demás variables
+del despliegue cargadas en el entorno. También puedes cargar explícitamente el
+archivo de entorno con `uv run --env-file .env`:
+
+```sh
+uv run --env-file .env alembic upgrade head
+uv run --env-file .env python -m src.modules.admin.manage grant <uuid-del-usuario>
+uv run --env-file .env python -m src.modules.admin.manage revoke <uuid-del-usuario>
+```
+
+No existe una API pública para conceder permisos. El comando verifica el usuario,
+serializa los cambios con un bloqueo de fila en PostgreSQL y emite un registro
+JSON de operación, UUID y fecha, sin credenciales ni datos de pago. La revocación
+se aplica también a los access tokens ya emitidos.
+
+Los listados admiten `page` (1–10000), `pageSize` (1–100, por defecto 25) y
+`search` (máximo 120 caracteres, búsqueda literal sin comodines). El resumen
+acepta `days` entre 1 y 365 para las altas nuevas; totales y distribuciones
+representan el estado actual. Las cuentas habilitadas no equivalen a usuarios
+activos en el periodo, ni las suscripciones a ingresos cobrados. Las respuestas
+tienen `Cache-Control: private, no-store` y campos explícitos sin contraseñas,
+tokens, metadatos privados ni identificadores del proveedor de pagos.
+
+Las pruebas HTTP de `tests/test_admin.py` ejercitan las rutas con JWT reales y
+consultas SQLAlchemy en SQLite; también comprueban los comandos de operador y el
+upgrade/downgrade de la migración. Los bloqueos y la ejecución de la migración en
+PostgreSQL requieren una comprobación adicional contra una base real.
+
 ## Precios y nombres visibles de los planes
 
 `STRIPE_PRICE_PLANS` admite `labels` opcional por plan, un objeto de textos cuyas

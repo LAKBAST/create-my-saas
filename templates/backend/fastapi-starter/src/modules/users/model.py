@@ -28,6 +28,12 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
     memberships: Mapped[list["Membership"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
+class PlatformAdmin(Base):
+    """Global operator grants are independent of organization membership roles."""
+    __tablename__ = "platform_admins"
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid7)

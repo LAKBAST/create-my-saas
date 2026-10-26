@@ -49,6 +49,7 @@ const initial = PRODUCT_NAME.slice(0, 1);
           <nav id="main-navigation" aria-label="Navegación principal">
             <p class="nav-label">Menú</p>
             {appNavigation.map((item) => <a href={item.href} aria-current={item === current ? 'page' : undefined}><Icon name={item.icon} />{item.label}</a>)}
+            <a href="/admin/" data-admin-nav hidden aria-current={Astro.url.pathname === '/admin/' ? 'page' : undefined}><Icon name="building" />Administración</a>
           </nav>
           <div class="sidebar-user">
             <a href="/account/" class="avatar" aria-label="Abrir cuenta" data-user-initials></a>

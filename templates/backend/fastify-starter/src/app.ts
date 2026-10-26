@@ -11,6 +11,8 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerUserRoutes } from './routes/users.js';
 import type { SessionRepository } from './types.js';
+import type { AdminRepository } from './admin/repository.js';
+import { registerAdminRoutes } from './routes/admin.js';
 
 type AppDependencies = {
   config: Config;
@@ -18,6 +20,7 @@ type AppDependencies = {
   databaseReady: () => Promise<void>;
   redisReady?: () => Promise<boolean>;
   emailSender?: EmailSender;
+  adminRepository?: AdminRepository;
 };
 
 const sensitiveAuthBuckets = new Map([
@@ -33,6 +36,7 @@ export async function createApp({
   databaseReady,
   redisReady,
   emailSender = new SecureEmailSender(config),
+  adminRepository,
 }: AppDependencies): Promise<FastifyInstance> {
   const app = Fastify({
     logger: config.environment !== 'test',
@@ -80,6 +84,7 @@ export async function createApp({
   registerHealthRoutes(app, { config, databaseReady, redisReady, rateLimiter });
   registerAuthRoutes(app, { auth, config });
   registerUserRoutes(app, auth);
+  registerAdminRoutes(app, auth, adminRepository);
 
   return app;
 }

@@ -10,6 +10,7 @@ from src.modules.users.router import router as users_router
 from src.modules.organizations.router import router as organizations_router
 from src.modules.billing.router import router as billing_router
 from src.modules.audit.router import router as audit_router
+from src.modules.admin.router import router as admin_router
 from src.core.config import settings
 from src.core.extensions import include_extension_routers
 from src.core.exceptions import AppError
@@ -80,4 +81,5 @@ app.include_router(users_router)
 app.include_router(organizations_router)
 app.include_router(billing_router)
 app.include_router(audit_router)
+app.include_router(admin_router)
 include_extension_routers(app)

@@ -1,7 +1,8 @@
 # Administración global del SaaS
 
-La primera versión del panel está disponible en la combinación **NestJS +
-Next.js**. Permite consultar usuarios, organizaciones y suscripciones de una
+El panel está disponible en **Next.js, React Router y Astro**, con los backends
+compatibles de cada plantilla. Permite consultar usuarios y, cuando el backend
+los ofrece, organizaciones y suscripciones de una
 instancia del producto generado. Cada despliegue conserva sus propios datos y
 administradores; el panel no conecta aplicaciones generadas diferentes.
 
@@ -17,6 +18,8 @@ Aplica las migraciones del backend antes de usar el panel. Concede o revoca el
 permiso desde la carpeta del backend, con las variables de conexión a PostgreSQL
 disponibles en el entorno del proceso:
 
+NestJS:
+
 ```sh
 pnpm migration:run
 pnpm build
@@ -25,21 +28,30 @@ node dist/admin/manage-admin.js grant <user-uuid>
 node dist/admin/manage-admin.js revoke <user-uuid>
 ```
 
+FastAPI: aplica `alembic upgrade head` y ejecuta
+`python -m src.modules.admin.manage grant <user-uuid>` o `revoke <user-uuid>`.
+Fastify: aplica `pnpm db:migrate`, compila con `pnpm build` y ejecuta
+`node dist/admin/manage-admin.js grant <user-uuid>` o `revoke <user-uuid>`.
+
 Utiliza el UUID de una cuenta registrada cuyo correo ya esté verificado.
 Sin concesiones, el panel permanece deshabilitado para todas las cuentas.
 Las consultas comprueban el permiso en cada petición, por lo que una
 revocación no necesita esperar a la caducidad del token de acceso.
 
-Después de iniciar sesión como administrador, la navegación de Next.js muestra
-Administración y permite entrar en `/admin`. Next.js reenvía las consultas
+Después de iniciar sesión como administrador, la navegación muestra
+Administración y permite entrar en `/admin` (`/admin/` en Astro). Los proxies
+de Next.js y React Router reenvían las consultas
 `/api/admin/*` a `/admin/*` del backend con `API_PROXY_TARGET`. Este prefijo evita
-confundir la página del frontend con los endpoints del backend; el gateway
-generado deja `/admin` y `/api/admin/*` en Next.js.
+confundir la página del frontend con los endpoints del backend. El gateway
+generado sirve `/admin` desde el frontend y reenvía `/api/admin/*` directamente
+a `/admin/*` de la API.
 
-Next.js sigue siendo compatible con FastAPI: al no disponer este backend del
-contrato de administración, no muestra el enlace. React Router y Astro todavía
-no incluyen esta interfaz. No declares esta capacidad como requisito obligatorio
-de todos los frontends.
+FastAPI y NestJS declaran los recursos `users`,
+`organizations` y `subscriptions`; Fastify declara sólo `users`. El panel oculta
+los recursos no disponibles, cuyos totales son `null`, sin inventar ceros.
+Astro usa `PUBLIC_API_BASE_URL` cuando está configurada y el alias `/api/admin/*`
+en el mismo origen en caso contrario, tanto con billing como sin esa extensión.
+Un frontend generado sin backend no tiene datos administrativos que consultar.
 
 ## Consultas y estadísticas
 
@@ -69,7 +81,7 @@ datos, modificar suscripciones o suplantar sesiones.
 
 Todas las rutas requieren una sesión válida mediante `Authorization: Bearer`.
 
-- `GET /admin/access`: devuelve `{ allowed: boolean }` para descubrir el acceso.
+- `GET /admin/access`: devuelve `{ allowed: boolean, resources: string[] }` para descubrir el acceso y los recursos disponibles.
 - `GET /admin/overview?days=30`: resumen, con un periodo de 1 a 365 días.
 - `GET /admin/users?page=1&pageSize=25&search=...`.
 - `GET /admin/organizations?page=1&pageSize=25&search=...`.
@@ -82,8 +94,13 @@ datos aunque se acceda directamente a la API.
 
 ## Comprobaciones
 
-Desde la raíz, `npm run test:e2e:admin` ejecuta pruebas de navegador de la interfaz
-con respuestas HTTP simuladas, sin necesitar PostgreSQL ni Redis. Estas pruebas
-no sustituyen la comprobación del backend: los tests del starter NestJS cubren
-la autorización, consultas y concesiones globales. Consulta también sus comandos
-de build y E2E en el README de cada starter.
+Desde la raíz, `npm run test:e2e:admin` ejecuta las pruebas de navegador de
+Next.js. React Router y Astro incluyen sus propias suites en `test/` y
+`playwright.admin.config.mjs`; sus README indican cómo ejecutarlas. Las suites
+usan respuestas simuladas para verificar estados y permisos de interfaz y una
+API local de prueba para comprobar los proxies reales.
+
+Estas pruebas no sustituyen la comprobación del backend: los tests de FastAPI,
+NestJS y Fastify cubren autorización, consultas y concesiones globales. Consulta
+los comandos de cada starter y comprueba las migraciones en PostgreSQL antes de
+activar el panel en un despliegue real.

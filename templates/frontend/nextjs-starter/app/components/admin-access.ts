@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApiError, api } from "../lib/api";
+import { ApiError, api, type AdminResource } from "../lib/api";
 import { useAuth } from "./auth-provider";
 
-type Access = { userId: string; retry: number; status: "allowed" | "denied" | "unsupported" | "error"; message?: string };
+type Access = { userId: string; retry: number; status: "allowed" | "denied" | "unsupported" | "error"; message?: string; resources?: AdminResource[] };
 
 export function useAdminAccess(retry = 0) {
   const { user, status, getAccessToken } = useAuth();
@@ -16,7 +16,7 @@ export function useAdminAccess(retry = 0) {
     const controller = new AbortController();
     void api.adminAccess(getAccessToken(), controller.signal).then((result) => {
       if (controller.signal.aborted) return;
-      setAccess({ userId, retry, status: result.allowed ? "allowed" : "denied" });
+      setAccess({ userId, retry, status: result.allowed ? "allowed" : "denied", resources: result.resources ?? ['users', 'organizations', 'subscriptions'] });
       if (!result.allowed) window.dispatchEvent(new Event("platform-admin-access-revoked"));
     }).catch((error: unknown) => {
       if (controller.signal.aborted) return;

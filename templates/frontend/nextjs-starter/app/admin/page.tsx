@@ -110,14 +110,14 @@ function Overview({ days, refresh, onForbidden }: { days: number; refresh: numbe
     { label: "Usuarios registrados", value: overview.totalUsers, detail: `${formatNumber(overview.newUsers)} altas en ${overview.periodDays} días` },
     { label: "Cuentas habilitadas", value: overview.enabledUsers, detail: "Estado de la cuenta" },
     { label: "Correos verificados", value: overview.verifiedUsers, detail: "Usuarios con correo confirmado" },
-    { label: "Organizaciones", value: overview.totalOrganizations, detail: `${formatNumber(overview.newOrganizations)} nuevas en ${overview.periodDays} días` },
-    { label: "Suscripciones", value: overview.totalSubscriptions, detail: "Todos los planes y estados" },
+    ...(overview.totalOrganizations === null ? [] : [{ label: "Organizaciones", value: overview.totalOrganizations, detail: `${formatNumber(overview.newOrganizations ?? 0)} nuevas en ${overview.periodDays} días` }]),
+    ...(overview.totalSubscriptions === null ? [] : [{ label: "Suscripciones", value: overview.totalSubscriptions, detail: "Todos los planes y estados" }]),
   ];
   return <>
     <div className={styles.metrics}>{metrics.map((metric) => <article className={styles.metric} key={metric.label}><h2>{metric.label}</h2><strong>{formatNumber(metric.value)}</strong><p>{metric.detail}</p></article>)}</div>
-    <div className={styles.breakdowns}>
+    {overview.totalSubscriptions !== null && <div className={styles.breakdowns}>
       {[{ title: "Suscripciones por estado", values: overview.subscriptionsByStatus.map((item) => ({ label: item.status, count: item.count })) }, { title: "Suscripciones por plan", values: overview.subscriptionsByPlan.map((item) => ({ label: item.plan, count: item.count })) }].map((group) => <section className={product.panel} key={group.title}><div className={product.panelHeader}><h2>{group.title}</h2></div>{group.values.length === 0 ? <p className={styles.status}>Sin suscripciones registradas.</p> : <dl className={styles.breakdown}>{group.values.map((item) => <div key={item.label}><dt>{item.label}</dt><dd>{formatNumber(item.count)}</dd></div>)}</dl>}</section>)}
-    </div>
+    </div>}
   </>;
 }
 
@@ -140,10 +140,10 @@ function Administration() {
     <div className={styles.summaryHeader}><h2>Resumen</h2><label className="field">Periodo de altas<select value={days} onChange={(event) => setDays(Number(event.target.value))}><option value={7}>Últimos 7 días</option><option value={30}>Últimos 30 días</option><option value={90}>Últimos 90 días</option><option value={365}>Últimos 365 días</option></select></label></div>
     <Overview days={days} refresh={refresh} onForbidden={revoke} />
     <p className={styles.note}>Las altas corresponden al periodo seleccionado; los totales y las suscripciones reflejan el estado actual. Las cuentas habilitadas no miden actividad de uso ni las suscripciones equivalen a ingresos cobrados.</p>
-    <nav className={styles.sections} aria-label="Consultas de administración">{[{ key: "users", label: "Usuarios" }, { key: "organizations", label: "Organizaciones" }, { key: "subscriptions", label: "Suscripciones" }].map((item) => <button className={`btn ${section === item.key ? "btn-primary" : "btn-secondary"}`} type="button" key={item.key} aria-pressed={section === item.key} onClick={() => setSection(item.key)}>{item.label}</button>)}</nav>
+    <nav className={styles.sections} aria-label="Consultas de administración">{[{ key: "users", label: "Usuarios" }, { key: "organizations", label: "Organizaciones" }, { key: "subscriptions", label: "Suscripciones" }].filter((item) => access.resources?.includes(item.key as 'users' | 'organizations' | 'subscriptions')).map((item) => <button className={`btn ${section === item.key ? "btn-primary" : "btn-secondary"}`} type="button" key={item.key} aria-pressed={section === item.key} onClick={() => setSection(item.key)}>{item.label}</button>)}</nav>
     {section === "users" && <Listing key="users" label="Usuarios" columns={userColumns} load={api.adminUsers} refresh={refresh} onForbidden={revoke} />}
-    {section === "organizations" && <Listing key="organizations" label="Organizaciones" columns={organizationColumns} load={api.adminOrganizations} refresh={refresh} onForbidden={revoke} />}
-    {section === "subscriptions" && <Listing key="subscriptions" label="Suscripciones" columns={subscriptionColumns} load={api.adminSubscriptions} refresh={refresh} onForbidden={revoke} />}
+    {section === "organizations" && access.resources?.includes('organizations') && <Listing key="organizations" label="Organizaciones" columns={organizationColumns} load={api.adminOrganizations} refresh={refresh} onForbidden={revoke} />}
+    {section === "subscriptions" && access.resources?.includes('subscriptions') && <Listing key="subscriptions" label="Suscripciones" columns={subscriptionColumns} load={api.adminSubscriptions} refresh={refresh} onForbidden={revoke} />}
   </div>;
 }
 

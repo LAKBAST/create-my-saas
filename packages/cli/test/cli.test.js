@@ -207,6 +207,8 @@ test('generates selected templates and omits local artifacts', (t) => {
   const gateway = readFileSync(join(destination, 'deployment', 'nginx.conf'), 'utf8');
   assert.match(gateway, /location = \/health/);
   assert.match(gateway, /location = \/ready[\s\S]*proxy_pass http:\/\/api:8000/);
+  assert.match(gateway, /location \^~ \/api\/admin\/ \{[\s\S]*?rewrite \^\/api\/admin\/\(\.\*\)\$ \/admin\/\$1 break;[\s\S]*?proxy_pass http:\/\/api:8000/);
+  assert.doesNotMatch(gateway, /location[^\n]*\^\/\(admin\|/);
   // Frontend pages that share an API prefix must be matched before the API regex.
   const pages = gateway.indexOf('location ~ ^/(billing|auth/oauth/callback)/?$');
   assert.ok(pages > 0 && pages < gateway.indexOf('location ~ ^/(auth|'), 'Frontend pages must precede the API prefixes');

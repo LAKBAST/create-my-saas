@@ -65,6 +65,43 @@ La plantilla consume las rutas canónicas:
 
 Tras cargar la aplicación se intenta `POST /auth/refresh`; si falla, las rutas protegidas redirigen al login. El proxy de `app/routes/api-proxy.ts` está limitado a las rutas de API declaradas y mantiene el valor de `API_PROXY_TARGET` exclusivamente en el servidor.
 
+## Administración global
+
+La ruta `/admin` muestra estadísticas y consultas paginadas de los recursos
+disponibles en el backend. FastAPI y NestJS ofrecen usuarios, organizaciones y
+suscripciones. El contrato declara los recursos mediante `/admin/access` para
+ocultar las secciones que un backend no implementa; la combinación generada de
+React Router sigue requiriendo organizaciones y facturación.
+
+El enlace Administración sólo aparece para una cuenta activa y verificada con
+una concesión global persistida. Los roles `owner` y `admin` de una organización
+no conceden acceso a toda la plataforma. Otorga o revoca este permiso mediante
+el comando del backend, después de aplicar sus migraciones; no se asigna al
+primer usuario registrado ni desde un formulario público.
+
+El navegador consulta `/api/admin/*` y la ruta de servidor reenvía esas
+peticiones a `/admin/*` conservando la autorización y las cabeceras de caché.
+La página `/admin` pertenece a la interfaz y no se reenvía a la API. Se usa la
+sesión existente y las consultas se solicitan con `cache: no-store`.
+
+El periodo del resumen mide altas. Los totales, planes y estados reflejan la
+situación actual; las cuentas habilitadas no representan actividad de uso ni
+las suscripciones equivalen a ingresos cobrados. El panel es de consulta: no
+permite borrar datos, cambiar planes ni suplantar sesiones. Si el backend deniega
+una consulta se retiran los datos y la navegación de administración.
+
+Las regresiones de navegador del repositorio fuente se ejecutan desde la raíz
+de `create-my-saas`, con sus dependencias de desarrollo instaladas:
+
+```sh
+node node_modules/@playwright/test/cli.js test --config templates/frontend/react-router-starter/playwright.admin.config.mjs
+```
+
+Estas pruebas usan respuestas simuladas para comprobar la interfaz y un servidor
+HTTP local para verificar el proxy real. No sustituyen las pruebas de permisos
+del backend. En una copia generada independiente, instala `@playwright/test`
+como dependencia de desarrollo para ejecutar su configuración local.
+
 ## Analítica de producto
 
 PostHog está incluido pero permanece inactivo hasta configurar `VITE_POSTHOG_KEY` y `VITE_POSTHOG_HOST` con la clave pública y el endpoint de ingestión del proyecto. La primera visita muestra un consentimiento explícito; hasta aceptarlo no se inicializa la captura. La integración desactiva autocapture y session replay, registra páginas, `signup_requested` y `user_signed_in`, e identifica al usuario con su ID interno estable, nunca con su email o nombre. Al cerrar sesión restablece esa identidad. Para añadir eventos de producto usa `captureAnalyticsEvent` desde `app/components/posthog-provider.tsx`; los pagos y otros eventos críticos deben enviarse después desde el backend.

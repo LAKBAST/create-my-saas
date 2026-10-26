@@ -5,14 +5,15 @@ declaradas en los manifiestos siguen siendo intencionadas.
 
 ## Administración global
 
-NestJS añade `admin.platform.read`: concesiones globales separadas de los roles
-de organización y endpoints de consulta `/admin/*`. Next.js ofrece la interfaz
+Los tres backends ofrecen `admin.platform.read`: concesiones globales separadas de los roles
+de organización y endpoints de consulta `/admin/*`. Los tres frontends ofrecen la interfaz
 `admin.platform.ui` en `/admin`, con proxy `/api/admin/*` hacia el backend. El
 acceso requiere cuenta activa, correo verificado y concesión persistida.
 
-Esta capacidad es opcional para Next.js: no cambia sus requisitos de backend ni
-el contrato común de FastAPI. Con FastAPI el enlace no se muestra; React Router
-y Astro no incluyen todavía la interfaz. El resumen representa datos actuales y
+Esta capacidad no cambia las combinaciones compatibles. El endpoint de acceso
+declara los recursos: FastAPI y NestJS incluyen usuarios, organizaciones y
+suscripciones; Fastify incluye usuarios. Astro funciona con y sin billing.
+El resumen representa datos actuales y
 altas por periodo, sin atribuirles métricas de actividad o ingresos.
 Consulta [la guía de administración](admin-dashboard.md).
 

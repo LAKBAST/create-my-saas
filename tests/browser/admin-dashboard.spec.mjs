@@ -35,11 +35,11 @@ async function mockSession(page, initial = {}) {
     const url = new URL(route.request().url());
     state.requests.push({ path: url.pathname, query: Object.fromEntries(url.searchParams) });
     if (state.unsupported) return route.fulfill({ status: 404, json: { error: { code: 'HTTP_404' } } });
-    if (url.pathname.endsWith('/access')) return route.fulfill({ json: { allowed: state.allowed && !state.revoked } });
+    if (url.pathname.endsWith('/access')) return route.fulfill({ json: { allowed: state.allowed && !state.revoked, resources: state.resources } });
     if (state.revoked) return route.fulfill({ status: 403, json: { error: { code: 'PLATFORM_ADMIN_REQUIRED' } } });
     if (state.failUsers && url.pathname.endsWith('/users')) return route.fulfill({ status: 503, json: { error: { code: 'SERVICE_NOT_READY' } } });
     if (url.pathname.endsWith('/overview')) return route.fulfill({
-      json: { ...overview, periodDays: Number(url.searchParams.get('days') ?? 30) },
+      json: { ...overview, ...(state.resources?.length === 1 ? { totalOrganizations: null, newOrganizations: null, totalSubscriptions: null, subscriptionsByPlan: [], subscriptionsByStatus: [] } : {}), periodDays: Number(url.searchParams.get('days') ?? 30) },
     });
     const pageNumber = Number(url.searchParams.get('page') ?? 1);
     const pageSize = Number(url.searchParams.get('pageSize') ?? 25);
@@ -119,6 +119,16 @@ test('an unsupported backend explains availability without querying datasets', a
   await expect(page.getByRole('heading', { name: 'Administración no disponible' })).toBeVisible();
   expect(state.requests.filter((request) => !request.path.endsWith('/access'))).toEqual([]);
   await expect(page.getByRole('link', { name: /Administración/ })).toHaveCount(0);
+});
+
+test('a users-only backend hides unavailable resources instead of inventing totals', async ({ page }) => {
+  const state = await mockSession(page, { resources: ['users'] });
+  await page.goto('/admin');
+  await expect(page.getByText('First customer', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Organizaciones', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Suscripciones', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Suscripciones por plan' })).toHaveCount(0);
+  expect(state.requests.some((request) => /\/(organizations|subscriptions)$/.test(request.path))).toBe(false);
 });
 
 test('the dashboard fits a phone viewport and keeps tables within their scroller', async ({ page }) => {

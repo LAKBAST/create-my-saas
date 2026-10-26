@@ -1,6 +1,6 @@
 const HOP_BY_HOP_HEADERS = ["connection", "content-length", "host", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "transfer-encoding", "upgrade"];
 
-function backendUrl(request: Request): URL {
+function backendUrl(request: Request, stripPrefix = ""): URL {
   const target = process.env.API_PROXY_TARGET;
   if (!target) throw new Response("API_PROXY_TARGET no está configurado.", { status: 500 });
 
@@ -15,7 +15,8 @@ function backendUrl(request: Request): URL {
   }
 
   const incoming = new URL(request.url);
-  return new URL(`${incoming.pathname}${incoming.search}`, origin);
+  const pathname = stripPrefix && incoming.pathname.startsWith(`${stripPrefix}/`) ? incoming.pathname.slice(stripPrefix.length) : incoming.pathname;
+  return new URL(`${pathname}${incoming.search}`, origin);
 }
 
 function forwardHeaders(source: Headers): Headers {
@@ -24,10 +25,10 @@ function forwardHeaders(source: Headers): Headers {
   return headers;
 }
 
-export async function proxyBackendRequest(request: Request): Promise<Response> {
+export async function proxyBackendRequest(request: Request, stripPrefix = ""): Promise<Response> {
   const method = request.method.toUpperCase();
   const body = method === "GET" || method === "HEAD" ? undefined : await request.arrayBuffer();
-  const backendResponse = await fetch(backendUrl(request), {
+  const backendResponse = await fetch(backendUrl(request, stripPrefix), {
     method,
     headers: forwardHeaders(request.headers),
     body,

@@ -16,6 +16,7 @@
     "auth.password-recovery",
     "auth.email-verification",
     "auth.protected-routes",
+    "admin.platform.ui",
     "analytics.product",
     "analytics.consent",
     "rendering.ssr",

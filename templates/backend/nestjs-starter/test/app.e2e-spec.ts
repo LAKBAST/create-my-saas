@@ -53,11 +53,11 @@ describe('AppController (e2e)', () => {
     const header = `Bearer ${login.body.accessToken}`;
     const db = app.get(DataSource);
     const user = await db.getRepository(User).findOneByOrFail({ email });
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: false });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: false, resources: ['users', 'organizations', 'subscriptions'] });
     await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(403);
     await db.getRepository(User).update(user.id, { emailVerified: true });
     await setPlatformAdmin(db, 'grant', user.id);
-    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: true });
+    await request(app.getHttpServer()).get('/admin/access').set('Authorization', header).expect(200, { allowed: true, resources: ['users', 'organizations', 'subscriptions'] });
     const users = await request(app.getHttpServer()).get('/admin/users').set('Authorization', header).expect(200);
     expect(users.headers['cache-control']).toBe('private, no-store');
     expect(users.body.items[0]).toMatchObject({ email, emailVerified: true });

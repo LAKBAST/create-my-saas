@@ -17,6 +17,7 @@
     "auth.email-verification",
     "auth.password-recovery",
     "users.profile",
+    "admin.platform.read",
     "oauth.pkce",
     "oauth.google",
     "oauth.github",

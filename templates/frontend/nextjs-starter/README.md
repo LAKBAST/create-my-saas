@@ -65,14 +65,15 @@ El access token se conserva exclusivamente en memoria durante la pestaña. Al ca
 
 La ruta `/admin` ofrece un resumen global y consultas paginadas de usuarios,
 organizaciones y suscripciones. La primera implementación requiere el backend
-NestJS con sus migraciones aplicadas y un permiso global concedido mediante
+FastAPI o NestJS con sus migraciones aplicadas y un permiso global concedido mediante
 su comando de administración. Los roles `owner` y `admin` de una organización
 no conceden acceso global. La cuenta también debe estar habilitada y verificada.
 
 El enlace Administración sólo aparece cuando `GET /admin/access` confirma el
-permiso. Con FastAPI, que todavía no implementa este contrato, se oculta el
-enlace y la ruta muestra que la administración no está disponible. Las
-combinaciones existentes siguen siendo compatibles.
+permiso. Los recursos disponibles se obtienen del backend y las secciones no
+soportadas se ocultan. Sin el contrato de administración, se oculta el enlace y
+la ruta muestra un estado de disponibilidad. Las combinaciones existentes siguen
+siendo compatibles.
 
 Con el proxy integrado, el navegador consulta `/api/admin/*`, que Next.js
 redirige a `/admin/*` del backend, para evitar un conflicto con la página.
