@@ -1,5 +1,6 @@
 import { defaultExtensionsDirectory, loadCatalog } from './catalog.js';
 import { generateProject } from './generator.js';
+import { seedDemo } from './demo-seed.js';
 import { doctorProject, setupLocal } from './local-setup.js';
 import { formatUpgradeSummary, upgradeProject } from './upgrade.js';
 
@@ -7,6 +8,7 @@ const usage = `Usage: create-my-saas <destination> [options]
        create-my-saas upgrade [project] [upgrade options]
        create-my-saas setup [project]
        create-my-saas doctor [project] [--no-services]
+       create-my-saas seed [project]
 
 Options:
   --backend <id>     Backend template to generate
@@ -31,6 +33,7 @@ Examples:
   create-my-saas upgrade ./my-saas --from 1.3.3
   create-my-saas setup ./my-saas
   create-my-saas doctor ./my-saas
+  create-my-saas seed ./my-saas
 `;
 
 function parseProjectCommand(argumentsList, { allowNoServices = false } = {}) {
@@ -168,6 +171,7 @@ export function run(argumentsList, { log = console.log, error = console.error } 
         log('  docker compose -f compose.yaml -f compose.dev.yaml --env-file .env --profile migrate run --rm migrate');
       }
       log(`  docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ${[result.hasBackend && 'api', result.hasFrontend && 'frontend'].filter(Boolean).join(' ')}`);
+      if (result.hasBackend) log('After the API is ready: create-my-saas seed <project>');
       return 0;
     }
     if (argumentsList[0] === 'doctor') {
@@ -176,6 +180,16 @@ export function run(argumentsList, { log = console.log, error = console.error } 
         for (const item of result.checks) log(`${item.ok ? 'OK' : 'FIX'} ${item.message}${item.ok ? '' : ` — ${item.action}`}`);
         log(result.ok ? 'Local project checks passed.' : 'Local project needs attention.');
         return result.ok ? 0 : 1;
+      }).catch((caughtError) => { error(`Error: ${caughtError.message}`); return 1; });
+    }
+    if (argumentsList[0] === 'seed') {
+      const { directory } = parseProjectCommand(argumentsList.slice(1));
+      return seedDemo(directory).then((result) => {
+        log(`Demo accounts ready: ${result.ownerEmail}, ${result.memberEmail}`);
+        log(`Credentials saved in ${result.credentialsPath} (ignored by Git).`);
+        if (result.team) log(`Demo team ready: ${result.team.name} (${result.team.slug}).`);
+        if (result.personalWorkspace) log('Personal workspace ready.');
+        return 0;
       }).catch((caughtError) => { error(`Error: ${caughtError.message}`); return 1; });
     }
     const options = parseArguments(argumentsList);

@@ -126,6 +126,27 @@ contraseña ni migraciones; `/ready` verifica la disponibilidad real de la API.
 En desarrollo, los correos transaccionales se omiten si no configuras un
 adaptador de entrega. Configúralo para probar verificación y recuperación reales.
 
+### Cargar datos de demostración
+
+Con la API local iniciada y `/ready` disponible:
+
+```sh
+node packages/cli/bin/create-my-saas.js seed ./my-saas
+```
+
+`seed` crea dos usuarios (`demo-owner@example.com` y
+`demo-member@example.com`) y prepara el espacio personal del propietario si
+el modelo es `individual` o `mixed`. En `teams` y `mixed` crea además un equipo
+`Demo Workspace`, propiedad del primer usuario. El segundo usuario sirve para
+probar el acceso con otra cuenta; no se le asigna un rol de equipo. Una nueva
+ejecución reutiliza las cuentas y el equipo.
+
+La contraseña aleatoria se guarda en `./my-saas/.env.demo`, excluido por el
+`.gitignore` generado. `seed` solo actúa con `APP_ENV=development`, PostgreSQL
+local y el adaptador de correo desactivado; nunca apunta a una API externa.
+El archivo de credenciales permite repetir el comando y no debe copiarse a un
+despliegue. Para proyectos solo frontend no hay backend que poblar.
+
 ### Modelo individual, equipos o mixto
 
 La CLI que prepara la versión 1.8.0 admite `--product-model individual|teams|mixed`:
@@ -237,8 +258,8 @@ tener una aplicación lista para desarrollar:
 
 - `create-my-saas doctor` y `setup` están implementados en este checkout para
   configuración local. Su disponibilidad en npm depende de la próxima release.
-- Datos demo y seed: ofrecerá un proyecto recién generado con una ruta rápida
-  para crear usuarios y datos de ejemplo.
+- Datos demo y `seed` están implementados para crear dos usuarios de prueba,
+  un espacio personal cuando aplica y un equipo demo en los modelos con equipos.
 - Contrato API tipado: reducirá divergencias entre los clientes frontend y los
   backends generados.
 - Presets de despliegue: facilitarán configurar proveedores y entornos de

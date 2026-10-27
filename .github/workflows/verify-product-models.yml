@@ -7,6 +7,7 @@ on:
       - 'templates/frontend/**'
       - 'extensions/community-astro-billing/**'
       - 'packages/cli/src/cli.js'
+      - 'packages/cli/src/demo-seed.js'
       - 'packages/cli/src/generator.js'
       - 'scripts/e2e-generated-projects.mjs'
       - '.github/scripts/affected-product-models.mjs'
@@ -18,6 +19,7 @@ on:
       - 'templates/frontend/**'
       - 'extensions/community-astro-billing/**'
       - 'packages/cli/src/cli.js'
+      - 'packages/cli/src/demo-seed.js'
       - 'packages/cli/src/generator.js'
       - 'scripts/e2e-generated-projects.mjs'
       - '.github/scripts/affected-product-models.mjs'
@@ -107,3 +109,4 @@ jobs:
           --backend "${{ matrix.backend }}" --frontend "${{ matrix.frontend }}"
           --product-model "${{ matrix.product_model }}"
           ${{ matrix.feature && format('--feature {0}', matrix.feature) || '' }}
+          --seed-demo
