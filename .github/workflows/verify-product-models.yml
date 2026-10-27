@@ -1,0 +1,109 @@
+name: Verify product models
+
+on:
+  pull_request:
+    paths:
+      - 'templates/backend/**'
+      - 'templates/frontend/**'
+      - 'extensions/community-astro-billing/**'
+      - 'packages/cli/src/cli.js'
+      - 'packages/cli/src/generator.js'
+      - 'scripts/e2e-generated-projects.mjs'
+      - '.github/scripts/affected-product-models.mjs'
+      - '.github/workflows/verify-product-models.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/backend/**'
+      - 'templates/frontend/**'
+      - 'extensions/community-astro-billing/**'
+      - 'packages/cli/src/cli.js'
+      - 'packages/cli/src/generator.js'
+      - 'scripts/e2e-generated-projects.mjs'
+      - '.github/scripts/affected-product-models.mjs'
+      - '.github/workflows/verify-product-models.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: matrix
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            node .github/scripts/affected-product-models.mjs --full
+          elif [ "$EVENT_NAME" = pull_request ]; then
+            git diff --name-only "$PR_BASE_SHA" HEAD | node .github/scripts/affected-product-models.mjs
+          elif [ -n "$PUSH_BEFORE_SHA" ] && ! [[ "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+            git diff --name-only "$PUSH_BEFORE_SHA" "$GITHUB_SHA" | node .github/scripts/affected-product-models.mjs
+          else
+            node .github/scripts/affected-product-models.mjs --full
+          fi
+
+  contract:
+    needs: select
+    if: needs.select.outputs.matrix != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.matrix) }}
+    name: ${{ matrix.backend }} + ${{ matrix.frontend }} (${{ matrix.product_model }})
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-python@v5
+        if: matrix.backend == 'fastapi'
+        with:
+          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v5
+        if: matrix.backend == 'fastapi'
+        with:
+          enable-cache: true
+          cache-dependency-glob: templates/backend/fastapi-starter/uv.lock
+      - name: Exercise the selected generated project
+        run: >-
+          node scripts/e2e-generated-projects.mjs
+          --backend "${{ matrix.backend }}" --frontend "${{ matrix.frontend }}"
+          --product-model "${{ matrix.product_model }}"
+          ${{ matrix.feature && format('--feature {0}', matrix.feature) || '' }}
