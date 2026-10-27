@@ -33,3 +33,10 @@ then start local PostgreSQL and Redis and run `doctor` again to check TCP
 reachability. A TCP check does not verify credentials or migrations; use the
 backend's `/ready` endpoint for runtime readiness. Do not copy the production
 example over the local `deployment/.env` created by setup.
+
+After the local API is ready, `create-my-saas seed <project>` registers two
+demo accounts and creates a demo team for `teams` or `mixed` projects. Their
+random password is stored in the generated project's ignored `.env.demo` so
+the command can run again without duplicating data. The second account is not
+added to the team. Seed requires a development backend with local PostgreSQL
+and no configured email delivery adapter.

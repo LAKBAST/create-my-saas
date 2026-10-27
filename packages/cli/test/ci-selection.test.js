@@ -11,11 +11,16 @@ function output(script, files) {
 }
 
 test('local setup changes keep generated-template jobs empty', () => {
-  const result = output('.github/scripts/affected-jobs.mjs', ['packages/cli/src/cli.js', 'packages/cli/src/local-setup.js', 'packages/cli/test/local-setup.test.js']);
+  const result = output('.github/scripts/affected-jobs.mjs', ['packages/cli/src/cli.js', 'packages/cli/src/local-setup.js', 'packages/cli/src/demo-seed.js', 'packages/cli/test/local-setup.test.js', 'packages/cli/test/demo-seed.test.js']);
   assert.deepEqual(JSON.parse(result.generated_projects), []);
   assert.deepEqual(JSON.parse(result.generated_e2e), []);
   assert.equal(result.fastapi, 'false');
   assert.equal(result.nestjs, 'false');
+});
+
+test('demo seed changes select the supported backend contracts only', () => {
+  const result = output('.github/scripts/affected-product-models.mjs', ['packages/cli/src/demo-seed.js']);
+  assert.deepEqual(JSON.parse(result.matrix).map((entry) => entry.backend), ['fastapi', 'nestjs', 'fastapi', 'fastify']);
 });
 
 test('a backend change selects only combinations using that backend', () => {

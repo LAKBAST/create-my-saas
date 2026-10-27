@@ -54,8 +54,8 @@ for (const file of files) {
   if (template) { changed[template[1]].add(template[2]); continue; }
   const extension = /^extensions\/([^/]+)\//.exec(file);
   if (extension) { changed.extension.add(extension[1]); continue; }
-  // CLI setup/doctor have focused unit tests in the always-on generator job.
-  if (['packages/cli/src/cli.js', 'packages/cli/src/local-setup.js', 'packages/cli/test/local-setup.test.js', 'packages/cli/test/ci-selection.test.js'].includes(file)) continue;
+  // CLI setup/doctor/seed have focused unit tests in the always-on generator job.
+  if (['packages/cli/src/cli.js', 'packages/cli/src/local-setup.js', 'packages/cli/src/demo-seed.js', 'packages/cli/test/local-setup.test.js', 'packages/cli/test/demo-seed.test.js', 'packages/cli/test/ci-selection.test.js'].includes(file)) continue;
   // The model contract has its own selected-combination workflow.
   if (['scripts/e2e-generated-projects.mjs', '.github/workflows/verify-product-models.yml', '.github/scripts/affected-product-models.mjs', '.github/scripts/affected-jobs.mjs'].includes(file)) continue;
   // Changes to the generator, manifests, shared templates or unknown paths

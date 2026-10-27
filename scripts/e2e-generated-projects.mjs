@@ -312,6 +312,28 @@ try {
   await waitFor(`${frontendOrigin}/`, web);
   await verifyExternalProvidersAreIsolated();
   await verifyBrowserSessionThroughProxy();
+  if (process.argv.includes('--seed-demo')) {
+    const cli = join(root, 'packages/cli/bin/create-my-saas.js');
+    await run(process.execPath, [cli, 'setup', generatedProject], { cwd: root });
+    await run(process.execPath, [cli, 'seed', generatedProject], { cwd: root });
+    const demo = await readFile(join(generatedProject, '.env.demo'), 'utf8');
+    const password = /^DEMO_PASSWORD=(.+)$/m.exec(demo)?.[1];
+    assert.ok(password);
+    let demoOwnerToken;
+    for (const email of ['demo-owner@example.test', 'demo-member@example.test']) {
+      const login = await fetch(`${apiOrigin}/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      await expectStatus(login, 200, `demo account ${email} login failed`);
+      if (email === 'demo-owner@example.test') demoOwnerToken = (await login.json()).accessToken;
+    }
+    if (productModel !== 'individual') {
+      const organizations = await fetch(`${apiOrigin}/organizations`, { headers: { Authorization: `Bearer ${demoOwnerToken}` } });
+      await expectStatus(organizations, 200, 'demo organizations list failed');
+      assert.ok((await organizations.json()).some((organization) => organization.slug === 'demo-workspace'));
+    }
+  }
   console.log(`Generated ${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} (${productModel}) HTTP session contract E2E passed.`);
 } finally {
   await stop(web);
