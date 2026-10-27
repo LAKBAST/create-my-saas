@@ -1,9 +1,12 @@
 import { defaultExtensionsDirectory, loadCatalog } from './catalog.js';
 import { generateProject } from './generator.js';
+import { doctorProject, setupLocal } from './local-setup.js';
 import { formatUpgradeSummary, upgradeProject } from './upgrade.js';
 
 const usage = `Usage: create-my-saas <destination> [options]
        create-my-saas upgrade [project] [upgrade options]
+       create-my-saas setup [project]
+       create-my-saas doctor [project] [--no-services]
 
 Options:
   --backend <id>     Backend template to generate
@@ -26,7 +29,22 @@ Examples:
   create-my-saas api-only --backend fastapi
   create-my-saas upgrade --dry-run
   create-my-saas upgrade ./my-saas --from 1.3.3
+  create-my-saas setup ./my-saas
+  create-my-saas doctor ./my-saas
 `;
+
+function parseProjectCommand(argumentsList, { allowNoServices = false } = {}) {
+  let directory = '.';
+  let seen = false;
+  let services = true;
+  for (const argument of argumentsList) {
+    if (argument === '--no-services' && allowNoServices) services = false;
+    else if (argument.startsWith('-')) throw new Error(`Unknown option: ${argument}`);
+    else if (!seen) { directory = argument; seen = true; }
+    else throw new Error(`Unexpected argument: ${argument}`);
+  }
+  return { directory, services };
+}
 
 function listTemplates(log, catalog = loadCatalog()) {
   log('Available templates:');
@@ -136,6 +154,30 @@ function runUpgrade(argumentsList, log) {
 export function run(argumentsList, { log = console.log, error = console.error } = {}) {
   try {
     if (argumentsList[0] === 'upgrade') return runUpgrade(argumentsList.slice(1), log);
+    if (argumentsList[0] === 'setup') {
+      const { directory } = parseProjectCommand(argumentsList.slice(1));
+      const result = setupLocal(directory);
+      for (const path of result.created) log(`Created ${path}`);
+      for (const path of result.preserved) log(`Preserved ${path}`);
+      log('Local configuration is ready. Run create-my-saas doctor <project> --no-services to check the files.');
+      log('Keep deployment/.env for local use; do not copy .env.production.example over it.');
+      log('From deployment/:');
+      if (result.hasBackend) {
+        log('  docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d postgres redis');
+        log('  Run create-my-saas doctor <project> after these services start.');
+        log('  docker compose -f compose.yaml -f compose.dev.yaml --env-file .env --profile migrate run --rm migrate');
+      }
+      log(`  docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ${[result.hasBackend && 'api', result.hasFrontend && 'frontend'].filter(Boolean).join(' ')}`);
+      return 0;
+    }
+    if (argumentsList[0] === 'doctor') {
+      const { directory, services } = parseProjectCommand(argumentsList.slice(1), { allowNoServices: true });
+      return doctorProject(directory, { services }).then((result) => {
+        for (const item of result.checks) log(`${item.ok ? 'OK' : 'FIX'} ${item.message}${item.ok ? '' : ` — ${item.action}`}`);
+        log(result.ok ? 'Local project checks passed.' : 'Local project needs attention.');
+        return result.ok ? 0 : 1;
+      }).catch((caughtError) => { error(`Error: ${caughtError.message}`); return 1; });
+    }
     const options = parseArguments(argumentsList);
 
     if (options.help) {
@@ -153,6 +195,7 @@ export function run(argumentsList, { log = console.log, error = console.error } 
     const extensionsDirectories = [defaultExtensionsDirectory, ...options.extensionsDirectories];
     const result = generateProject({ ...options, extensionsDirectories });
     log(`Created ${result.outputDirectory}`);
+    log(`Next: create-my-saas setup ${result.outputDirectory}`);
     return 0;
   } catch (caughtError) {
     error(`Error: ${caughtError.message}`);
@@ -162,5 +205,7 @@ export function run(argumentsList, { log = console.log, error = console.error } 
 }
 
 export function main(argumentsList) {
-  process.exitCode = run(argumentsList);
+  const result = run(argumentsList);
+  if (result instanceof Promise) result.then((code) => { process.exitCode = code; });
+  else process.exitCode = result;
 }

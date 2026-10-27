@@ -102,6 +102,30 @@ Para ver el catálogo disponible:
 node packages/cli/bin/create-my-saas.js --list
 ```
 
+### Preparar un proyecto local
+
+Después de generarlo, la CLI puede crear los archivos locales de configuración
+sin sobrescribir ninguno que ya exista:
+
+```sh
+node packages/cli/bin/create-my-saas.js setup ./my-saas
+node packages/cli/bin/create-my-saas.js doctor ./my-saas --no-services
+```
+
+`setup` crea `backend/.env`, `frontend/.env` y `deployment/.env` según las capas
+seleccionadas. Genera un `SECRET_KEY` aleatorio para desarrollo, alinea el modelo
+de producto con el manifiesto y usa las URL locales del backend seleccionado.
+Estos archivos están cubiertos por `.gitignore`; no los añadas al repositorio.
+Si alguno ya existe, se conserva. `deployment/.env` es para el Compose local;
+no copies encima `.env.production.example`. Para producción sigue
+[la guía de despliegue](docs/deployment.md).
+
+Con PostgreSQL y Redis arrancados, ejecuta `doctor` sin `--no-services` para
+comprobar también que sus puertos responden. Esa prueba TCP no valida usuario,
+contraseña ni migraciones; `/ready` verifica la disponibilidad real de la API.
+En desarrollo, los correos transaccionales se omiten si no configuras un
+adaptador de entrega. Configúralo para probar verificación y recuperación reales.
+
 ### Modelo individual, equipos o mixto
 
 La CLI que prepara la versión 1.8.0 admite `--product-model individual|teams|mixed`:
@@ -194,6 +218,13 @@ permisos y el estado de billing sin Stripe. Astro sin la feature `billing` no
 expone rutas de organizaciones ni facturación; Fastify + Astro cubre sólo los
 flujos que declara ese backend.
 
+El workflow de modelos ejecuta contratos HTTP para combinaciones seleccionadas
+de `individual` y `mixed`, además de los E2E habituales con `teams` y Fastify
+individual. Filtra los trabajos por backend y frontend modificados para evitar
+ejecutar plantillas ajenas al cambio. La publicación 1.8.0 requiere que esos
+trabajos remotos terminen correctamente; tener el código en este checkout no
+significa que la versión esté publicada en npm.
+
 La distribución de npm incluye la CLI, las plantillas y la documentación, y
 excluye dependencias y compilados. Las publicaciones se realizan manualmente;
 antes de publicar una nueva versión, actualiza `version` en `package.json`,
@@ -204,10 +235,8 @@ ejecuta las comprobaciones locales y crea el tag correspondiente.
 Las siguientes mejoras priorizan reducir el tiempo entre generar un proyecto y
 tener una aplicación lista para desarrollar:
 
-- `create-my-saas doctor`: comprobará configuración, servicios locales y
-  variables necesarias para las capacidades seleccionadas.
-- Setup local guiado: ayudará a generar secretos de desarrollo y a completar
-  las URLs locales habituales sin versionar valores sensibles.
+- `create-my-saas doctor` y `setup` están implementados en este checkout para
+  configuración local. Su disponibilidad en npm depende de la próxima release.
 - Datos demo y seed: ofrecerá un proyecto recién generado con una ruta rápida
   para crear usuarios y datos de ejemplo.
 - Contrato API tipado: reducirá divergencias entre los clientes frontend y los
@@ -217,7 +246,8 @@ tener una aplicación lista para desarrollar:
 - Experiencia de actualización: leerá `.create-my-saas.json` para informar de
   versiones disponibles y pasos de migración compatibles.
 
-La prioridad inmediata es `doctor` y el setup local guiado; las demás mejoras
+La prioridad siguiente es comprobar la nueva experiencia con proyectos
+generados y publicar la release después de que CI termine. Las demás mejoras
 se abordarán según adopción y feedback de la comunidad.
 
 ## Documentación adicional
