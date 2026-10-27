@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +12,7 @@ const options = Object.fromEntries(process.argv.slice(2).reduce((pairs, value, i
 }, []));
 const backend = options.backend;
 const frontend = options.frontend;
+const productModel = options['product-model'] ?? (backend === 'fastify' ? 'individual' : 'teams');
 const featureIds = (options.feature ?? '').split(',').map((feature) => feature.trim()).filter(Boolean);
 const featureKey = featureIds.slice().sort().join(',');
 const supportedCombinations = new Set([
@@ -23,6 +24,9 @@ const supportedCombinations = new Set([
 if (!supportedCombinations.has(`${backend}:${frontend}:${featureKey}`)) {
   throw new Error('Usage: node scripts/e2e-generated-projects.mjs --backend fastapi|nestjs|fastify --frontend nextjs|react-router|astro [--feature billing].');
 }
+if (!['individual', 'teams', 'mixed'].includes(productModel) || (backend === 'fastify' && productModel !== 'individual')) {
+  throw new Error('Select a compatible --product-model individual|teams|mixed (Fastify supports individual only).');
+}
 
 const apiPort = { fastapi: 8000, nestjs: 3001, fastify: 3002 }[backend];
 const frontendPort = 3100;
@@ -31,6 +35,7 @@ const frontendOrigin = `http://127.0.0.1:${frontendPort}`;
 const e2eEnvironment = Object.fromEntries(Object.entries({
   ...process.env,
   APP_ENV: 'development',
+  PRODUCT_MODEL: productModel,
   NODE_ENV: 'development',
   PORT: String(apiPort),
   DATABASE_URL: backend === 'fastapi'
@@ -194,13 +199,25 @@ async function verifyBrowserSessionThroughProxy() {
   const publicUser = backend === 'fastify' ? currentUserBody.user : currentUserBody;
   assert.equal(publicUser.email, credentials.email);
 
+  const bootstrap = await request('/workspaces/bootstrap', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${loginBody.accessToken}`, Cookie: cookieHeader(jar), 'X-CSRF-Token': jar.get('csrf_token') },
+  });
+  await expectStatus(bootstrap, 200, 'workspace bootstrap failed');
+  const workspace = await bootstrap.json();
+  assert.equal(workspace.model, productModel);
+  assert.equal(Boolean(workspace.personalWorkspace), productModel !== 'teams' && backend !== 'fastify');
+
   if (backend !== 'fastify') {
-    const organization = await request('/organizations', { method: 'POST',
-      headers: { Authorization: `Bearer ${loginBody.accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Billing contract', slug: 'billing-contract' }),
-    });
-    await expectStatus(organization, 201, 'create billing organization failed');
-    const { id } = await organization.json();
+    let id = workspace.personalWorkspace?.id;
+    if (productModel !== 'individual') {
+      const organization = await request('/organizations', { method: 'POST',
+        headers: { Authorization: `Bearer ${loginBody.accessToken}`, Cookie: cookieHeader(jar), 'X-CSRF-Token': jar.get('csrf_token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Billing contract', slug: 'billing-contract' }),
+      });
+      await expectStatus(organization, 201, 'create billing organization failed');
+      ({ id } = await organization.json());
+    }
     const configuration = await request(`/billing/organizations/${id}/configuration`, { headers: { Authorization: `Bearer ${loginBody.accessToken}` } });
     await expectStatus(configuration, 200, 'billing configuration failed');
     assert.deepEqual(await configuration.json(), { configured: false, provider: 'stripe', usageMeterConfigured: false,
@@ -261,8 +278,16 @@ try {
   await run(process.execPath, [
     join(root, 'packages/cli/bin/create-my-saas.js'), generatedProject,
     '--backend', backend, '--frontend', frontend,
+    '--product-model', productModel,
     ...featureIds.flatMap((feature) => ['--feature', feature]),
   ], { cwd: root });
+
+  const manifest = JSON.parse(await readFile(join(generatedProject, '.create-my-saas.json'), 'utf8'));
+  assert.equal(manifest.schemaVersion, 4);
+  assert.equal(manifest.productModel, productModel);
+  for (const path of ['backend/.env.example', 'deployment/.env.production.example']) {
+    assert.match(await readFile(join(generatedProject, path), 'utf8'), new RegExp(`^PRODUCT_MODEL=${productModel}$`, 'm'));
+  }
 
   const backendDirectory = join(generatedProject, 'backend');
   const frontendDirectory = join(generatedProject, 'frontend');
@@ -287,7 +312,7 @@ try {
   await waitFor(`${frontendOrigin}/`, web);
   await verifyExternalProvidersAreIsolated();
   await verifyBrowserSessionThroughProxy();
-  console.log(`Generated ${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} HTTP session contract E2E passed.`);
+  console.log(`Generated ${backend} + ${frontend}${featureKey ? ` + ${featureKey}` : ''} (${productModel}) HTTP session contract E2E passed.`);
 } finally {
   await stop(web);
   await stop(api);
