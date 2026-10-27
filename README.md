@@ -134,8 +134,8 @@ Con la API local iniciada y `/ready` disponible:
 node packages/cli/bin/create-my-saas.js seed ./my-saas
 ```
 
-`seed` crea dos usuarios (`demo-owner@example.test` y
-`demo-member@example.test`) y prepara el espacio personal del propietario si
+`seed` crea dos usuarios (`demo-owner@example.com` y
+`demo-member@example.com`) y prepara el espacio personal del propietario si
 el modelo es `individual` o `mixed`. En `teams` y `mixed` crea además un equipo
 `Demo Workspace`, propiedad del primer usuario. El segundo usuario sirve para
 probar el acceso con otra cuenta; no se le asigna un rol de equipo. Una nueva

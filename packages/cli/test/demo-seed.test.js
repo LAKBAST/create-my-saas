@@ -56,6 +56,8 @@ for (const [backend, model] of [['fastapi', 'individual'], ['nestjs', 'mixed'], 
     const root = project(t, backend, model);
     const api = fakeApi(model);
     const first = await seedDemo(root, { request: api.request });
+    assert.equal(first.ownerEmail, 'demo-owner@example.com');
+    assert.equal(first.memberEmail, 'demo-member@example.com');
     const secret = readFileSync(first.credentialsPath, 'utf8');
     assert.match(secret, /DEMO_PASSWORD=.+A1!/);
     assert.equal(api.users.size, 2);

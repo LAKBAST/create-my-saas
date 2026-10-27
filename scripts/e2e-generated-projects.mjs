@@ -320,13 +320,13 @@ try {
     const password = /^DEMO_PASSWORD=(.+)$/m.exec(demo)?.[1];
     assert.ok(password);
     let demoOwnerToken;
-    for (const email of ['demo-owner@example.test', 'demo-member@example.test']) {
+    for (const email of ['demo-owner@example.com', 'demo-member@example.com']) {
       const login = await fetch(`${apiOrigin}/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       await expectStatus(login, 200, `demo account ${email} login failed`);
-      if (email === 'demo-owner@example.test') demoOwnerToken = (await login.json()).accessToken;
+      if (email === 'demo-owner@example.com') demoOwnerToken = (await login.json()).accessToken;
     }
     if (productModel !== 'individual') {
       const organizations = await fetch(`${apiOrigin}/organizations`, { headers: { Authorization: `Bearer ${demoOwnerToken}` } });

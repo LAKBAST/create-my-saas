@@ -28,7 +28,7 @@ function credentials(root) {
   regularFile(path);
   if (!existsSync(path)) {
     const password = `${randomBytes(24).toString('base64url')}A1!`;
-    const contents = `# Local demo accounts. Never deploy or commit this file.\nDEMO_OWNER_EMAIL=demo-owner@example.test\nDEMO_MEMBER_EMAIL=demo-member@example.test\nDEMO_PASSWORD=${password}\n`;
+    const contents = `# Local demo accounts. Never deploy or commit this file.\nDEMO_OWNER_EMAIL=demo-owner@example.com\nDEMO_MEMBER_EMAIL=demo-member@example.com\nDEMO_PASSWORD=${password}\n`;
     const descriptor = openSync(path, 'wx', 0o600);
     try { writeFileSync(descriptor, contents, 'utf8'); }
     finally { closeSync(descriptor); }
