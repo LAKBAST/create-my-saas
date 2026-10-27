@@ -88,6 +88,14 @@ export class AuthService {
     return user;
   }
 
+  async changePassword(user: StoredUser, currentPassword: string, newPassword: string): Promise<void> {
+    if (!user.passwordHash || !(await argon2.verify(user.passwordHash, currentPassword))) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'The current password is incorrect.');
+    }
+    await this.repository.updateUserPassword(user.id, await argon2.hash(newPassword, { type: argon2.argon2id }));
+    await this.repository.revokeSessionsForUser(user.id);
+  }
+
   async requestPasswordReset(email: string): Promise<void> {
     const user = await this.repository.findUserByEmail(email.toLowerCase());
     if (!user?.isActive) return;

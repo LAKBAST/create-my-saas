@@ -372,6 +372,16 @@ test('password recovery and email verification use opaque, single-use tokens', a
     assert.equal(oldPassword.statusCode, 401);
     const newPassword = await app.inject({ method: 'POST', url: '/auth/login', payload: { email: 'person@example.com', password: 'changed2' } });
     assert.equal(newPassword.statusCode, 200);
+    const authorization = { authorization: `Bearer ${newPassword.json().accessToken}` };
+    const wrongCurrent = await app.inject({ method: 'POST', url: '/auth/password/change', headers: authorization, payload: { currentPassword: 'wrong', newPassword: 'finalpass3' } });
+    assert.equal(wrongCurrent.statusCode, 401);
+    const weakNew = await app.inject({ method: 'POST', url: '/auth/password/change', headers: authorization, payload: { currentPassword: 'changed2', newPassword: 'weak' } });
+    assert.equal(weakNew.statusCode, 400);
+    const changed = await app.inject({ method: 'POST', url: '/auth/password/change', headers: authorization, payload: { currentPassword: 'changed2', newPassword: 'finalpass3' } });
+    assert.equal(changed.statusCode, 204);
+    assert.equal((await app.inject({ method: 'GET', url: '/users/me', headers: authorization })).statusCode, 401);
+    assert.equal((await app.inject({ method: 'POST', url: '/auth/login', payload: { email: 'person@example.com', password: 'changed2' } })).statusCode, 401);
+    assert.equal((await app.inject({ method: 'POST', url: '/auth/login', payload: { email: 'person@example.com', password: 'finalpass3' } })).statusCode, 200);
   } finally {
     await app.close();
   }

@@ -16,6 +16,10 @@ export const loginBody = z.object({
   password: z.string().min(1).max(256),
 });
 export const resetRequestBody = z.object({ email: z.string().email().max(320) });
+export const changePasswordBody = z.object({
+  currentPassword: loginBody.shape.password,
+  newPassword: registerBody.shape.password,
+});
 export const resetConfirmBody = z.object({
   token: z.string().min(20).max(512),
   newPassword: registerBody.shape.password,

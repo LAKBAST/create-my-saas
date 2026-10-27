@@ -13,6 +13,16 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
       </dl>
       <p data-account-status class="form-status" role="status"></p>
     </section>
+    <section class="panel" aria-labelledby="security">
+      <div class="panel-header"><div><h2 id="security">Seguridad</h2><p>Cambia tu contraseña y vuelve a iniciar sesión en todos tus dispositivos.</p></div></div>
+      <form class="security-form" data-change-password>
+        <label class="field">Contraseña actual<input name="currentPassword" type="password" autocomplete="current-password" required /></label>
+        <label class="field">Nueva contraseña<input name="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required /></label>
+        <label class="field">Confirmar nueva contraseña<input name="confirmation" type="password" autocomplete="new-password" required /></label>
+        <p class="form-status" data-password-status role="status"></p>
+        <button type="submit" class="btn btn-primary">Cambiar contraseña</button>
+      </form>
+    </section>
     <section class="panel" aria-labelledby="session">
       <div class="panel-header"><div><h2 id="session">Sesión</h2><p>Cierra la sesión en este navegador.</p></div><button type="button" class="btn btn-secondary" data-logout>Cerrar sesión</button></div>
     </section>

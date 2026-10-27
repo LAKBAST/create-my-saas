@@ -269,6 +269,7 @@ export const api = {
   currentUser: async (accessToken: string) => normaliseUser(await request<Record<string, unknown>>("/users/me", { accessToken })),
   requestPasswordReset: (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } }),
   resetPassword: (token: string, newPassword: string) => request<void>("/auth/password/reset/confirm", { method: "POST", body: { token, newPassword } }),
+  changePassword: (currentPassword: string, newPassword: string, accessToken: string) => request<void>("/auth/password/change", { method: "POST", body: { currentPassword, newPassword }, accessToken }),
   verifyEmail: (token: string) => request<void>("/auth/email/verify", { method: "POST", body: { token } }),
   resendEmailVerification: (accessToken: string) => request<void>("/auth/email/resend", { method: "POST", accessToken }),
   organizations: (accessToken: string) => request<Organization[]>("/organizations", { accessToken }),

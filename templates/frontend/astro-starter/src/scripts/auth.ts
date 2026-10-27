@@ -264,9 +264,29 @@ function toggleMobileMenu() {
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
   bindForms(); bindOAuth(); void bindProtectedPage();
+  if (document.querySelector('[data-auth-form="login"]') && new URLSearchParams(location.search).has("passwordChanged")) setStatus(document.querySelector('[data-auth-form="login"] [data-form-status]'), "Contraseña actualizada. Inicia sesión con la nueva contraseña.");
   document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
   document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; clearAdminSession(); resetAnalyticsUser(); window.location.assign("/login/"); } }));
   document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); button.disabled = true; button.textContent = "Enviando…"; try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } finally { button.disabled = false; button.textContent = "Reenviar verificación"; } }));
+  document.querySelectorAll<HTMLFormElement>("[data-change-password]").forEach((form) => form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = form.querySelector("[data-password-status]");
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+    const values = new FormData(form);
+    const currentPassword = String(values.get("currentPassword") ?? "");
+    const newPassword = String(values.get("newPassword") ?? "");
+    if (newPassword !== String(values.get("confirmation") ?? "")) { setStatus(status, "Las contraseñas nuevas no coinciden.", true); return; }
+    if (newPassword.length < 8 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) { setStatus(status, "La contraseña debe tener al menos 8 caracteres, una letra y un número.", true); return; }
+    if (button) { button.disabled = true; button.textContent = "Actualizando…"; }
+    try {
+      if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo.");
+      await request("/auth/password/change", { method: "POST", token: accessToken, body: { currentPassword, newPassword } });
+      accessToken = null; clearAdminSession(); resetAnalyticsUser();
+      window.location.assign("/login/?passwordChanged=1");
+    } catch (cause) {
+      setStatus(status, cause instanceof ApiError && cause.code === "INVALID_CREDENTIALS" ? "La contraseña actual no es correcta. Si accedes con Google o GitHub, puedes crear una desde «¿Has olvidado tu contraseña?» en el inicio de sesión." : cause instanceof Error ? cause.message : "No se ha podido cambiar la contraseña.", true);
+    } finally { if (button) { button.disabled = false; button.textContent = "Cambiar contraseña"; } }
+  }));
   if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión. Vuelve a intentarlo.", true));
   if (document.querySelector("[data-verify-email]")) { const token = new URLSearchParams(location.search).get("token"); const status = document.querySelector("[data-verify-status]"); if (!token) setStatus(status, "El enlace de verificación no es válido.", true); else void request("/auth/email/verify", { method: "POST", body: { token } }).then(() => { setStatus(status, "Tu correo se ha verificado correctamente."); const heading = document.querySelector("[data-verify-email] h1"); if (heading) heading.textContent = "Correo verificado"; }).catch((cause) => setStatus(status, cause instanceof Error ? cause.message : "No se ha podido verificar el correo.", true)); }
 });

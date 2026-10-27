@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { SessionCookies } from '../auth/cookies.js';
 import {
+  changePasswordBody,
   loginBody,
   oauthCallbackQuery,
   registerBody,
@@ -46,6 +47,14 @@ export function registerAuthRoutes(app: FastifyInstance, { auth, config }: AuthR
   app.post('/auth/password/reset/request', async (request, reply) => {
     const body = resetRequestBody.parse(request.body);
     await auth.requestPasswordReset(body.email);
+    return reply.code(204).send();
+  });
+
+  app.post('/auth/password/change', async (request, reply) => {
+    const user = await auth.currentUser(request.headers.authorization);
+    const body = changePasswordBody.parse(request.body);
+    await auth.changePassword(user, body.currentPassword, body.newPassword);
+    cookies.clear(reply);
     return reply.code(204).send();
   });
 

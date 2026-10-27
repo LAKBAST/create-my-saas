@@ -27,6 +27,7 @@ type AppDependencies = {
 const sensitiveAuthBuckets = new Map([
   ['POST:/auth/register', 'auth:register'],
   ['POST:/auth/login', 'auth:login'],
+  ['POST:/auth/password/change', 'auth:password-change'],
   ['POST:/auth/password/reset/request', 'auth:password-reset-request'],
   ['POST:/auth/password/reset/confirm', 'auth:password-reset-confirm'],
 ]);

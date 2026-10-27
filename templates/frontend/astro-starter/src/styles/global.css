@@ -218,6 +218,9 @@ code { font-family: var(--mono); font-size: .92em; }
 .rows dt { color: var(--muted); font-size: 13.5px; }
 .rows dd { margin: 0; overflow: hidden; font-size: 14px; font-weight: 500; text-overflow: ellipsis; }
 .panel > .form-status { margin: 0 20px 16px; }
+.security-form { display: grid; gap: 14px; max-width: 460px; padding: 20px; }
+.security-form .form-status { margin: 0; }
+.security-form button { justify-self: start; }
 .steps { margin: 0; padding: 0; list-style: none; }
 .steps li { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-top: 1px solid var(--line); }
 .steps li:first-child { border-top: 0; }

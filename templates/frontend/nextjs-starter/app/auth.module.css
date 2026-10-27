@@ -19,6 +19,7 @@
 .footer a { color: var(--accent); font-weight: 600; text-decoration: none; }
 .footer a:hover { text-decoration: underline; }
 .error { margin: 0 !important; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent); border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--danger); font-size: 13.5px !important; }
+.notice { margin: 20px 0 0 !important; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent); font-size: 13.5px !important; }
 .oauth { display: grid; gap: 14px; margin-top: 20px; }
 .divider { display: flex; align-items: center; gap: 12px; margin: 0 !important; color: var(--muted); font-size: 12.5px !important; }
 .divider::before, .divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
