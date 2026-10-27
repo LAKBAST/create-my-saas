@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { ConfigService } from '@nestjs/config';
 import { AppError } from '../common/errors/app.error';
 import { User } from './user.entity';
 import { Membership } from '../organizations/membership.entity';
 import { Organization } from '../organizations/organization.entity';
+import { Subscription } from '../billing/subscription.entity';
+import { ensurePersonalWorkspace, ProductModel } from '../workspaces/personal-workspace';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly config: ConfigService = new ConfigService(),
   ) {}
 
   async findByEmail(email: string, includePassword = false): Promise<User | null> {
@@ -39,8 +43,15 @@ export class UsersService {
     return user;
   }
 
-  create(values: Pick<User, 'email' | 'name' | 'passwordHash'>): Promise<User> {
-    return this.users.save(this.users.create(values));
+  async create(values: Pick<User, 'email' | 'name' | 'passwordHash'>): Promise<User> {
+    const model = this.config.get<ProductModel>('PRODUCT_MODEL', 'teams');
+    if (model === 'teams') return this.users.save(this.users.create(values));
+    return this.dataSource.transaction(async (manager) => {
+      const users = manager.getRepository(User);
+      const user = await users.save(users.create(values));
+      await ensurePersonalWorkspace(manager, user, model, this.dataSource.options.type === 'postgres');
+      return user;
+    });
   }
 
   async updateProfile(user: User, values: Partial<Pick<User, 'name'>>): Promise<User> {
@@ -58,8 +69,16 @@ export class UsersService {
       if (this.dataSource.options.type !== 'sqljs') userQuery.setLock('pessimistic_write');
       const lockedUser = await userQuery.getOne();
       if (!lockedUser?.isActive) throw new AppError('USER_INACTIVE', 'The user account is inactive.', 403);
+      const personal = await manager.getRepository(Organization).findOneBy({ personalOwnerUserId: user.id });
+      if (personal) {
+        const subscription = await manager.getRepository(Subscription).findOneBy({ organizationId: personal.id });
+        if (subscription?.provider === 'stripe' && subscription.providerSubscriptionId && !['canceled', 'incomplete_expired'].includes(subscription.status) && !subscription.cancelAtPeriodEnd) {
+          throw new AppError('ACTIVE_PERSONAL_SUBSCRIPTION', 'Schedule cancellation of the personal subscription in the billing portal before deactivating this account.', 409);
+        }
+      }
 
       const membershipQuery = manager.getRepository(Membership).createQueryBuilder('membership')
+        .innerJoin(Organization, 'ownedOrganization', 'ownedOrganization.id = membership.organization_id AND ownedOrganization.personal_owner_user_id IS NULL')
         .where('membership.user_id = :userId AND membership.role = :role', { userId: user.id, role: 'owner' });
       const ownedMemberships = await membershipQuery.getMany();
       const organizationIds = [...new Set(ownedMemberships.map((membership) => membership.organizationId))].sort();

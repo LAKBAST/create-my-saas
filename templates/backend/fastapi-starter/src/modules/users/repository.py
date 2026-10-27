@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.modules.users.model import User
+from src.modules.workspaces.service import ensure_personal_workspace
 
 
 class UserRepository:
@@ -12,6 +13,8 @@ class UserRepository:
 
     async def create_user(self, user: User) -> User:
         self.db.add(user)
+        await self.db.flush()
+        await ensure_personal_workspace(user, self.db, commit=False)
         await self.db.commit()
         await self.db.refresh(user)
         return user

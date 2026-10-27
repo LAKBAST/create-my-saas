@@ -15,6 +15,7 @@ import { OAuthState } from '../auth/oauth-state.entity';
 import { OAuthAccount } from '../auth/oauth-account.entity';
 import { AuditLog } from '../audit/audit-log.entity';
 import { PlatformAdmin } from '../admin/platform-admin.entity';
+import { AddPersonalWorkspaces1773140300000 } from './migrations/1773140300000-add-personal-workspaces';
 import { AddPlatformAdmins1773140200000 } from './migrations/1773140200000-add-platform-admins';
 import { CreateUsers1773139200000 } from './migrations/1773139200000-create-users';
 import { AddSaasCore1773139300000 } from './migrations/1773139300000-add-saas-core';
@@ -38,6 +39,6 @@ export default new DataSource({
   url: databaseUrl,
   ssl: ['1', 'true', 'yes', 'on'].includes(process.env.DATABASE_SSL?.trim().toLowerCase() ?? '') ? { rejectUnauthorized: true } : false,
   entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin],
-  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000, TrackPreviousSubscriptions1773140000000, AddSubscriptionSeats1773140100000, AddPlatformAdmins1773140200000],
+  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000, TrackPreviousSubscriptions1773140000000, AddSubscriptionSeats1773140100000, AddPlatformAdmins1773140200000, AddPersonalWorkspaces1773140300000],
   synchronize: false,
 });

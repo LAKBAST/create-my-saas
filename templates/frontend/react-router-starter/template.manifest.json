@@ -26,7 +26,8 @@
     "oauth.pkce",
     "oauth.google",
     "oauth.github",
-    "billing.stripe"
+    "billing.stripe",
+    "workspaces.product-model"
   ],
   "compatibility": {
     "requiresBackendCapabilities": [

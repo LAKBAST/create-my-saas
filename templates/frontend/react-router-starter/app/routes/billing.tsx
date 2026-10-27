@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "../components/app-shell";
 import { CreateOrganization } from "../components/create-organization";
 import { Icon } from "../components/icons";
 import { ProtectedRoute } from "../components/protected-route";
-import { api, type BillingConfiguration, type BillingSubscription, type Organization } from "../lib/api.client";
+import { api, type BillingConfiguration, type BillingSubscription, type Organization, type WorkspaceContext } from "../lib/api.client";
 import { useAuth } from "../lib/auth-context";
 import { privatePageMetadata } from "../lib/seo";
 import styles from "../product.module.css";
@@ -20,15 +20,20 @@ const statusLabels: Record<string, { label: string; tone: string }> = {
   incomplete: { label: "Incompleta", tone: "badge-warning" },
 };
 
-export function meta() { return privatePageMetadata({ title: "Facturación", description: "Gestiona los planes y la suscripción de tu organización.", path: "/billing" }); }
+export function meta() { return privatePageMetadata({ title: "Facturación", description: "Gestiona tu plan personal o el de tus equipos.", path: "/billing" }); }
 
 export default function BillingRoute() {
-  return <ProtectedRoute><AppShell><Billing /></AppShell></ProtectedRoute>;
+  const { user } = useAuth();
+  return <ProtectedRoute><AppShell><Billing key={user?.id} /></AppShell></ProtectedRoute>;
 }
 
 // Rendered inside ProtectedRoute so its effects run only once the session is restored.
 function Billing() {
   const { getAccessToken } = useAuth();
+  const mounted = useRef(false);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [workspace, setWorkspace] = useState<WorkspaceContext>();
+  const [showCreate, setShowCreate] = useState(false);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [organizationId, setOrganizationId] = useState("");
   const [configuration, setConfiguration] = useState<BillingConfiguration>();
@@ -38,32 +43,39 @@ function Billing() {
   const [pending, setPending] = useState<string>();
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
       try {
-        const nextOrganizations = await api.organizations(getAccessToken());
+        const context = await api.workspaceContext(getAccessToken());
+        if (cancelled) return;
+        const nextOrganizations = [...(context.personalWorkspace ? [context.personalWorkspace] : []), ...context.teams];
         const requestedId = new URLSearchParams(window.location.search).get("organizationId");
+        setWorkspace(context);
         setOrganizations(nextOrganizations);
         setOrganizationId(nextOrganizations.find((organization) => organization.id === requestedId)?.id ?? nextOrganizations[0]?.id ?? "");
         if (!nextOrganizations.length) setLoading(false);
-      } catch (error) { setNotice(error instanceof Error ? error.message : "No se han podido cargar las organizaciones."); setLoading(false); }
+      } catch (error) { if (!cancelled) { setNotice(error instanceof Error ? error.message : "No se ha podido preparar tu espacio de trabajo."); setLoading(false); } }
     })();
+    return () => { cancelled = true; };
   }, [getAccessToken]);
 
-  // Loading starts in selectOrganization: this effect only sets state after awaiting.
   useEffect(() => {
     if (!organizationId) return;
+    let cancelled = false;
     void (async () => {
       try {
         const token = getAccessToken();
         const [nextConfiguration, nextSubscription] = await Promise.all([api.billingConfiguration(organizationId, token), api.billingSubscription(organizationId, token)]);
+        if (cancelled) return;
         setConfiguration(nextConfiguration); setSubscription(nextSubscription);
-      } catch (error) { setNotice(error instanceof Error ? error.message : "No se ha podido cargar la facturación."); }
-      finally { setLoading(false); }
+      } catch (error) { if (!cancelled) setNotice(error instanceof Error ? error.message : "No se ha podido cargar la facturación."); }
+      finally { if (!cancelled) setLoading(false); }
     })();
+    return () => { cancelled = true; };
   }, [organizationId, getAccessToken]);
 
   function selectOrganization(id: string) {
-    setLoading(true); setNotice(undefined); setOrganizationId(id);
+    setLoading(true); setNotice(undefined); setConfiguration(undefined); setSubscription(undefined); setOrganizationId(id);
   }
 
   async function redirect(kind: "checkout" | "portal", priceId?: string) {
@@ -72,25 +84,31 @@ function Billing() {
     try {
       const token = getAccessToken();
       const result = kind === "checkout" && priceId ? await api.createCheckout(organizationId, priceId, token) : await api.createPortal(organizationId, token);
+      if (!mounted.current) return;
       if (result.url) { window.location.assign(result.url); return; }
       setNotice(result.reason ?? "La facturación de Stripe todavía no está configurada.");
-    } catch (error) { setNotice(error instanceof Error ? error.message : "No se ha podido abrir Stripe."); }
-    finally { setPending(undefined); }
+    } catch (error) { if (mounted.current) setNotice(error instanceof Error ? error.message : "No se ha podido abrir Stripe."); }
+    finally { if (mounted.current) setPending(undefined); }
   }
 
+  const personal = Boolean(workspace?.personalWorkspace && workspace.personalWorkspace.id === organizationId);
+  const canCreateTeam = workspace && workspace.model !== "individual";
   const status = subscription ? statusLabels[subscription.status] ?? { label: subscription.status, tone: "" } : undefined;
   const renewal = subscription?.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "long" }).format(new Date(subscription.currentPeriodEnd)) : "Sin fecha de renovación";
 
   return <section className={styles.content}>
     <header className={styles.pageHeader}>
-      <div><p className={styles.eyebrow}>Facturación</p><h1>Planes y suscripción</h1><p className={styles.lead}>Elige un plan para tu organización. El pago y la gestión de la suscripción se completan de forma segura en Stripe.</p></div>
-      {organizations.length > 1 && <label className="field">Organización<select value={organizationId} onChange={(event) => selectOrganization(event.target.value)}>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>}
+      <div><p className={styles.eyebrow}>Facturación</p><h1>Planes y suscripción</h1><p className={styles.lead}>{personal ? "Gestiona tu plan personal." : "Elige un plan para tu equipo."} El pago y la gestión se completan de forma segura en Stripe.</p></div>
+      {workspace?.model !== "individual" && organizations.length > 1 && <label className="field">Espacio de facturación<select value={organizationId} disabled={Boolean(pending)} onChange={(event) => selectOrganization(event.target.value)}>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.id === workspace?.personalWorkspace?.id ? "Personal" : organization.name}</option>)}</select></label>}
     </header>
+    {!loading && workspace && !workspace.billingSupported && <p className="notice">Este backend no incluye facturación.</p>}
     {notice && <p className="notice" role="status">{notice}</p>}
-    {!loading && !organizationId && <CreateOrganization onCreated={(organization) => { setOrganizations([organization]); selectOrganization(organization.id); }} />}
+    {workspace?.model === "mixed" && <p className="notice">Tu plan personal y el de cada equipo se contratan y cancelan por separado.</p>}
+    {canCreateTeam && !loading && organizationId && <button type="button" className="btn btn-secondary" onClick={() => setShowCreate((value) => !value)}>{showCreate ? "Cerrar creación de equipo" : "Crear un equipo"}</button>}
+    {canCreateTeam && !loading && (!organizationId || showCreate) && <CreateOrganization onCreated={(organization) => { setOrganizations((current) => [...current, organization]); setWorkspace((current) => current ? { ...current, teams: [...current.teams, organization] } : current); setShowCreate(false); selectOrganization(organization.id); }} />}
     {subscription && status && <section className={styles.panel} aria-labelledby="current-plan">
       <div className={styles.panelHeader}>
-        <div><h2 id="current-plan">Plan actual: {subscription.plan}</h2><p>{subscription.cancelAtPeriodEnd ? `Se cancela el ${renewal}` : subscription.currentPeriodEnd ? `Se renueva el ${renewal}` : renewal} · {subscription.seats} plaza{subscription.seats === 1 ? "" : "s"}</p></div>
+        <div><h2 id="current-plan">Plan actual: {subscription.plan}</h2><p>{subscription.cancelAtPeriodEnd ? `Se cancela el ${renewal}` : subscription.currentPeriodEnd ? `Se renueva el ${renewal}` : renewal}{!personal && <> · {subscription.seats} plaza{subscription.seats === 1 ? "" : "s"}</>}</p></div>
         <span className={`badge ${status.tone}`}>{status.label}</span>
       </div>
       <dl className={styles.rows}><div><dt>Gestión</dt><dd>Cambia de plan, actualiza el método de pago o descarga facturas.</dd>

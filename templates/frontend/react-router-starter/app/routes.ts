@@ -18,6 +18,7 @@ export default [
   route("sitemap.xml", "routes/sitemap.xml.ts"),
   route("auth/*", "routes/auth-proxy.ts"),
   route("users/*", "routes/users-proxy.ts"),
+  route("workspaces/*", "routes/workspaces-proxy.ts"),
   route("organizations/*", "routes/organizations-proxy.ts"),
   route("billing/*", "routes/billing-proxy.ts"),
 ] satisfies RouteConfig;

@@ -8,11 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.email import send_secure_email
 from src.core.email_templates import render_message
 from src.core.exceptions import AppError
+from src.core.config import settings
 from src.modules.audit.service import AuditAction, record_audit_event
 from src.modules.auth.security.tokens import opaque_token, token_hash, utc_now
 from src.modules.organizations.access import require_role
 from src.modules.organizations.schemas import AcceptInvite, InviteCreate
-from src.modules.users.model import Invitation, Membership, MembershipRole, User
+from src.modules.users.model import Invitation, Membership, MembershipRole, Organization, User
 
 
 async def invite(
@@ -26,6 +27,7 @@ async def invite(
         user,
         db,
         {MembershipRole.OWNER, MembershipRole.ADMIN},
+        team_only=True,
     )
     if payload.role == MembershipRole.OWNER:
         raise AppError(
@@ -124,6 +126,8 @@ async def accept_invitation(
     user: User,
     db: AsyncSession,
 ) -> None:
+    if settings.product_model == "individual":
+        raise AppError("Teams are disabled for this product.", code="TEAMS_DISABLED", status_code=403)
     now = utc_now()
     invitation_hash = token_hash(payload.token)
     accepted = (
@@ -136,6 +140,7 @@ async def accept_invitation(
                 Invitation.expires_at > now,
                 Invitation.email == user.email,
                 Invitation.role != MembershipRole.OWNER.value,
+                Invitation.organization_id.in_(select(Organization.id).where(Organization.personal_owner_user_id.is_(None))),
             )
             .values(accepted_at=now)
             .returning(
@@ -177,7 +182,7 @@ async def accept_invitation(
     # cancelled, or foreign invitation remains invalid.
     invitation = (
         await db.execute(
-            select(Invitation).where(Invitation.token_hash == invitation_hash)
+            select(Invitation).join(Organization).where(Invitation.token_hash == invitation_hash, Organization.personal_owner_user_id.is_(None))
         )
     ).scalar_one_or_none()
     if invitation and invitation.accepted_at and invitation.email == user.email:

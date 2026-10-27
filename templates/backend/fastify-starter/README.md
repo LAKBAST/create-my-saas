@@ -158,6 +158,12 @@ usan `Cache-Control: private, no-store` y excluyen contraseñas y sesiones.
 
 ## Límites deliberados
 
+Fastify utiliza `PRODUCT_MODEL=individual` y rechaza los modelos `teams` y
+`mixed`. `POST /workspaces/bootstrap` requiere autenticación y devuelve el
+contexto individual con `personalWorkspace: null`, `teams: []` y
+`billingSupported: false`. Los datos propios se vinculan al usuario; no se crea
+una organización interna en este backend.
+
 No incluye organizaciones, RBAC ni Stripe Billing. Añade las entidades de
 producto mediante migraciones propias, sin almacenar datos de dominio en cookies
 ni en memoria de proceso.

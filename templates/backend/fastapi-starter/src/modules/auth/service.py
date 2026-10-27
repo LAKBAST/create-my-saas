@@ -25,6 +25,7 @@ from src.modules.users.model import (
 )
 from src.modules.users.repository import UserRepository
 from src.modules.users.schemas import UserLogin, UserPublic, UserRegister
+from src.modules.workspaces.service import ensure_personal_workspace
 
 
 class AuthService:
@@ -37,13 +38,15 @@ class AuthService:
         if await self.users.get_user_by_email(email):
             return None
 
-        return await self.users.create_user(
+        user = await self.users.create_user(
             User(
                 email=email,
                 name=payload.name,
                 password_hash=hash_password(payload.password),
             )
         )
+        await ensure_personal_workspace(user, self.db)
+        return user
 
     async def login(self, payload: UserLogin) -> tuple[User, tuple[dict, str]] | None:
         user = await self.users.get_user_by_email(str(payload.email))
@@ -156,6 +159,7 @@ class AuthService:
         if not user.email_verified:
             user.email_verified = True
             await self.users.save(user)
+        await ensure_personal_workspace(user, self.db)
         return await self.issue_session(user)
 
     def _new_session(self, user: User) -> tuple[str, RefreshToken]:

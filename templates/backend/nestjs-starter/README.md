@@ -276,7 +276,44 @@ No incorpora entidades ni reglas de negocio del producto final. Stripe, correo,
 Redis y los proveedores OAuth requieren configuración propia en cada despliegue;
 sin ella, las integraciones quedan desactivadas o fallan de forma segura.
 
-## Administración global de consulta
+## Modelos de producto y espacios personales
+
+`PRODUCT_MODEL=teams` conserva el comportamiento anterior. `individual` crea
+automáticamente un espacio personal al registrar una cuenta o entrar por OAuth,
+sin pedir al usuario que cree una organización. `mixed` ofrece ese espacio
+personal y permite crear equipos después. La variable sólo acepta estos tres
+valores y debe coincidir con la selección de generación del proyecto.
+
+Aplica la migración `1773140300000-add-personal-workspaces.ts` antes de arrancar
+una versión con esta capacidad. Añade un propietario personal único y opcional
+a las organizaciones; las organizaciones existentes conservan su identidad,
+miembros y suscripciones como equipos. No se convierten ni transfieren planes
+automáticamente al cambiar de modelo.
+
+`POST /workspaces/bootstrap`, autenticado mediante Bearer como las demás
+mutaciones de organizaciones, devuelve
+`{ model, personalWorkspace, teams, billingSupported: true }`. También prepara
+de forma idempotente el espacio personal de cuentas anteriores al cambio de
+modelo. La creación del usuario y su nuevo espacio es atómica; PostgreSQL
+serializa los bootstrap del mismo usuario mediante un bloqueo de su fila y una
+restricción única por propietario.
+
+Los espacios personales reutilizan los contratos de facturación por
+organización, pero sólo su propietario puede acceder. No se pueden invitar
+miembros, modificar sus roles ni transferir su propiedad. En `individual` se
+rechazan además la creación de equipos y la aceptación de invitaciones en el
+backend. Los equipos y espacios personales de `mixed` conservan sus propias
+suscripciones y permisos, sin movimientos implícitos de facturación.
+
+Para desactivar una cuenta con una suscripción personal de Stripe no terminada,
+primero hay que programar su cancelación desde el portal de facturación. En caso
+contrario responde `409 ACTIVE_PERSONAL_SUBSCRIPTION`. Las suscripciones
+manuales/gratuitas y las cancelaciones ya programadas no bloquean la baja.
+La aplicación no cancela Stripe ni elimina datos automáticamente. Antes de
+cambiar un producto a `teams`, revisa las suscripciones personales existentes:
+ese modo oculta los espacios personales y conserva sus datos.
+
+## API administrativa de consulta
 
 NestJS ofrece `/admin/access`, `/admin/overview`, `/admin/users`,
 `/admin/organizations` y `/admin/subscriptions`. La interfaz inicial está

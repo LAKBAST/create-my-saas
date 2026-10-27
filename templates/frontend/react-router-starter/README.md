@@ -118,6 +118,27 @@ node scripts/validate-template-manifests.mjs
 
 ## Límites deliberados
 
+## Modelo de producto
+
+La interfaz obtiene `individual`, `teams` o `mixed` desde
+`POST /workspaces/bootstrap`, con la sesión y CSRF actuales. `PRODUCT_MODEL` se
+configura en el backend y no se duplica en variables públicas del frontend.
+
+El modelo individual abre directamente la facturación personal, sin un paso de
+creación de organizaciones. En modo mixto se muestra Personal primero y se
+pueden añadir equipos; cada selección tiene su propia suscripción y cambiar de
+espacio no transfiere planes. En equipos se conserva el alta de la primera
+organización. Si un backend anterior responde 404 al inicializar, se conserva el
+contrato de equipos mediante `/organizations`.
+
+Desde la raíz del repositorio, ejecuta
+`node node_modules/@playwright/test/cli.js test --config templates/frontend/react-router-starter/playwright.workspaces.config.mjs`.
+Estas pruebas opcionales necesitan `@playwright/test` en un proyecto generado
+independiente. Verifican los tres modelos y el proxy HTTP; la autorización y el
+aislamiento de datos se prueban en el backend.
+
+## Límites deliberados
+
 El dashboard no incluye entidades ni flujos específicos del producto. Mantén el
 contrato de autenticación y actualiza `template.manifest.json` al añadir nuevas
 capacidades.

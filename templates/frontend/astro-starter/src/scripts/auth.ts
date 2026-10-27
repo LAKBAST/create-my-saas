@@ -2,6 +2,7 @@ type User = { id: string; name: string; email: string; emailVerified: boolean; i
 type Session = { accessToken: string; user: User };
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
 import { initializeAdmin, clearAdminSession, adminUnavailable } from "./admin";
+import { bootstrapWorkspace } from "./workspaces";
 
 const baseUrl = (import.meta.env?.PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 const csrfCookieName = import.meta.env?.PUBLIC_CSRF_COOKIE_NAME ?? "csrf_token";
@@ -60,6 +61,7 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   OWNER_REQUIRED: "Transfiere la propiedad antes de eliminar al propietario.",
   OWNERSHIP_TARGET_NOT_ELIGIBLE: "La propiedad solo puede transferirse a otro miembro activo.",
   LAST_ACTIVE_OWNER: "Transfiere la propiedad antes de desactivar esta cuenta.",
+  ACTIVE_PERSONAL_SUBSCRIPTION: "Cancela la renovación de tu suscripción personal en Facturación antes de desactivar la cuenta.",
   BILLING_NOT_CONFIGURED: "La facturación todavía no está configurada.",
   BILLING_PRICE_NOT_AVAILABLE: "El plan seleccionado ya no está disponible.",
   BILLING_CUSTOMER_NOT_FOUND: "Contrata primero un plan para acceder al portal de facturación.",
@@ -243,6 +245,10 @@ async function bindProtectedPage() {
     document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
     document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
     document.querySelector<HTMLElement>("[data-protected-content]")?.removeAttribute("hidden");
+    try { await bootstrapWorkspace(request, session.accessToken, false); } catch (error) {
+      if (error instanceof ApiError && error.status === 401) throw error;
+      setStatus(document.querySelector("[data-workspace-status]"), error instanceof Error ? error.message : "No se ha podido preparar tu espacio de trabajo.", true);
+    }
     await initializeAdmin((path, signal) => request(`${baseUrl ? "/admin" : "/api/admin"}/${path}`, { token: accessToken, signal, cache: "no-store" }));
   } catch (error) {
     clearAdminSession();

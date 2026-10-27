@@ -9,6 +9,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import { BillingModule } from './billing/billing.module';
 import { ReadinessService } from './common/readiness/readiness.service';
 import { AdminModule } from './admin/admin.module';
+import { WorkspacesController } from './workspaces/workspaces.controller';
 
 import { validateEnvironment } from './config';
 
@@ -24,7 +25,7 @@ import { validateEnvironment } from './config';
     BillingModule,
     AdminModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, WorkspacesController],
   providers: [AppService, ReadinessService],
 })
 export class AppModule implements NestModule {

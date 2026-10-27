@@ -25,6 +25,7 @@ export function readProjectManifest(projectDirectory) {
     backendId: shortId(manifest.templates.backend),
     frontendId: shortId(manifest.templates.frontend),
     featureIds: manifest.features,
+    ...(manifest.productModel === undefined ? {} : { productModel: manifest.productModel }),
     unmanaged: manifest.unmanaged,
   };
 }
@@ -43,10 +44,11 @@ function listFiles(root) {
 }
 
 /** Generates the base project with a published CLI version through npm. */
-export function generateWithPublishedCli({ version, destination, backendId, frontendId, featureIds, extensionsDirectories }) {
+export function generateWithPublishedCli({ version, destination, backendId, frontendId, featureIds, extensionsDirectories, productModel }) {
   const args = ['exec', '--yes', '--package', `@soymanolo/create-my-saas@${version}`, '--', 'create-my-saas', destination];
   if (backendId) args.push('--backend', backendId);
   if (frontendId) args.push('--frontend', frontendId);
+  if (productModel !== undefined) args.push('--product-model', productModel);
   for (const feature of featureIds) args.push('--feature', feature);
   for (const directory of extensionsDirectories) args.push('--extensions-dir', directory);
   // npm is a .cmd script on Windows, which only runs through a shell: pass one quoted command line.
@@ -109,7 +111,7 @@ export function upgradeProject({
 
   const workspace = mkdtempSync(join(tmpdir(), 'create-my-saas-upgrade-'));
   try {
-    const selection = { backendId: manifest.backendId, frontendId: manifest.frontendId, featureIds: manifest.featureIds };
+    const selection = { backendId: manifest.backendId, frontendId: manifest.frontendId, featureIds: manifest.featureIds, ...(manifest.productModel === undefined ? {} : { productModel: manifest.productModel }) };
     const baseDirectory = join(workspace, 'base');
     const currentDirectory = join(workspace, 'current');
     generateBase({ version: baseVersion, destination: baseDirectory, ...selection, extensionsDirectories });

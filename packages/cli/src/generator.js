@@ -107,6 +107,7 @@ function frontendApiPrefixes(backend, frontend, extensions = []) {
     ...extensions.flatMap((extension) => extension.requires.capabilities),
   ];
   const prefixes = ['auth', 'users', ...extensions.flatMap((extension) => extension.apiPrefixes ?? [])];
+  if (backend?.capabilities.includes('workspaces.product-model')) prefixes.push('workspaces');
   if (requiredCapabilities.includes('organizations')) prefixes.push('organizations');
   if (requiredCapabilities.includes('billing.stripe')) prefixes.push('billing');
   return [...new Set(prefixes)];
@@ -689,6 +690,7 @@ export function generateProject({
   destination,
   backendId,
   frontendId,
+  productModel,
   featureIds = [],
   templatesDirectory = defaultTemplatesDirectory,
   extensionsDirectories = [defaultExtensionsDirectory],
@@ -706,6 +708,10 @@ export function generateProject({
   const catalog = loadCatalog(templatesDirectory, extensionsDirectories);
   const backend = backendId ? findTemplate(catalog, 'backend', backendId) : undefined;
   const frontend = frontendId ? findTemplate(catalog, 'frontend', frontendId) : undefined;
+  if (productModel !== undefined && !['individual', 'teams', 'mixed'].includes(productModel)) throw new Error('Unknown product model. Choose individual, teams, or mixed.');
+  if (productModel !== undefined && !backend) throw new Error('--product-model requires a backend.');
+  const resolvedProductModel = backend ? (productModel ?? (backend.capabilities.includes('organizations') ? 'teams' : 'individual')) : undefined;
+  if (['teams', 'mixed'].includes(resolvedProductModel) && !backend.capabilities.includes('organizations')) throw new Error('This backend does not support teams or mixed product models.');
   const extensions = resolveExtensions(selectExtensions(catalog.extensions, [...featureIds].sort()), { backend, frontend, cliVersion });
   const installationPlan = extensionInstallationPlan(extensions, backend, frontend);
 
@@ -743,6 +749,13 @@ export function generateProject({
     }
 
     writeDeployment(temporaryDirectory, backend, frontend, extensions);
+    if (backend) {
+      for (const path of [join(temporaryDirectory, 'backend', '.env.example'), join(temporaryDirectory, 'deployment', '.env.production.example')]) {
+        const current = readFileSync(path, 'utf8');
+        const value = `PRODUCT_MODEL=${resolvedProductModel}`;
+        writeFileSync(path, /^PRODUCT_MODEL=.*$/m.test(current) ? current.replace(/^PRODUCT_MODEL=.*$/m, value) : `${current.trimEnd()}\n${value}\n`, 'utf8');
+      }
+    }
     writeGitignore(temporaryDirectory, backend, frontend);
 
     normalizeProject(temporaryDirectory);
@@ -752,6 +765,7 @@ export function generateProject({
       frontend,
       features: featureIds,
       extensions,
+      productModel: resolvedProductModel,
     }));
     chmodSync(join(temporaryDirectory, '.create-my-saas.json'), 0o644);
 

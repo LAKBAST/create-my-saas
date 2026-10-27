@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { DataSource, IsNull, Repository } from 'typeorm';
@@ -21,10 +22,13 @@ export class OrganizationsService {
   private readonly dataSource: DataSource,
   private readonly secureEmail: SecureEmailService,
   private readonly audit: AuditLogService,
+  private readonly config: ConfigService = new ConfigService(),
  ) {}
  async create(user: User, name: string, slug?: string): Promise<Organization> {
+  this.requireTeams();
   const derived = (slug ?? name).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   if (!derived) throw new AppError('INVALID_ORGANIZATION_SLUG', 'Organization slug must contain letters or numbers.', 400);
+  if (derived.startsWith('personal-')) throw new AppError('INVALID_ORGANIZATION_SLUG', 'This slug prefix is reserved for personal workspaces.', 400);
   try {
    return await this.dataSource.transaction(async (manager) => {
     const organizations = manager.getRepository(Organization);
@@ -39,9 +43,15 @@ export class OrganizationsService {
   }
  }
  async list(userId: string): Promise<Organization[]> {
-  return this.organizations.createQueryBuilder('organization').innerJoin(Membership, 'membership', 'membership.organization_id = organization.id').where('membership.user_id = :userId', { userId }).orderBy('organization.created_at', 'ASC').getMany();
+  const query = this.organizations.createQueryBuilder('organization').innerJoin(Membership, 'membership', 'membership.organization_id = organization.id').where('membership.user_id = :userId', { userId });
+  const model = this.config.get<string>('PRODUCT_MODEL', 'teams');
+  if (model === 'individual') query.andWhere('organization.personal_owner_user_id = :userId', { userId });
+  else if (model === 'teams') query.andWhere('organization.personal_owner_user_id IS NULL');
+  else query.andWhere('(organization.personal_owner_user_id IS NULL OR organization.personal_owner_user_id = :userId)', { userId });
+  return query.orderBy('organization.created_at', 'ASC').getMany();
  }
  async members(organizationId: string) {
+  await this.requireTeamOrganization(organizationId);
   return this.memberships.createQueryBuilder('membership')
    .innerJoin(User, 'user', 'user.id = membership.user_id')
    .select('membership.id', 'id').addSelect('membership.user_id', 'user_id')
@@ -50,6 +60,7 @@ export class OrganizationsService {
  }
  async invite(organizationId: string, actorUserId: string, email: string, role: 'admin' | 'member'): Promise<{ id: string; accepted: false }> {
   const normalizedEmail = this.normalizeEmail(email);
+  await this.requireTeamOrganization(organizationId);
   const raw = randomBytes(48).toString('base64url');
   let deliver = true;
   let created: Invitation;
@@ -99,6 +110,7 @@ export class OrganizationsService {
   return { id: created.id, accepted: false };
  }
  async acceptInvitation(user: User, token: string): Promise<Membership> {
+  this.requireTeams();
   const email = this.normalizeEmail(user.email);
   return this.dataSource.transaction(async (manager) => {
    const invitations = manager.getRepository(Invitation);
@@ -107,6 +119,8 @@ export class OrganizationsService {
    if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
    const invitation = await query.getOne();
    if (!invitation || invitation.email !== email || invitation.expiresAt <= new Date()) throw new AppError('INVALID_INVITATION', 'The invitation is invalid or expired.', 400);
+   const organization = await manager.getRepository(Organization).findOneBy({ id: invitation.organizationId });
+   if (!organization || organization.personalOwnerUserId) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Personal workspaces cannot be shared.', 403);
 
    const existingMembership = await memberships.findOneBy({ organizationId: invitation.organizationId, userId: user.id });
    if (invitation.acceptedAt) {
@@ -176,6 +190,7 @@ export class OrganizationsService {
   });
  }
  async transferOwnership(organizationId: string, actorUserId: string, targetUserId: string): Promise<void> {
+  this.requireTeams();
   if (actorUserId === targetUserId) {
    throw new AppError('OWNERSHIP_TARGET_NOT_ELIGIBLE', 'Ownership must be transferred to another active organization member.', 409);
   }
@@ -221,7 +236,18 @@ export class OrganizationsService {
  private async lockOrganization(organizations: Repository<Organization>, organizationId: string): Promise<void> {
   const query = organizations.createQueryBuilder('organization').where('organization.id = :organizationId', { organizationId });
   if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
-  if (!await query.getOne()) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
+  const organization = await query.getOne();
+  if (!organization) throw new AppError('MEMBERSHIP_REQUIRED', 'Organization membership is required.', 403);
+  this.requireTeams();
+  if (organization.personalOwnerUserId) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Personal workspaces cannot be shared or transferred.', 403);
+ }
+ private requireTeams(): void {
+  if (this.config.get('PRODUCT_MODEL', 'teams') === 'individual') throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Teams are disabled for individual products.', 403);
+ }
+ private async requireTeamOrganization(organizationId: string): Promise<void> {
+  this.requireTeams();
+  const organization = await this.organizations.findOneBy({ id: organizationId });
+  if (!organization || organization.personalOwnerUserId) throw new AppError('ORGANIZATION_ACCESS_DENIED', 'Personal workspaces cannot be shared.', 403);
  }
  private hash(value: string): string { return createHash('sha256').update(value).digest('hex'); }
  private normalizeEmail(email: string): string {

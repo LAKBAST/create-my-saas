@@ -13,6 +13,7 @@ import { registerUserRoutes } from './routes/users.js';
 import type { SessionRepository } from './types.js';
 import type { AdminRepository } from './admin/repository.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerWorkspaceRoutes } from './routes/workspaces.js';
 
 type AppDependencies = {
   config: Config;
@@ -85,6 +86,7 @@ export async function createApp({
   registerAuthRoutes(app, { auth, config });
   registerUserRoutes(app, auth);
   registerAdminRoutes(app, auth, adminRepository);
+  registerWorkspaceRoutes(app, auth);
 
   return app;
 }

@@ -8,6 +8,8 @@ const positiveInteger = (name: string, value: string | undefined, fallback: numb
 
 export const validateEnvironment = (environment: Record<string, string | undefined>) => {
   const appEnvironment = environment.APP_ENV ?? environment.NODE_ENV ?? 'development';
+  const productModel = environment.PRODUCT_MODEL ?? 'teams';
+  if (!['individual', 'teams', 'mixed'].includes(productModel)) throw new Error('PRODUCT_MODEL must be individual, teams or mixed.');
   const isTest = appEnvironment === 'test';
   const isProduction = appEnvironment === 'production' || appEnvironment === 'staging';
   const required = ['SECRET_KEY', ...(isTest ? [] : ['DATABASE_URL'])];
@@ -65,6 +67,7 @@ export const validateEnvironment = (environment: Record<string, string | undefin
   return {
     ...environment,
     APP_ENV: appEnvironment,
+    PRODUCT_MODEL: productModel,
     NODE_ENV: appEnvironment,
     SECRET_KEY: environment.SECRET_KEY ?? 'test-only-secret',
     JWT_ALGORITHM: environment.JWT_ALGORITHM ?? 'HS256',

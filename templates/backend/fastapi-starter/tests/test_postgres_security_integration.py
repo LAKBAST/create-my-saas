@@ -52,6 +52,8 @@ from src.modules.users.model import (
     User,
 )
 from src.modules.users.repository import UserRepository
+from src.modules.workspaces import service as workspace_service
+from src.modules.users.model import Organization
 
 
 @unittest.skipUnless(
@@ -85,6 +87,22 @@ class PostgresSecurityIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 User(email="race@example.com", name="Race", password_hash="not-used", email_verified=True)
             )
             return await AuthService(db, users).issue_session(user)
+
+    async def test_personal_workspace_bootstrap_is_concurrent_and_unique(self):
+        user = await self._create_user("personal-race@example.com")
+
+        async def provision():
+            async with SessionLocal() as db:
+                current = await db.get(User, user.id)
+                workspace = await workspace_service.ensure_personal_workspace(current, db)
+                return workspace.id
+
+        with patch.object(workspace_service, "settings", replace(settings, product_model="mixed")):
+            identifiers = await asyncio.gather(provision(), provision())
+        self.assertEqual(identifiers[0], identifiers[1])
+        async with SessionLocal() as db:
+            self.assertEqual(await db.scalar(select(func.count()).select_from(Organization).where(Organization.personal_owner_user_id == user.id)), 1)
+            self.assertEqual(await db.scalar(select(func.count()).select_from(Membership).where(Membership.organization_id == identifiers[0])), 1)
 
     async def _create_user(
         self,

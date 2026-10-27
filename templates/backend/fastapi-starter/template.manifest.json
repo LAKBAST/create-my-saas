@@ -17,6 +17,7 @@
     "auth.email-verification",
     "auth.password-recovery",
     "users.profile",
+    "workspaces.product-model",
     "organizations",
     "organizations.rbac",
     "organizations.invitations",

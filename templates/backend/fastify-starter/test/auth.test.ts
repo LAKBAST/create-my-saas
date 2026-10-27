@@ -90,6 +90,7 @@ class InMemorySessions implements SessionRepository {
 }
 
 const config: Config = {
+  PRODUCT_MODEL: 'individual',
   APP_ENV: 'test', NODE_ENV: 'test', environment: 'test', PORT: 3002, DATABASE_URL: 'postgresql://unused', DATABASE_SSL: false, FRONTEND_URL: 'http://localhost:3000',
   CORS_ORIGINS: 'http://localhost:3000', SECRET_KEY: 'test-secret-that-is-long-enough-for-validation',
   ACCESS_TOKEN_EXPIRE_MINUTES: 15, REFRESH_TOKEN_EXPIRE_DAYS: 30,

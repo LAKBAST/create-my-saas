@@ -24,7 +24,7 @@ export function fileDigest(buffer) {
   return createHash('sha256').update(normalizedFileContents(buffer)).digest('hex');
 }
 
-export function buildManifest(projectDirectory, { cliVersion, backend = null, frontend = null, templates, features = [], extensions = [] }) {
+export function buildManifest(projectDirectory, { cliVersion, backend = null, frontend = null, templates, features = [], extensions = [], productModel }) {
   // Accept the original short-ID API as well as catalog records. Callers with
   // persisted v2 template metadata can pass templates directly.
   if (templates === undefined) {
@@ -49,7 +49,8 @@ export function buildManifest(projectDirectory, { cliVersion, backend = null, fr
   visit(projectDirectory);
   files.sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
   return {
-    schemaVersion: 3,
+    schemaVersion: productModel === undefined ? 3 : 4,
+    ...(productModel === undefined ? {} : { productModel }),
     cliVersion,
     templates,
     features: [...features].sort(),
@@ -108,7 +109,8 @@ function validateLegacyManifest(manifest) {
 function validateManifest(manifest) {
   require(isObject(manifest), 'expected an object.');
   if (manifest.schemaVersion === 2) return validateLegacyManifest(manifest);
-  require(manifest.schemaVersion === 3, 'schemaVersion must be 2 or 3.');
+  require([3, 4].includes(manifest.schemaVersion), 'schemaVersion must be 2, 3 or 4.');
+  if (manifest.schemaVersion === 4) require(['individual', 'teams', 'mixed'].includes(manifest.productModel), 'productModel must be individual, teams or mixed.');
   require(typeof manifest.cliVersion === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(manifest.cliVersion), 'cliVersion must be a version string.');
   validateSelection(manifest);
   require(strings(manifest.features) && manifest.features.every((id, index) => /^[a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?$/.test(id)
@@ -120,7 +122,7 @@ function validateManifest(manifest) {
   }
   require(strings(manifest.unmanaged) && manifest.unmanaged.every(safePath)
     && new Set(manifest.unmanaged).size === manifest.unmanaged.length, 'unmanaged must be an array of unique relative paths.');
-  require(Object.keys(manifest).every((key) => ['schemaVersion', 'cliVersion', 'templates', 'features', 'extensions', 'files', 'unmanaged'].includes(key)), 'unexpected manifest field.');
+  require(Object.keys(manifest).every((key) => ['schemaVersion', 'cliVersion', 'templates', 'features', 'extensions', 'files', 'unmanaged', ...(manifest.schemaVersion === 4 ? ['productModel'] : [])].includes(key)), 'unexpected manifest field.');
   return manifest;
 }
 

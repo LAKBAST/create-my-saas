@@ -5,6 +5,21 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Selector `--product-model individual|teams|mixed` para generar SaaS personales,
+  de equipos o mixtos, con espacios personales internos y facturación separada.
+- Bootstrap autenticado de espacios, aislamiento de los espacios personales y
+  adaptación del registro y las interfaces de Next.js, React Router y Astro.
+- Panel global de administración en los tres backends y frontends, con permisos
+  independientes de los roles de organización y recursos según cada backend.
+
+### Changed
+
+- La CLI prepara la versión 1.8.0 y usa el esquema 4 del manifiesto para conservar
+  el modelo durante upgrades; sigue leyendo los esquemas 2 y 3. FastAPI y NestJS
+  mantienen `teams` como comportamiento predeterminado y Fastify usa `individual`.
+
 ## [1.7.1] - 2026-10-25
 
 ### Fixed

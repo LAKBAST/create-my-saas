@@ -100,6 +100,27 @@ node scripts/validate-template-manifests.mjs
 
 ## Límites deliberados
 
+## Modelo de producto
+
+El backend decide `PRODUCT_MODEL`: `individual`, `teams` o `mixed`. La interfaz
+inicializa la sesión de trabajo con `POST /workspaces/bootstrap`, usando la
+autenticación y CSRF existentes. No se configura otro modelo en el frontend.
+
+En modo individual, Facturación abre directamente la suscripción personal y no
+pide crear una organización. El modo mixto empieza en Personal y permite crear
+y seleccionar equipos: cada espacio conserva su propia suscripción, sin mover
+planes al cambiar la selección. El modo de equipos conserva la creación de la
+primera organización. Una API anterior sin el endpoint de inicialización sigue
+usando el flujo de equipos mediante `/organizations`.
+
+Desde la raíz del repositorio, las pruebas opcionales de navegador se ejecutan
+con `node node_modules/@playwright/test/cli.js test --config templates/frontend/nextjs-starter/playwright.workspaces.config.mjs`.
+El proyecto generado necesita instalar `@playwright/test` para ejecutar estas
+pruebas de forma independiente. Las pruebas usan respuestas controladas y
+comprueban también el proxy HTTP real; la autorización se verifica en el backend.
+
+## Límites deliberados
+
 Es un dashboard autenticado y no un sitio público de marketing. No incluye
 entidades ni pantallas específicas del producto; añádelas sin cambiar el
 contrato de autenticación ni las capacidades declaradas.

@@ -149,7 +149,7 @@ test('reads schema 2 and schema 3 manifests', (t) => {
   writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 3, cliVersion: '1.6.0', templates: templatesEntry, features: ['api-keys'], extensions: [], files: {}, unmanaged: ['deployment/nginx.conf'] });
   assert.deepEqual(readProjectManifest(workspace), { schemaVersion: 3, cliVersion: '1.6.0', backendId: 'fastapi', frontendId: 'nextjs', featureIds: ['api-keys'], unmanaged: ['deployment/nginx.conf'] });
   writeJson(join(workspace, '.create-my-saas.json'), { schemaVersion: 9, templates: templatesEntry });
-  assert.throws(() => readProjectManifest(workspace), /schemaVersion must be 2 or 3/);
+  assert.throws(() => readProjectManifest(workspace), /schemaVersion must be 2, 3 or 4/);
 });
 
 test('parses upgrade options and routes the subcommand', () => {

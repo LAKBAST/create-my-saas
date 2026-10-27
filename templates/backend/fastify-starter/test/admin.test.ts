@@ -32,6 +32,14 @@ test('global administration authenticates, checks persisted grants and exposes o
     const access = await app.inject({ method: 'GET', url: '/admin/access', headers });
     assert.deepEqual(access.json(), { allowed: false, resources: ['users'] });
     assert.equal((await app.inject({ method: 'GET', url: '/admin/users', headers })).statusCode, 403);
+    const workspace = await app.inject({ method: 'POST', url: '/workspaces/bootstrap', headers });
+    assert.equal(workspace.statusCode, 200);
+    assert.deepEqual(workspace.json(), { model: 'individual', personalWorkspace: null, teams: [], billingSupported: false });
+    assert.equal(workspace.headers['cache-control'], 'private, no-store');
+    assert.equal((await app.inject({ method: 'POST', url: '/workspaces/bootstrap' })).statusCode, 401);
+    for (const model of ['teams', 'mixed']) assert.throws(() => loadConfig({ APP_ENV: 'test',
+      DATABASE_URL: 'postgres://localhost/test', FRONTEND_URL: 'http://localhost:3000',
+      CORS_ORIGINS: 'http://localhost:3000', SECRET_KEY: 'test-secret-with-at-least-32-characters', PRODUCT_MODEL: model }), /PRODUCT_MODEL/);
     assert.equal(queried, false);
     grant = true;
     user.emailVerified = false;

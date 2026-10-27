@@ -11,6 +11,7 @@ from src.modules.users.model import (
     MembershipRole,
     Organization,
     RefreshToken,
+    Subscription,
     TokenPurpose,
     User,
 )
@@ -68,11 +69,30 @@ async def deactivate(current_user: User, db: AsyncSession) -> None:
             code="USER_INACTIVE",
             status_code=403,
         )
+    renewable_personal_subscription = (
+        await db.execute(
+            select(Subscription.id).join(Organization)
+            .where(
+                Organization.personal_owner_user_id == current_user.id,
+                Subscription.provider == "stripe",
+                Subscription.provider_subscription_id.is_not(None),
+                Subscription.status.not_in({"canceled", "incomplete_expired"}),
+                Subscription.cancel_at_period_end.is_(False),
+            ).with_for_update()
+        )
+    ).scalar_one_or_none()
+    if renewable_personal_subscription is not None:
+        raise AppError(
+            "Cancel the personal subscription in the billing portal before deactivating the account.",
+            code="ACTIVE_PERSONAL_SUBSCRIPTION",
+            status_code=409,
+        )
     owned_orgs = (
         await db.execute(
-            select(Membership.organization_id).where(
+            select(Membership.organization_id).join(Organization).where(
                 Membership.user_id == current_user.id,
                 Membership.role == MembershipRole.OWNER.value,
+                Organization.personal_owner_user_id.is_(None),
             )
         )
     ).scalars().all()

@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       { source: "/api/admin/:path*", destination: `${target}/admin/:path*` },
       { source: "/auth/:path*", destination: `${target}/auth/:path*` },
       { source: "/users/:path*", destination: `${target}/users/:path*` },
+      { source: "/workspaces/:path*", destination: `${target}/workspaces/:path*` },
       { source: "/organizations/:path*", destination: `${target}/organizations/:path*` },
       { source: "/billing/:path*", destination: `${target}/billing/:path*` },
     ];

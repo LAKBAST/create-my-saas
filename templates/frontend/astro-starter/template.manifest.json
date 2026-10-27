@@ -28,7 +28,8 @@
     "auth.protected-routes",
     "oauth.pkce",
     "oauth.google",
-    "oauth.github"
+    "oauth.github",
+    "workspaces.product-model"
   ],
   "compatibility": {
     "requiresBackendCapabilities": [

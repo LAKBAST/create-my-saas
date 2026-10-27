@@ -64,7 +64,7 @@ const initial = PRODUCT_NAME.slice(0, 1);
             <p class="crumb"><span>{PRODUCT_NAME}</span>{current && <><i aria-hidden="true">/</i><strong>{current.label}</strong></>}</p>
             <span class="session"><span class="status-dot"></span>Sesión activa</span>
           </header>
-          <main class="app-content"><slot /></main>
+          <main class="app-content"><p class="form-status" role="status" data-workspace-status></p><slot /></main>
         </div>
       </div>
     ) : bare ? <slot /> : (

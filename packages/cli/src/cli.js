@@ -8,6 +8,7 @@ const usage = `Usage: create-my-saas <destination> [options]
 Options:
   --backend <id>     Backend template to generate
   --frontend <id>    Frontend template to generate
+  --product-model <model>  individual, teams, or mixed (teams for full backends)
   --feature <id>           Enable an extension (repeatable)
   --extensions-dir <path>  Discover an additional local extension directory (repeatable)
   --list             List available templates
@@ -66,18 +67,22 @@ export function parseArguments(argumentsList) {
         throw new Error('Missing value for --feature.');
       }
       options.featureIds.push(featureId);
+    } else if (argument.startsWith('--product-model=')) {
+      options.productModel = argument.slice('--product-model='.length);
+      if (!options.productModel) throw new Error('Missing value for --product-model.');
     } else if (argument.startsWith('--extensions-dir=')) {
       const directory = argument.slice('--extensions-dir='.length);
       if (!directory) throw new Error('Missing value for --extensions-dir.');
       options.extensionsDirectories.push(directory);
     } else
-    if (argument === '--backend' || argument === '--frontend' || argument === '--feature' || argument === '--extensions-dir') {
+    if (argument === '--backend' || argument === '--frontend' || argument === '--feature' || argument === '--extensions-dir' || argument === '--product-model') {
       const value = argumentsList[index + 1];
       if (!value || value.startsWith('--')) {
         throw new Error(`Missing value for ${argument}.`);
       }
       if (argument === '--feature') options.featureIds.push(value);
       else if (argument === '--extensions-dir') options.extensionsDirectories.push(value);
+      else if (argument === '--product-model') options.productModel = value;
       else options[argument === '--backend' ? 'backendId' : 'frontendId'] = value;
       index += 1;
     } else if (argument === '--list') {

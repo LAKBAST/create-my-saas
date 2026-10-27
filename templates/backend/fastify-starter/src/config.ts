@@ -4,6 +4,7 @@ const environmentName = z.enum(['development', 'test', 'staging', 'production'])
 const environmentBoolean = (defaultValue: 'true' | 'false' = 'false') => z.enum(['true', 'false', '1', '0']).default(defaultValue).transform((value) => value === 'true' || value === '1');
 
 const environment = z.object({
+  PRODUCT_MODEL: z.literal('individual').default('individual'),
   // APP_ENV is the shared backend setting. NODE_ENV remains an alias while
   // deployment manifests are migrated.
   APP_ENV: environmentName.optional(),

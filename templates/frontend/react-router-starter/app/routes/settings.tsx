@@ -12,7 +12,7 @@ export default function Settings() {
     <div className={styles.empty}>
       <div><Icon name="settings" size={22} /></div>
       <h2>Aún no hay ajustes</h2>
-      <p>Añade aquí preferencias del producto, integraciones o equipos cuando tu SaaS los necesite. Edita <code>app/routes/settings.tsx</code>.</p>
+      <p>Añade aquí preferencias e integraciones del producto cuando tu SaaS los necesite. Edita <code>app/routes/settings.tsx</code>.</p>
     </div>
   </section></AppShell></ProtectedRoute>;
 }

@@ -102,6 +102,20 @@ Para ver el catálogo disponible:
 node packages/cli/bin/create-my-saas.js --list
 ```
 
+### Modelo individual, equipos o mixto
+
+La CLI que prepara la versión 1.8.0 admite `--product-model individual|teams|mixed`:
+
+```sh
+node packages/cli/bin/create-my-saas.js personal --backend fastapi --frontend nextjs --product-model individual
+```
+
+El modo individual prepara un espacio personal automáticamente y permite
+gestionar la suscripción sin crear una organización manualmente. El modo mixto
+añade equipos con suscripciones separadas. FastAPI y NestJS mantienen `teams`
+como valor predeterminado; Fastify sólo admite `individual` y no incluye billing.
+Consulta [los modelos y su compatibilidad](docs/product-models.md).
+
 La CLI no sobrescribe directorios existentes. Cada proyecto generado incluye
 `.create-my-saas.json` con los IDs y versiones de las plantillas elegidas, y no
 copia dependencias, entornos virtuales ni artefactos de compilación locales.

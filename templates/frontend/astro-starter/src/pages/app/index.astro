@@ -7,7 +7,7 @@ const shortcuts = appNavigation.filter((item) => item.shortcut);
 const hasBilling = appNavigation.some((item) => item.href === '/billing/');
 const steps = [
   { title: 'Verifica tu correo', text: 'Necesario para recuperar la contraseña y recibir avisos.', href: '/account/', verification: true },
-  ...(hasBilling ? [{ title: 'Elige un plan', text: 'Activa la facturación de tu organización con Stripe.', href: '/billing/' }] : []),
+  ...(hasBilling ? [{ title: 'Elige un plan', text: 'Activa tu facturación con Stripe.', href: '/billing/' }] : []),
   { title: 'Construye tu producto', text: 'Sustituye esta página por el panel principal de tu SaaS.' },
 ];
 ---

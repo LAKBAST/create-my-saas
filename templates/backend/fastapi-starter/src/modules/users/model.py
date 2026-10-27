@@ -80,6 +80,7 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     slug: Mapped[str] = mapped_column(String(160), unique=True, index=True, nullable=False)
     created_by_id: Mapped[UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    personal_owner_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     memberships: Mapped[list["Membership"]] = relationship(back_populates="organization", cascade="all, delete-orphan")
 

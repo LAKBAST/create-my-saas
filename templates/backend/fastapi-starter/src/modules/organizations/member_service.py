@@ -15,7 +15,7 @@ from src.modules.users.model import Membership, MembershipRole, User
 
 
 async def list_members(org_id: UUID, user: User, db: AsyncSession):
-    await membership_for(org_id, user, db)
+    await membership_for(org_id, user, db, team_only=True)
     rows = (
         await db.execute(
             select(Membership, User)

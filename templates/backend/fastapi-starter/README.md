@@ -6,6 +6,43 @@ RBAC invitations, organization audit logs, Stripe Checkout/Portal billing with v
 
 ## Capacidades y compatibilidad
 
+### Modelo de producto y espacio personal
+
+`PRODUCT_MODEL` acepta `teams` (predeterminado), `individual` y `mixed`.
+`teams` mantiene el registro sin espacios automáticos y la creación manual de
+organizaciones. `individual` crea un espacio personal interno al registrar una
+cuenta y bloquea la creación de equipos, las invitaciones y la gestión de
+miembros. `mixed` crea ese mismo espacio personal y permite crear equipos
+adicionales. El usuario no debe crear una organización manualmente para empezar
+con su cuenta individual.
+
+Aplica primero `alembic upgrade heads`. La migración `20261026_0009` añade un
+propietario personal único y nullable; las organizaciones existentes conservan
+su condición de equipos, sus miembros y sus suscripciones. Los registros por
+contraseña y OAuth crean el usuario, el espacio y su membresía de propietario
+en una sola transacción. El prefijo de slug `personal-` queda reservado.
+
+`POST /workspaces/bootstrap` requiere Bearer y CSRF, y devuelve
+`{ model, personalWorkspace, teams, billingSupported: true }`. Inicializa de
+forma idempotente el espacio personal de cuentas anteriores cuando procede.
+El bloqueo de la fila del usuario serializa las inicializaciones concurrentes y
+la base de datos impone un único espacio personal por usuario. Las respuestas
+no se almacenan en caché.
+
+Cada espacio conserva una suscripción independiente usando el contrato de
+billing actual por organización. Crear un equipo no transfiere, cancela ni
+duplica automáticamente el plan personal. El modo individual oculta y deniega
+el acceso ordinario a equipos anteriores sin eliminarlos; revisa ese cambio de
+modo antes de aplicarlo a un despliegue existente. Un espacio personal nunca
+admite miembros adicionales, invitaciones o transferencia de propiedad, incluso
+si cambia después el modelo de producto.
+
+La desactivación de una cuenta personal con una suscripción Stripe todavía
+renovable devuelve `409 ACTIVE_PERSONAL_SUBSCRIPTION`: cancela primero desde el
+portal de facturación. Una cancelación programada, una suscripción terminada o
+un plan manual/gratuito permiten desactivar la cuenta. No se cancela Stripe
+automáticamente ni se transfiere el espacio personal a otro usuario.
+
 FastAPI implementa todas las capacidades declaradas en `template.manifest.json`,
 incluidos usuarios, organizaciones, RBAC, Stripe, OAuth de Google y GitHub, y
 migraciones PostgreSQL. Es compatible con los frontends Next.js, React Router y

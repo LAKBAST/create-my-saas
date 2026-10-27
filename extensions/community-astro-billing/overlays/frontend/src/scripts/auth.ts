@@ -2,6 +2,7 @@ type User = { id: string; name: string; email: string; emailVerified: boolean; i
 type Session = { accessToken: string; user: User };
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
 import { initializeAdmin, clearAdminSession, adminUnavailable } from "./admin";
+import { bootstrapWorkspace } from "./workspaces";
 
 const baseUrl = (import.meta.env?.PUBLIC_API_BASE_URL ?? "").replace(/\/$/, "");
 const csrfCookieName = import.meta.env?.PUBLIC_CSRF_COOKIE_NAME ?? "csrf_token";
@@ -60,6 +61,7 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   OWNER_REQUIRED: "Transfiere la propiedad antes de eliminar al propietario.",
   OWNERSHIP_TARGET_NOT_ELIGIBLE: "La propiedad solo puede transferirse a otro miembro activo.",
   LAST_ACTIVE_OWNER: "Transfiere la propiedad antes de desactivar esta cuenta.",
+  ACTIVE_PERSONAL_SUBSCRIPTION: "Cancela la renovación de tu suscripción personal en Facturación antes de desactivar la cuenta.",
   BILLING_NOT_CONFIGURED: "La facturación todavía no está configurada.",
   BILLING_PRICE_NOT_AVAILABLE: "El plan seleccionado ya no está disponible.",
   BILLING_CUSTOMER_NOT_FOUND: "Contrata primero un plan para acceder al portal de facturación.",
@@ -152,7 +154,7 @@ function scheduleRenewal(token: string) {
   const lifetime = accessTokenLifetime(token);
   if (lifetime === null) return;
   const expiresAt = Date.now() + lifetime * 1000;
-  const renew = () => { if (Date.now() >= expiresAt - 60_000) void restoreSession().catch(() => { accessToken = null; clearAdminSession(); }); };
+  const renew = () => { if (Date.now() >= expiresAt - 60_000) void restoreSession().catch(() => { accessToken = null; billingGeneration++; document.querySelector("[data-billing-summary]")?.replaceChildren(); document.querySelector("[data-billing-plans]")?.replaceChildren(); clearAdminSession(); }); };
   renewalTimer = setTimeout(renew, Math.max(expiresAt - 60_000 - Date.now(), 5_000));
   // Timers are throttled in background tabs, so also check when the tab is shown.
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && accessToken === token) renew(); });
@@ -243,6 +245,10 @@ async function bindProtectedPage() {
     document.querySelectorAll<HTMLElement>("[data-if-verified]").forEach((node) => { node.hidden = !session.user.emailVerified; });
     document.querySelectorAll<HTMLElement>("[data-if-unverified]").forEach((node) => { node.hidden = session.user.emailVerified; });
     document.querySelector<HTMLElement>("[data-protected-content]")?.removeAttribute("hidden");
+    if (!document.querySelector("[data-billing]")) try { await bootstrapWorkspace(request, session.accessToken, true); } catch (error) {
+      if (error instanceof ApiError && error.status === 401) throw error;
+      setStatus(document.querySelector("[data-workspace-status]"), error instanceof Error ? error.message : "No se ha podido preparar tu espacio de trabajo.", true);
+    }
     await initializeAdmin((path, signal) => request(`${baseUrl ? "/admin" : "/api/admin"}/${path}`, { token: accessToken, signal, cache: "no-store" }));
     if (document.querySelector("[data-billing]")) void bindBilling(session.accessToken);
   } catch (error) {
@@ -311,13 +317,13 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className = "", 
   return node;
 }
 
-function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: BillingConfiguration, subscription: BillingSubscription, organizationId: string, token: string) {
+function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: BillingConfiguration, subscription: BillingSubscription, organizationId: string, token: string, personal = false) {
   summary.replaceChildren(); plans.replaceChildren();
   const renewal = subscription.currentPeriodEnd ? new Intl.DateTimeFormat("es-ES", { dateStyle: "long" }).format(new Date(subscription.currentPeriodEnd)) : null;
   const status = statusLabels[subscription.status] ?? { label: subscription.status, tone: "" };
   const header = element("div", "panel-header");
   const heading = element("div");
-  heading.append(element("h2", "", `Plan actual: ${subscription.plan}`), element("p", "", (renewal ? `${subscription.cancelAtPeriodEnd ? "Se cancela" : "Se renueva"} el ${renewal}` : "Sin fecha de renovación") + ` · ${subscription.seats} plaza${subscription.seats === 1 ? "" : "s"}`));
+  heading.append(element("h2", "", `Plan actual: ${subscription.plan}`), element("p", "", (renewal ? `${subscription.cancelAtPeriodEnd ? "Se cancela" : "Se renueva"} el ${renewal}` : "Sin fecha de renovación") + (personal ? "" : ` · ${subscription.seats} plaza${subscription.seats === 1 ? "" : "s"}`)));
   header.append(heading, element("span", `badge ${status.tone}`, status.label));
   const rows = element("dl", "rows");
   const management = element("div");
@@ -348,11 +354,13 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
 }
 
 async function startRedirect(kind: "checkout" | "portal", organizationId: string, token: string, button: HTMLButtonElement, priceId?: string) {
+  const current = billingGeneration;
   const originalText = button.textContent;
   button.textContent = kind === "portal" ? "Abriendo…" : "Redirigiendo…";
   button.disabled = true; billingStatus("");
   try {
     const result = await billingRequest<BillingRedirect>(organizationId, kind, token, kind === "checkout" ? { priceId, quantity: 1 } : undefined);
+    if (current !== billingGeneration || !accessToken || document.querySelector<HTMLSelectElement>("[data-billing-organization] select")?.value !== organizationId) return;
     if (result.url) { window.location.assign(result.url); return; }
     billingStatus(result.reason ?? "La facturación de Stripe todavía no está configurada.", true);
   } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se ha podido abrir Stripe.", true); }
@@ -366,6 +374,8 @@ function bindCreateOrganization(token: string) {
   const button = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
   if (!panel || !form || !input || !button) return;
   panel.hidden = false;
+  if (form.dataset.bound) return;
+  form.dataset.bound = "true";
   const slugify = () => input.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 160);
   input.addEventListener("input", () => { panel.querySelector<HTMLElement>("[data-organization-slug]")!.textContent = slugify() ? `Identificador: ${slugify()}` : ""; });
   form.addEventListener("submit", async (event) => {
@@ -387,34 +397,57 @@ function bindCreateOrganization(token: string) {
   });
 }
 
+let billingGeneration = 0;
+
 async function bindBilling(token: string) {
+  const current = ++billingGeneration;
   const organizationControl = document.querySelector<HTMLElement>("[data-billing-organization]");
   const select = organizationControl?.querySelector<HTMLSelectElement>("select");
   const summary = document.querySelector<HTMLElement>("[data-billing-summary]");
   const plans = document.querySelector<HTMLElement>("[data-billing-plans]");
   if (!select || !summary || !plans) return;
   try {
-    const organizations = await request<Organization[]>("/organizations", { token });
-    if (!organizations.length) { bindCreateOrganization(token); return; }
-    organizations.forEach((organization) => { const option = document.createElement("option"); option.value = organization.id; option.textContent = organization.name; select.append(option); });
+    const context = await bootstrapWorkspace(request, accessToken ?? token, true);
+    if (current !== billingGeneration || !accessToken) return;
+    const organizations = [...(context.personalWorkspace ? [context.personalWorkspace] : []), ...context.teams];
+    select.replaceChildren();
+    const personal = context.personalWorkspace;
+    const create = document.querySelector<HTMLButtonElement>("[data-create-team]");
+    const createPanel = document.querySelector<HTMLElement>("[data-create-organization]");
+    if (createPanel) createPanel.hidden = true;
+    if (create) {
+      create.hidden = context.model === "individual" || organizations.length === 0;
+      create.onclick = () => bindCreateOrganization(accessToken ?? token);
+    }
+    const note = document.querySelector<HTMLElement>("[data-mixed-billing-note]");
+    if (note) note.hidden = context.model !== "mixed";
+    if (!context.billingSupported) { billingStatus("Este backend no incluye facturación."); return; }
+    if (!organizations.length) { if (context.model !== "individual") bindCreateOrganization(token); return; }
+    organizations.forEach((organization) => { const option = document.createElement("option"); option.value = organization.id; option.textContent = organization.id === personal?.id ? "Personal" : organization.name; select.append(option); });
     const requestedId = new URLSearchParams(window.location.search).get("organizationId");
     if (requestedId && organizations.some((organization) => organization.id === requestedId)) select.value = requestedId;
-    if (organizations.length > 1 && organizationControl) organizationControl.hidden = false;
+    if (organizationControl) organizationControl.hidden = context.model === "individual" || organizations.length < 2;
+    let requestGeneration = 0;
     const load = async () => {
+      const generation = ++requestGeneration;
+      const selectedId = select.value;
+      const label = document.querySelector<HTMLElement>("[data-billing-description]");
+      if (label) label.textContent = selectedId === personal?.id ? "Gestiona tu plan personal y tu suscripción." : "Elige un plan para tu equipo.";
       summary.hidden = true; plans.replaceChildren();
       document.querySelector<HTMLElement>("[data-billing-unconfigured]")!.hidden = true;
       document.querySelector<HTMLElement>("[data-billing-plans-heading]")!.hidden = true;
       billingStatus("Cargando facturación…");
       try {
         const [configuration, subscription] = await Promise.all([
-          billingRequest<BillingConfiguration>(select.value, "configuration", token),
-          billingRequest<BillingSubscription>(select.value, "subscription", token),
+          billingRequest<BillingConfiguration>(selectedId, "configuration", accessToken ?? token),
+          billingRequest<BillingSubscription>(selectedId, "subscription", accessToken ?? token),
         ]);
-        renderBilling(summary, plans, configuration, subscription, select.value, token);
+        if (current !== billingGeneration || generation !== requestGeneration || !accessToken) return;
+        renderBilling(summary, plans, configuration, subscription, selectedId, accessToken, selectedId === personal?.id);
         if (configuration.configured) billingStatus("");
-      } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se ha podido cargar la facturación.", true); }
+      } catch (cause) { if (current === billingGeneration && generation === requestGeneration && accessToken) billingStatus(cause instanceof Error ? cause.message : "No se ha podido cargar la facturación.", true); }
     };
-    select.addEventListener("change", () => void load());
+    select.onchange = () => void load();
     await load();
   } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se han podido cargar las organizaciones.", true); }
 }

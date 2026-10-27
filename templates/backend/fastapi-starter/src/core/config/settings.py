@@ -13,6 +13,7 @@ class Settings:
     # APP_ENV is the cross-backend name. NODE_ENV remains an alias so existing
     # deployment manifests keep working while they are migrated.
     environment: str = os.getenv("APP_ENV", os.getenv("NODE_ENV", "development")).strip().lower()
+    product_model: str = os.getenv("PRODUCT_MODEL", "teams").strip().lower()
     database_url: str = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/app")
     database_ssl: bool = _bool("DATABASE_SSL")
     secret_key: str = os.getenv("SECRET_KEY", "development-only-secret-not-for-production-32b")
@@ -70,6 +71,8 @@ class Settings:
         return bool(self.email_delivery_url and self.email_delivery_token)
 
     def validate(self) -> None:
+        if self.product_model not in {"individual", "teams", "mixed"}:
+            raise RuntimeError("PRODUCT_MODEL must be individual, teams or mixed.")
         validate_extension_settings()
         database_scheme = urlparse(self.database_url).scheme
         if database_scheme != "postgresql+asyncpg":

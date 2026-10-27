@@ -51,6 +51,7 @@ export const API_ERROR_MESSAGES: Record<string, string> = {
   OWNER_REQUIRED: "Transfiere la propiedad antes de eliminar al propietario.",
   OWNERSHIP_TARGET_NOT_ELIGIBLE: "La propiedad solo puede transferirse a otro miembro activo.",
   LAST_ACTIVE_OWNER: "Transfiere la propiedad antes de desactivar esta cuenta.",
+  ACTIVE_PERSONAL_SUBSCRIPTION: "Cancela la renovación de tu suscripción personal en Facturación antes de desactivar la cuenta.",
   BILLING_NOT_CONFIGURED: "La facturación todavía no está configurada.",
   BILLING_PRICE_NOT_AVAILABLE: "El plan seleccionado ya no está disponible.",
   BILLING_CUSTOMER_NOT_FOUND: "Contrata primero un plan para acceder al portal de facturación.",
@@ -144,6 +145,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 export type Authentication = { accessToken: string; user: User };
 export type OAuthProvider = "google" | "github";
 export type Organization = { id: string; name: string; slug: string };
+export type WorkspaceContext = { model: "individual" | "teams" | "mixed"; personalWorkspace: Organization | null; teams: Organization[]; billingSupported: boolean };
 export type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; price: import("./billing-price").BillingPrice | null };
 export type BillingConfiguration = { configured: boolean; provider: "stripe"; usageMeterConfigured: boolean; plans: BillingPlan[] };
 export type BillingSubscription = {
@@ -242,7 +244,18 @@ export function accessTokenLifetime(accessToken: string): number | null {
   } catch { return null; }
 }
 
+async function workspaceContext(accessToken: string): Promise<WorkspaceContext> {
+  try {
+    return await request<WorkspaceContext>("/workspaces/bootstrap", { method: "POST", accessToken, cache: "no-store" });
+  } catch (error) {
+    // Older generated backends retain the original team-only contract.
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+    return { model: "teams", personalWorkspace: null, teams: await request<Organization[]>("/organizations", { accessToken, cache: "no-store" }), billingSupported: true };
+  }
+}
+
 export const api = {
+  workspaceContext,
   adminAccess: (accessToken: string, signal?: AbortSignal) => adminRequest<AdminAccess>("access", accessToken, signal),
   adminOverview: (days: number, accessToken: string, signal?: AbortSignal) => adminRequest<AdminOverview>(`overview?days=${days}`, accessToken, signal),
   adminUsers: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminUser>>(`users?${adminQuery(query)}`, accessToken, signal),

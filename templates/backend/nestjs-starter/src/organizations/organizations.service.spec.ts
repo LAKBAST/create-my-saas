@@ -11,7 +11,7 @@ describe('OrganizationsService', () => {
   const user = { id: 'user-1', email: 'owner@example.com' } as User;
 
   function setup() {
-    const organizations = { create: jest.fn((values) => values), save: jest.fn(async (values) => ({ id: 'organization-1', ...values })) };
+    const organizations = { create: jest.fn((values) => values), save: jest.fn(async (values) => ({ id: 'organization-1', ...values })), findOneBy: jest.fn(async () => ({ id: 'organization-1', personalOwnerUserId: null })) };
     const memberships = { create: jest.fn((values) => values), save: jest.fn(async (values) => ({ id: 'membership-1', ...values })), findOneBy: jest.fn() };
     const invitations = { create: jest.fn((values) => values), save: jest.fn(async (values) => ({ id: 'invitation-1', ...values })), findOneBy: jest.fn(), update: jest.fn(), remove: jest.fn(), createQueryBuilder: jest.fn() };
     const repositories = new Map<unknown, any>([[Organization, organizations], [Membership, memberships], [Invitation, invitations]]);

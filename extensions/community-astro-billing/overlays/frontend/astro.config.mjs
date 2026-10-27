@@ -37,6 +37,7 @@ export default defineConfig((() => {
           '/api/admin': { target: apiTarget, rewrite: (path) => path.replace(/^\/api\/admin/, '/admin') },
           '/auth': apiTarget,
           '/users': apiTarget,
+          '/workspaces': apiTarget,
           '/organizations': apiTarget,
           '/billing/organizations': apiTarget,
         },

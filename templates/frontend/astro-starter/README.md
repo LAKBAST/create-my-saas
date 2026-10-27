@@ -41,6 +41,30 @@ ruta del mismo origen que conserve el alcance de las cookies `HttpOnly` y CSRF.
 
 ## Límites deliberados
 
+## Modelo de producto
+
+Tras restaurar la sesión, Astro llama a `POST /workspaces/bootstrap` usando el
+token y CSRF de esa sesión, sin renovar otra vez la cookie. El backend decide
+`PRODUCT_MODEL`: `individual`, `teams` o `mixed`. Astro ligero también inicializa
+el espacio personal cuando corresponde; con Fastify no se añaden organizaciones
+ni facturación que ese backend no ofrece.
+
+Con la extensión `billing`, el modo individual abre la suscripción personal sin
+pedir una organización. El mixto permite seleccionar Personal o un equipo y
+añadir equipos nuevos. Cada espacio tiene su propia suscripción y cambiar de
+selección no transfiere el plan. El modo equipos conserva el flujo anterior.
+Los backends anteriores sin el endpoint siguen usando su contrato de equipos.
+
+Las pruebas opcionales se ejecutan desde la raíz con
+`node node_modules/@playwright/test/cli.js test --config templates/frontend/astro-starter/playwright.workspaces.config.mjs`.
+Para probar un proyecto generado con billing, configura
+`ASTRO_WORKSPACE_TEST_ROOT` con su carpeta de frontend y
+`WORKSPACE_TEST_BILLING=true`. Un proyecto independiente necesita instalar
+`@playwright/test` para ejecutar esta suite. Las respuestas controladas prueban
+la interfaz; la suite también comprueba el proxy HTTP real de inicialización.
+
+## Límites deliberados
+
 Requiere un backend que implemente el contrato común de autenticación, CSRF y OAuth PKCE. Fastify, FastAPI y NestJS cumplen ese contrato. Configura las credenciales y URLs de callback de Google/GitHub en ese backend; el navegador nunca recibe secretos OAuth ni el refresh token.
 
 Para añadir organizaciones y Stripe Billing, genera Astro con `--feature billing`. Esa característica sólo es compatible con FastAPI y NestJS; sustituye esta versión ligera por las rutas y proxies de facturación.
