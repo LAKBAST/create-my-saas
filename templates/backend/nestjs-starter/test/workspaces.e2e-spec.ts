@@ -26,6 +26,13 @@ describe('Product models and private personal workspaces', () => {
       .overrideProvider(SecureEmailService).useValue({ send: async () => undefined }).compile();
     app = module.createNestApplication(); configureApplication(app); await app.init();
     db = app.get(DataSource); config = app.get(ConfigService);
+    // sql.js creates a fresh in-memory database per app; PostgreSQL persists
+    // across cases and suites, so reset the dedicated e2e database explicitly.
+    if (db.options.type === 'postgres') {
+      await db.query('TRUNCATE TABLE "billing_webhook_events", "users" RESTART IDENTITY CASCADE');
+    } else {
+      await db.synchronize(true);
+    }
   });
   afterEach(async () => { await app?.close(); });
   async function register(email = 'person@example.com') {
