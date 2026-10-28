@@ -263,8 +263,8 @@ tener una aplicación lista para desarrollar:
 - Contrato API tipado: los tipos públicos compartidos entre los tres clientes
   frontend y las operaciones por capacidad están documentados en
   [el contrato API](docs/api-contract.md).
-- Presets de despliegue: facilitarán configurar proveedores y entornos de
-  producción comunes.
+- Presets de despliegue: el proyecto generado incluye un preset para Coolify
+  junto a la receta Compose genérica; consulta la [guía](docs/deployment.md).
 - Experiencia de actualización: leerá `.create-my-saas.json` para informar de
   versiones disponibles y pasos de migración compatibles.
 
