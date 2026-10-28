@@ -57,11 +57,9 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ap
 Abre [http://localhost:3000](http://localhost:3000). Ya puedes registrarte,
 crear una organización e invitar a otros usuarios.
 
-:::note
-En desarrollo, los correos transaccionales se omiten si no configuras un
-adaptador de entrega. Configúralo en `backend/.env` para probar la
-verificación de email y la recuperación de contraseña.
-:::
+> **Nota.** En desarrollo, los correos transaccionales se omiten si no
+> configuras un adaptador de entrega. Configúralo en `backend/.env` para probar
+> la verificación de email y la recuperación de contraseña.
 
 ## 5. Carga datos de demostración (opcional)
 

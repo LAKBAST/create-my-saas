@@ -1,0 +1,135 @@
+---
+import Base from '../layouts/Base.astro';
+import SplitText from '../components/SplitText.astro';
+import { site, url } from '../data/site';
+
+const features = [
+	{ title: 'Autenticación', text: 'Sesiones seguras de navegador con CSRF, verificación de email, recuperación de cuenta y OAuth con Google y GitHub.' },
+	{ title: 'Equipos y permisos', text: 'Organizaciones, invitaciones, roles y RBAC, con audit log. Producto individual, de equipos o mixto.' },
+	{ title: 'Billing', text: 'Stripe Checkout, Portal y webhooks, deshabilitados de forma segura hasta que configuras tus claves.' },
+	{ title: 'Administración', text: 'Panel global en /admin con estadísticas y búsqueda de usuarios, organizaciones y suscripciones.' },
+	{ title: 'Despliegue', text: 'PostgreSQL con migraciones, Redis para límites de peticiones y una receta con Docker Compose lista para producción.' },
+	{ title: 'Actualizaciones', text: 'upgrade fusiona las mejoras de cada nueva versión con tus cambios, archivo a archivo, como un merge de git.' },
+];
+
+const backends = [
+	{ id: 'fastapi', name: 'FastAPI', meta: 'Backend · Python', text: 'API completa: usuarios, organizaciones, RBAC, audit log, OAuth y billing.' },
+	{ id: 'nestjs', name: 'NestJS', meta: 'Backend · TypeScript', text: 'API modular con el mismo contrato funcional que FastAPI.' },
+	{ id: 'fastify', name: 'Fastify', meta: 'Backend · TypeScript', text: 'API ligera con sesiones, verificación y OAuth. Producto individual, sin billing.' },
+];
+const frontends = [
+	{ id: 'nextjs', name: 'Next.js', meta: 'Frontend · React', text: 'Dashboard con rutas protegidas y todos los flujos de cuenta.' },
+	{ id: 'react-router', name: 'React Router', meta: 'Frontend · React', text: 'Dashboard en Framework Mode con renderizado en servidor y proxy same-origin.' },
+	{ id: 'astro', name: 'Astro', meta: 'Frontend · Astro', text: 'Sitio de marketing, documentación y blog con zona autenticada ligera.' },
+];
+
+const steps = [
+	{ title: 'Genera', text: 'Elige backend y frontend. La CLI comprueba que sean compatibles.', code: 'npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs' },
+	{ title: 'Configura', text: 'Crea los .env locales con secretos de desarrollo y URLs correctas.', code: 'npx @soymanolo/create-my-saas@latest setup' },
+	{ title: 'Arranca', text: 'PostgreSQL, Redis, migraciones, API y frontend con Docker Compose.', code: 'docker compose … up --build api frontend' },
+	{ title: 'Construye', text: 'Carga datos de demo y empieza a desarrollar tu producto.', code: 'npx @soymanolo/create-my-saas@latest seed' },
+];
+---
+
+<Base title={site.name}>
+	<section class="shell hero">
+		<span class="eyebrow">CLI open source · por LAKBAST</span>
+		<div class="hero-grid">
+			<h1><SplitText text="Tu próximo SaaS," /> <em><SplitText text="sin empezar de cero." start={3} /></em></h1>
+			<div class="hero-side">
+				<p class="lead">Autenticación, equipos, billing y panel de administración ya resueltos. Eliges backend y frontend; la CLI compone el resto.</p>
+				<div class="hero-actions">
+					<a class="button" href={url('empezar/quick-start/')}>Empezar en 5 minutos <span aria-hidden="true">→</span></a>
+					<a class="arrow-link" href={site.repo}>Ver en GitHub <span aria-hidden="true">↗</span></a>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<div class="shell hero-command">
+		<div class="command">
+			<code><b aria-hidden="true">$</b>{site.command}</code>
+			<button class="copy-button" type="button" data-copy={site.command}>Copiar</button>
+		</div>
+	</div>
+
+	<section class="shell section" style="margin-top: clamp(64px, 7vw, 96px)">
+		<div class="section-head">
+			<span class="eyebrow">01 / Qué incluye</span>
+			<div>
+				<h2>Lo que cada SaaS necesita y nadie quiere reconstruir.</h2>
+				<p class="section-intro">Cada plantilla es un proyecto independiente y sustituible. El código generado es tuyo, sin dependencias de la CLI.</p>
+			</div>
+		</div>
+		<div class="feature-list">
+			{features.map((feature, index) => (
+				<article class="feature-row">
+					<span class="feature-num">{String(index + 1).padStart(2, '0')}</span>
+					<h3>{feature.title}</h3>
+					<p>{feature.text}</p>
+				</article>
+			))}
+		</div>
+	</section>
+
+	<div class="dark-panel">
+		<section class="shell section">
+			<div class="section-head">
+				<span class="eyebrow">02 / Elige tu stack</span>
+				<div>
+					<h2>Tres backends. Tres frontends.</h2>
+					<p class="section-intro">La CLI compara las capacidades que declara cada plantilla antes de escribir un solo archivo, y solo combina lo que funciona.</p>
+				</div>
+			</div>
+			<p class="stack-label">Backend</p>
+			<div class="stack-grid">
+				{backends.map((item) => (
+					<a class="stack-card" href={url('guias/plantillas/')}>
+						<span class="meta">{item.meta}</span>
+						<div><h3>{item.name}</h3><p>{item.text}</p></div>
+						<code>--backend {item.id}</code>
+					</a>
+				))}
+			</div>
+			<p class="stack-label">Frontend</p>
+			<div class="stack-grid">
+				{frontends.map((item) => (
+					<a class="stack-card" href={url('guias/plantillas/')}>
+						<span class="meta">{item.meta}</span>
+						<div><h3>{item.name}</h3><p>{item.text}</p></div>
+						<code>--frontend {item.id}</code>
+					</a>
+				))}
+			</div>
+			<p class="note">Next.js y React Router requieren FastAPI o NestJS. Astro funciona con los tres backends.</p>
+		</section>
+	</div>
+
+	<section class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">03 / Cómo funciona</span>
+			<div>
+				<h2>De la terminal a tu producto en cuatro pasos.</h2>
+			</div>
+		</div>
+		<ol class="step-grid">
+			{steps.map((step, index) => (
+				<li class="step">
+					<span class="feature-num">{String(index + 1).padStart(2, '0')}</span>
+					<h3>{step.title}</h3>
+					<p>{step.text}</p>
+					<code>{step.code}</code>
+				</li>
+			))}
+		</ol>
+	</section>
+
+	<section class="shell section cta">
+		<span class="eyebrow">Empieza hoy</span>
+		<h2>Dedica tu tiempo a lo que hace único a tu producto.</h2>
+		<div class="hero-actions">
+			<a class="button" href={url('empezar/quick-start/')}>Ir al quick start <span aria-hidden="true">→</span></a>
+			<a class="arrow-link" href={url('empezar/introduccion/')}>Leer la documentación <span aria-hidden="true">→</span></a>
+		</div>
+	</section>
+</Base>
