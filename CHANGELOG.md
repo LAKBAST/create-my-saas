@@ -5,6 +5,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- En móvil, las tablas del panel global de administración se desplazan dentro de
+  su contenedor en lugar de partir los correos a mitad de palabra (Next.js,
+  React Router y Astro).
+
 ## [1.8.0] - 2026-10-28
 
 ### Added
