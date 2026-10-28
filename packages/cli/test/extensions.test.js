@@ -307,3 +307,19 @@ test('rejects missing explicit dependencies and colliding extension files before
   assert.throws(() => generateProject({ destination: collisionDestination, backendId: 'test', frontendId: 'test', featureIds: ['community:one', 'community:two'], templatesDirectory: templates, extensionsDirectories: [extensions] }), /both write/);
   assert.equal(existsSync(collisionDestination), false);
 });
+
+test('lets an extension add sections to the Next.js administration panel through its extension point', (t) => {
+  const root = workspace();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const extensions = join(root, 'extensions');
+  const navigation = '"use client";\n\nexport function AdminExtensionNavigation() {\n  return <nav aria-label="Extra">Extra</nav>;\n}\n';
+  addExtension(extensions, 'admin-sections', extensionManifest('community:admin-sections', {
+    requires: { cli: `^${packageVersion}`, capabilities: [], extensions: [] },
+    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.1.0' }, frontend: { id: 'frontend:nextjs', version: '^0.1.0' } }],
+    targets: [{ template: 'frontend:nextjs', overlay: 'frontend', replace: ['app/admin/admin-extensions.tsx'], environment: [], migrations: [] }],
+  }), { 'frontend/app/admin/admin-extensions.tsx': navigation });
+  const destination = join(root, 'generated');
+  generateProject({ destination, backendId: 'fastapi', frontendId: 'nextjs', featureIds: ['community:admin-sections'], extensionsDirectories: [extensions] });
+  assert.match(readFileSync(join(destination, 'frontend', 'app', 'admin', 'page.tsx'), 'utf8'), /<AdminExtensionNavigation \/>/);
+  assert.equal(readFileSync(join(destination, 'frontend', 'app', 'admin', 'admin-extensions.tsx'), 'utf8'), navigation);
+});

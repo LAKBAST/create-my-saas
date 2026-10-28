@@ -13,6 +13,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   adaptación del registro y las interfaces de Next.js, React Router y Astro.
 - Panel global de administración en los tres backends y frontends, con permisos
   independientes de los roles de organización y recursos según cada backend.
+- Punto de extensión `app/admin/admin-extensions.tsx` en Next.js para que una
+  extensión añada sus secciones al panel global de administración.
 
 ### Changed
 
