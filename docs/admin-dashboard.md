@@ -53,6 +53,15 @@ Astro usa `PUBLIC_API_BASE_URL` cuando está configurada y el alias `/api/admin/
 en el mismo origen en caso contrario, tanto con billing como sin esa extensión.
 Un frontend generado sin backend no tiene datos administrativos que consultar.
 
+## Secciones de extensiones (Next.js)
+
+`app/admin/admin-extensions.tsx` es el punto de extensión del panel en Next.js.
+Community exporta `AdminExtensionNavigation`, que no muestra nada, y la página lo
+renderiza bajo la cabecera. Una extensión que añade sus propias secciones de
+administración declara ese archivo en el `replace` de su target
+`frontend:nextjs` y devuelve los enlaces a sus páginas. Las páginas de la
+extensión deben comprobar los permisos en el backend; el enlace no concede acceso.
+
 ## Consultas y estadísticas
 
 | Vista | Datos |

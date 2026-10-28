@@ -8,6 +8,7 @@ import { useAdminAccess } from "../components/admin-access";
 import { ApiError, api, type AdminOverview, type AdminPage, type AdminQuery, type AdminUser, type AdminOrganization, type AdminSubscription } from "../lib/api";
 import product from "../product.module.css";
 import styles from "./page.module.css";
+import { AdminExtensionNavigation } from "./admin-extensions";
 
 const formatNumber = (value: number) => new Intl.NumberFormat("es-ES").format(value);
 const formatDate = (value: string | null) => value ? new Intl.DateTimeFormat("es-ES", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value)) : "—";
@@ -137,6 +138,7 @@ function Administration() {
 
   return <div className={product.content}>
     <header className={product.pageHeader}><div><p className={product.eyebrow}>Administración</p><h1>Administración global</h1><p className={product.lead}>Usuarios, organizaciones y suscripciones de toda la plataforma.</p></div><button type="button" className="btn btn-secondary" onClick={() => setRefresh((value) => value + 1)}>Actualizar</button></header>
+    <AdminExtensionNavigation />
     <div className={styles.summaryHeader}><h2>Resumen</h2><label className="field">Periodo de altas<select value={days} onChange={(event) => setDays(Number(event.target.value))}><option value={7}>Últimos 7 días</option><option value={30}>Últimos 30 días</option><option value={90}>Últimos 90 días</option><option value={365}>Últimos 365 días</option></select></label></div>
     <Overview days={days} refresh={refresh} onForbidden={revoke} />
     <p className={styles.note}>Las altas corresponden al periodo seleccionado; los totales y las suscripciones reflejan el estado actual. Las cuentas habilitadas no miden actividad de uso ni las suscripciones equivalen a ingresos cobrados.</p>
