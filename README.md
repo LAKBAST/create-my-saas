@@ -260,8 +260,9 @@ tener una aplicación lista para desarrollar:
   configuración local. Su disponibilidad en npm depende de la próxima release.
 - Datos demo y `seed` están implementados para crear dos usuarios de prueba,
   un espacio personal cuando aplica y un equipo demo en los modelos con equipos.
-- Contrato API tipado: reducirá divergencias entre los clientes frontend y los
-  backends generados.
+- Contrato API tipado: los tipos públicos compartidos entre los tres clientes
+  frontend y las operaciones por capacidad están documentados en
+  [el contrato API](docs/api-contract.md).
 - Presets de despliegue: facilitarán configurar proveedores y entornos de
   producción comunes.
 - Experiencia de actualización: leerá `.create-my-saas.json` para informar de
