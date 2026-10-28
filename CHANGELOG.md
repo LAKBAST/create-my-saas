@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-10-29
+
 ### Fixed
 
 - En móvil, las tablas del panel global de administración se desplazan dentro de
