@@ -54,6 +54,8 @@ for (const file of files) {
   if (template) { changed[template[1]].add(template[2]); continue; }
   const extension = /^extensions\/([^/]+)\//.exec(file);
   if (extension) { changed.extension.add(extension[1]); continue; }
+  if (file === 'templates/shared/api-contract.ts') { frontends.forEach((name) => changed.frontend.add(name)); continue; }
+  if (file === 'packages/cli/test/api-contract.test.js') continue;
   // CLI setup/doctor/seed have focused unit tests in the always-on generator job.
   if (['packages/cli/src/cli.js', 'packages/cli/src/local-setup.js', 'packages/cli/src/demo-seed.js', 'packages/cli/test/local-setup.test.js', 'packages/cli/test/demo-seed.test.js', 'packages/cli/test/ci-selection.test.js'].includes(file)) continue;
   // The model contract has its own selected-combination workflow.

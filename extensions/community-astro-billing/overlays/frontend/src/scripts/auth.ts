@@ -1,5 +1,4 @@
-type User = { id: string; name: string; email: string; emailVerified: boolean; isActive: boolean };
-type Session = { accessToken: string; user: User };
+import type { User, UserWire, Authentication as Session, AuthenticationWire, Organization, BillingConfiguration, BillingSubscription, BillingRedirect } from './api-contract';
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
 import { initializeAdmin, clearAdminSession, adminUnavailable } from "./admin";
 import { bootstrapWorkspace } from "./workspaces";
@@ -94,7 +93,7 @@ function cookie(name: string) {
   return document.cookie.split(";").map((value) => value.trim().split("=", 2)).find(([key]) => key === name)?.[1];
 }
 
-function user(value: Record<string, unknown>): User {
+function user(value: UserWire): User {
   return { id: String(value.id), name: String(value.name), email: String(value.email), emailVerified: Boolean(value.emailVerified ?? value.email_verified), isActive: Boolean(value.isActive ?? value.is_active) };
 }
 
@@ -125,15 +124,15 @@ let refreshInFlight: Promise<Session> | null = null;
 let renewalTimer: ReturnType<typeof setTimeout> | undefined;
 
 function restoreSession(): Promise<Session> {
-  const refresh = () => request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
-  const run = (): Promise<Record<string, unknown>> => navigator.locks
+  const refresh = () => request<AuthenticationWire>("/auth/refresh", { method: "POST" });
+  const run = (): Promise<AuthenticationWire> => navigator.locks
     // LockManager types wrap the callback's promise, but it resolves to its value.
-    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<Record<string, unknown>>
+    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<AuthenticationWire>
     : refresh();
   refreshInFlight ??= run().then((result) => {
     accessToken = String(result.accessToken ?? result.access_token);
     scheduleRenewal(accessToken);
-    const session = { accessToken, user: user(result.user as Record<string, unknown>) } satisfies Session;
+    const session = { accessToken, user: user(result.user) } satisfies Session;
     identifyAnalyticsUser(session.user.id);
     return session;
   }).finally(() => { refreshInFlight = null; });
@@ -203,7 +202,7 @@ function bindForms() {
       const password = String(values.get("password") ?? "");
       if (["register", "reset"].includes(kind ?? "") && (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password))) throw new Error("La contraseña debe tener al menos 8 caracteres, una letra y un número.");
       if (kind === "login") {
-        const result = await request<Record<string, unknown>>("/auth/login", { method: "POST", body: { email: values.get("email"), password: values.get("password") } });
+        const result = await request<AuthenticationWire>("/auth/login", { method: "POST", body: { email: values.get("email"), password: values.get("password") } });
         accessToken = String(result.accessToken ?? result.access_token);
         window.location.assign("/app/"); return;
       }
@@ -258,13 +257,7 @@ async function bindProtectedPage() {
   }
 }
 
-type Organization = { id: string; name: string; slug: string };
-import { formatBillingPrice, type BillingPrice } from "./billing-price";
-
-type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; price: BillingPrice | null };
-type BillingConfiguration = { configured: boolean; plans: BillingPlan[] };
-type BillingSubscription = { plan: string; status: string; seats: number; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean };
-type BillingRedirect = { url: string | null; reason?: string };
+import { formatBillingPrice } from "./billing-price";
 
 // NestJS serves billing under /organizations/{id}/billing and FastAPI under
 // /billing/organizations/{id}. The first request finds out which one answers

@@ -1,13 +1,6 @@
-export type User = {
-  id: string;
-  name: string;
-  email: string;
-  emailVerified: boolean;
-  isActive: boolean;
-  avatarUrl?: string | null;
-};
+import type { User, UserWire, Authentication, AuthenticationWire, RegisterInput, LoginInput, OAuthProvider, Organization, WorkspaceContext, BillingConfiguration, BillingSubscription, BillingRedirect, AdminResource, AdminQuery, AdminAccess, AdminOverview, AdminUser, AdminOrganization, AdminSubscription, AdminPage, ApiErrorBody } from './api-contract';
+export type { User, Authentication, OAuthProvider, Organization, WorkspaceContext, BillingPlan, BillingConfiguration, BillingSubscription, BillingRedirect, AdminResource, AdminQuery, AdminAccess, AdminOverview, AdminUser, AdminOrganization, AdminSubscription, AdminPage } from './api-contract';
 
-type ApiErrorBody = { error?: { code?: string } };
 type RequestOptions = Omit<RequestInit, "body"> & { body?: unknown; accessToken?: string | null };
 
 export const API_ERROR_MESSAGES: Record<string, string> = {
@@ -99,7 +92,7 @@ function getCookie(name: string): string | undefined {
     .find(([key]) => key === name)?.[1];
 }
 
-function normaliseUser(input: Record<string, unknown>): User {
+function normaliseUser(input: UserWire): User {
   return {
     id: String(input.id),
     name: String(input.name),
@@ -142,36 +135,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   return responseBody;
 }
 
-export type Authentication = { accessToken: string; user: User };
-export type OAuthProvider = "google" | "github";
-export type Organization = { id: string; name: string; slug: string };
-export type WorkspaceContext = { model: "individual" | "teams" | "mixed"; personalWorkspace: Organization | null; teams: Organization[]; billingSupported: boolean };
-export type BillingPlan = { priceId: string; name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; price: import("./billing-price").BillingPrice | null };
-export type BillingConfiguration = { configured: boolean; provider: "stripe"; usageMeterConfigured: boolean; plans: BillingPlan[] };
-export type BillingSubscription = {
-  organizationId: string; provider: string; plan: string; status: string; seats: number;
-  currentPeriodStart: string | null; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean;
-  entitlements: Array<{ key: string; limit: number | null; enabled: boolean; source: string; expiresAt: string | null }>;
-  usage: Array<{ metric: string; quantity: number }>;
-};
-export type BillingRedirect = { configured: boolean; url: string | null; reason?: string; sessionId?: string | null };
-
-export type AdminResource = "users" | "organizations" | "subscriptions";
-export type AdminAccess = { allowed: boolean; resources?: AdminResource[] };
-export type AdminOverview = {
-  periodDays: number; totalUsers: number; enabledUsers: number; verifiedUsers: number; newUsers: number;
-  totalOrganizations: number | null; newOrganizations: number | null; totalSubscriptions: number | null;
-  subscriptionsByStatus: Array<{ status: string; count: number }>;
-  subscriptionsByPlan: Array<{ plan: string; count: number }>;
-};
-export type AdminUser = { id: string; email: string; name: string; emailVerified: boolean; isActive: boolean; createdAt: string };
-export type AdminOrganization = { id: string; name: string; slug: string; createdAt: string; memberCount: number };
-export type AdminSubscription = {
-  id: string; organizationId: string; organizationName: string; plan: string; status: string; seats: number;
-  provider: string; cancelAtPeriodEnd: boolean; currentPeriodStart: string | null; currentPeriodEnd: string | null;
-};
-export type AdminPage<T> = { items: T[]; total: number; page: number; pageSize: number };
-export type AdminQuery = { page: number; pageSize: number; search: string };
 
 // Keep the page at /admin separate from the API proxy at /api/admin.
 function adminRequest<T>(path: string, accessToken: string, signal?: AbortSignal): Promise<T> {
@@ -182,8 +145,8 @@ function adminQuery(query: AdminQuery): string {
   return new URLSearchParams({ page: String(query.page), pageSize: String(query.pageSize), search: query.search }).toString();
 }
 
-function authentication(input: Record<string, unknown>): Authentication {
-  return { accessToken: String(input.accessToken ?? input.access_token), user: normaliseUser(input.user as Record<string, unknown>) };
+function authentication(input: AuthenticationWire): Authentication {
+  return { accessToken: String(input.accessToken ?? input.access_token), user: normaliseUser(input.user) };
 }
 
 // NestJS serves billing under /organizations/{id}/billing and FastAPI under
@@ -225,10 +188,10 @@ async function billingRequest<T>(organizationId: string, suffix: "subscription" 
 // each refresh sends the cookie the previous one rotated in.
 let refreshInFlight: Promise<Authentication> | null = null;
 function refreshSession(): Promise<Authentication> {
-  const refresh = () => request<Record<string, unknown>>("/auth/refresh", { method: "POST" });
-  const run = (): Promise<Record<string, unknown>> => typeof navigator !== "undefined" && navigator.locks
+  const refresh = () => request<AuthenticationWire>("/auth/refresh", { method: "POST" });
+  const run = (): Promise<AuthenticationWire> => typeof navigator !== "undefined" && navigator.locks
     // LockManager types wrap the callback's promise, but it resolves to its value.
-    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<Record<string, unknown>>
+    ? navigator.locks.request("auth-refresh", refresh) as unknown as Promise<AuthenticationWire>
     : refresh();
   refreshInFlight ??= run()
     .then(authentication)
@@ -262,11 +225,14 @@ export const api = {
   adminOrganizations: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminOrganization>>(`organizations?${adminQuery(query)}`, accessToken, signal),
   adminSubscriptions: (query: AdminQuery, accessToken: string, signal?: AbortSignal) => adminRequest<AdminPage<AdminSubscription>>(`subscriptions?${adminQuery(query)}`, accessToken, signal),
 
-  register: (payload: { name: string; email: string; password: string }) => request<User>("/auth/register", { method: "POST", body: payload }),
-  login: async (payload: { email: string; password: string }) => authentication(await request<Record<string, unknown>>("/auth/login", { method: "POST", body: payload })),
+  register: async (payload: RegisterInput) => {
+    const result = await request<UserWire | { user: UserWire }>("/auth/register", { method: "POST", body: payload });
+    return normaliseUser('user' in result ? result.user : result);
+  },
+  login: async (payload: LoginInput) => authentication(await request<AuthenticationWire>("/auth/login", { method: "POST", body: payload })),
   refresh: refreshSession,
   logout: () => request<void>("/auth/logout", { method: "POST" }),
-  currentUser: async (accessToken: string) => normaliseUser(await request<Record<string, unknown>>("/users/me", { accessToken })),
+  currentUser: async (accessToken: string) => normaliseUser(await request<UserWire>("/users/me", { accessToken })),
   requestPasswordReset: (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } }),
   resetPassword: (token: string, newPassword: string) => request<void>("/auth/password/reset/confirm", { method: "POST", body: { token, newPassword } }),
   changePassword: (currentPassword: string, newPassword: string, accessToken: string) => request<void>("/auth/password/change", { method: "POST", body: { currentPassword, newPassword }, accessToken }),

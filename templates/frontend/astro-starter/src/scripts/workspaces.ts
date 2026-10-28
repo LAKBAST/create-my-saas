@@ -1,10 +1,5 @@
-export type Organization = { id: string; name: string; slug: string };
-export type WorkspaceContext = {
-  model: 'individual' | 'teams' | 'mixed';
-  personalWorkspace: Organization | null;
-  teams: Organization[];
-  billingSupported: boolean;
-};
+import type { Organization, WorkspaceContext } from './api-contract';
+export type { Organization, WorkspaceContext } from './api-contract';
 
 type WorkspaceRequest = (path: string, init: Omit<RequestInit, 'body'> & { body?: unknown; token?: string | null }) => Promise<unknown>;
 

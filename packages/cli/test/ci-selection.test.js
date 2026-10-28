@@ -36,3 +36,14 @@ test('model-contract jobs select only combinations touched by a template', () =>
   const docs = output('.github/scripts/affected-product-models.mjs', ['templates/backend/nestjs-starter/README.md']);
   assert.deepEqual(JSON.parse(docs.matrix), []);
 });
+
+test('shared API types select frontend combinations without backend starter jobs', () => {
+  const result = output('.github/scripts/affected-jobs.mjs', ['templates/shared/api-contract.ts']);
+  assert.equal(result.fastapi, 'false');
+  assert.equal(result.nestjs, 'false');
+  assert.equal(result.fastify, 'false');
+  assert.equal(result.nextjs, 'true');
+  assert.equal(result.astro, 'true');
+  const models = output('.github/scripts/affected-product-models.mjs', ['templates/shared/api-contract.ts']);
+  assert.equal(JSON.parse(models.matrix).length, 4);
+});

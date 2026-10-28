@@ -5,6 +5,7 @@ on:
     paths:
       - 'templates/backend/**'
       - 'templates/frontend/**'
+      - 'templates/shared/api-contract.ts'
       - 'extensions/community-astro-billing/**'
       - 'packages/cli/src/cli.js'
       - 'packages/cli/src/demo-seed.js'
@@ -17,6 +18,7 @@ on:
     paths:
       - 'templates/backend/**'
       - 'templates/frontend/**'
+      - 'templates/shared/api-contract.ts'
       - 'extensions/community-astro-billing/**'
       - 'packages/cli/src/cli.js'
       - 'packages/cli/src/demo-seed.js'
