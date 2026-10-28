@@ -149,7 +149,7 @@ despliegue. Para proyectos solo frontend no hay backend que poblar.
 
 ### Modelo individual, equipos o mixto
 
-La CLI que prepara la versión 1.8.0 admite `--product-model individual|teams|mixed`:
+Desde la versión 1.8.0, la CLI admite `--product-model individual|teams|mixed`:
 
 ```sh
 node packages/cli/bin/create-my-saas.js personal --backend fastapi --frontend nextjs --product-model individual
@@ -242,9 +242,8 @@ flujos que declara ese backend.
 El workflow de modelos ejecuta contratos HTTP para combinaciones seleccionadas
 de `individual` y `mixed`, además de los E2E habituales con `teams` y Fastify
 individual. Filtra los trabajos por backend y frontend modificados para evitar
-ejecutar plantillas ajenas al cambio. La publicación 1.8.0 requiere que esos
-trabajos remotos terminen correctamente; tener el código en este checkout no
-significa que la versión esté publicada en npm.
+ejecutar plantillas ajenas al cambio. Cada publicación requiere que esos
+trabajos remotos terminen correctamente.
 
 La distribución de npm incluye la CLI, las plantillas y la documentación, y
 excluye dependencias y compilados. Las publicaciones se realizan manualmente;
