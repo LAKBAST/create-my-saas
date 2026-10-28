@@ -18,7 +18,7 @@ arranque `v1.0.0`, detallado abajo.
 
    | Campo | Valor |
    | --- | --- |
-   | Organización o usuario | `SoyManoolo` |
+   | Organización o usuario | `LAKBAST` |
    | Repositorio | `create-my-saas` |
    | Workflow | `publish.yml` |
    | Environment | dejar vacío |
