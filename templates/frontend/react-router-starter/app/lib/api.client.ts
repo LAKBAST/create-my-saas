@@ -1,4 +1,4 @@
-import type { User, UserWire, Authentication, AuthenticationWire, RegisterInput, LoginInput, OAuthProvider, Organization, WorkspaceContext, BillingConfiguration, BillingSubscription, BillingRedirect, AdminResource, AdminQuery, AdminAccess, AdminOverview, AdminUser, AdminOrganization, AdminSubscription, AdminPage, ApiErrorBody } from './api-contract';
+import type { User, UserWire, Authentication, AuthenticationWire, RegisterInput, LoginInput, OAuthProvider, Organization, WorkspaceContext, BillingConfiguration, BillingSubscription, BillingRedirect, AdminQuery, AdminAccess, AdminOverview, AdminUser, AdminOrganization, AdminSubscription, AdminPage, ApiErrorBody } from './api-contract';
 export type { User, Authentication, OAuthProvider, Organization, WorkspaceContext, BillingPlan, BillingConfiguration, BillingSubscription, BillingRedirect, AdminResource, AdminQuery, AdminAccess, AdminOverview, AdminUser, AdminOrganization, AdminSubscription, AdminPage } from './api-contract';
 
 type RequestOptions = Omit<RequestInit, "body"> & { body?: unknown; accessToken?: string | null };
