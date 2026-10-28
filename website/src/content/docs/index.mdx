@@ -1,0 +1,40 @@
+---
+title: create-my-saas
+description: Genera un SaaS con backend y frontend versionados desde la terminal.
+template: splash
+hero:
+  tagline: Arranca tu próximo SaaS con autenticación, organizaciones, permisos y billing ya resueltos. Eliges backend y frontend; la CLI compone el resto.
+  actions:
+    - text: Quick start
+      link: empezar/quick-start/
+      icon: right-arrow
+    - text: Ver en GitHub
+      link: https://github.com/LAKBAST/create-my-saas
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```sh
+npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
+```
+
+<CardGrid>
+	<Card title="Elige tu stack" icon="puzzle">
+		Backends FastAPI, NestJS o Fastify y frontends Next.js, React Router o
+		Astro. La CLI solo combina opciones compatibles.
+	</Card>
+	<Card title="Lo común, ya hecho" icon="approve-check">
+		Sesiones seguras de navegador, CSRF, usuarios, organizaciones, RBAC,
+		audit log, OAuth y Stripe Billing.
+	</Card>
+	<Card title="Sin cajas negras" icon="open-book">
+		Cada plantilla es un proyecto independiente y sustituible. El código
+		generado es tuyo.
+	</Card>
+	<Card title="Actualizable" icon="random">
+		`upgrade` fusiona las mejoras de nuevas versiones con tus cambios, como
+		un merge de git.
+	</Card>
+</CardGrid>
