@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-28
+
 ### Added
 
 - Selector `--product-model individual|teams|mixed` para generar SaaS personales,
@@ -15,12 +17,28 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   independientes de los roles de organización y recursos según cada backend.
 - Punto de extensión `app/admin/admin-extensions.tsx` en Next.js para que una
   extensión añada sus secciones al panel global de administración.
+- Cambio de contraseña en Cuenta para Next.js, React Router y Astro sobre el
+  contrato común `POST /auth/password/change`, que Fastify incorpora con límite
+  de peticiones y revocación de sesiones.
+- `create-my-saas setup` genera los `.env` locales con un secreto aleatorio y
+  las URLs del backend elegido, y `create-my-saas doctor` comprueba archivos,
+  configuración y, opcionalmente, la conexión TCP con PostgreSQL y Redis.
+- `create-my-saas seed` crea cuentas y espacios de demostración en proyectos
+  locales de desarrollo, con la contraseña guardada en `.env.demo`.
+- Contrato API tipado común (`api-contract.ts`) para Next.js, React Router y
+  Astro, con una prueba que mantiene idénticas sus copias.
 
 ### Changed
 
-- La CLI prepara la versión 1.8.0 y usa el esquema 4 del manifiesto para conservar
-  el modelo durante upgrades; sigue leyendo los esquemas 2 y 3. FastAPI y NestJS
-  mantienen `teams` como comportamiento predeterminado y Fastify usa `individual`.
+- El manifiesto pasa al esquema 4 para conservar el modelo de producto durante
+  `upgrade`; la CLI sigue leyendo los esquemas 2 y 3. FastAPI y NestJS mantienen
+  `teams` como comportamiento predeterminado y Fastify usa `individual`.
+
+### Fixed
+
+- El lint de los proyectos generados con React Router ya no falla por una
+  importación sin uso en `api.client.ts`.
+- Los usuarios de demostración usan correos que FastAPI acepta.
 
 ## [1.7.1] - 2026-10-25
 

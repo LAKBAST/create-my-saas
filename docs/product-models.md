@@ -7,7 +7,7 @@ que corresponden a Pro.
 
 ## Selección
 
-Desde el checkout de la CLI que prepara la versión 1.8.0:
+Con la CLI 1.8.0 o posterior (aquí, desde el checkout del repositorio):
 
 ```sh
 node packages/cli/bin/create-my-saas.js personal --backend fastapi --frontend nextjs --product-model individual
