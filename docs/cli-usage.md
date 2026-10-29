@@ -113,3 +113,7 @@ Para actualizar una aplicación existente, consulta [la guía de actualización]
 - [FastAPI](../templates/backend/fastapi-starter/README.md), [NestJS](../templates/backend/nestjs-starter/README.md) y [Fastify](../templates/backend/fastify-starter/README.md).
 - [Next.js](../templates/frontend/nextjs-starter/README.md), [React Router](../templates/frontend/react-router-starter/README.md) y [Astro](../templates/frontend/astro-starter/README.md).
 - [Contrato operativo común de los backends](../templates/backend/backend-infrastructure-contract.md).
+
+## Portada y planes
+
+Next.js y React Router muestran una portada pública; Astro ofrece una página pública de precios. Con FastAPI o NestJS, configura `STRIPE_PRICE_PLANS` con `name`, `entitlements`, `labels` y, opcionalmente, `priceLabel` para mostrar el escaparate sin consultar Stripe. La compra requiere sesión y confirmación en Facturación. Para contratar desde Astro añade `--feature billing`. Fastify no ofrece planes de facturación.
