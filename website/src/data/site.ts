@@ -36,8 +36,9 @@ export const docsNav = [
 	},
 	{
 		label: 'Contribuir',
-		items: ['referencia/development', 'referencia/project', 'referencia/releasing'],
+		items: ['referencia/contributing', 'referencia/development', 'referencia/project'],
 	},
+	{ label: 'Mantenimiento', items: ['referencia/releasing'] },
 ];
 
 /** Ruta con el prefijo de despliegue (BASE_PATH). */

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentación
+    url: https://createmysaas.dev/
+    about: Instalación, quick start, guías y referencia de la CLI.
+  - name: Resolución de problemas
+    url: https://createmysaas.dev/referencia/troubleshooting/
+    about: Errores habituales de la CLI, doctor y los backends, con su solución.

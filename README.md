@@ -58,6 +58,12 @@ Estas comprobaciones validan los manifiestos y la CLI. Consulta
 [la guía de desarrollo](docs/development.md) para las pruebas de cada starter,
 la matriz E2E y los requisitos de publicación.
 
+## Contribuir
+
+Las contribuciones llegan como pull requests contra `main`. Antes de abrir uno,
+lee [la guía de contribución](CONTRIBUTING.md): qué encaja, qué comprobaciones
+pasar y cómo escribir los commits.
+
 ## Licencia
 
 La CLI y las plantillas se distribuyen bajo [licencia MIT](LICENSE). Puedes usar,
