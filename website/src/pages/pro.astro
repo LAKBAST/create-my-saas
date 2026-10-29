@@ -1,0 +1,147 @@
+---
+import Base from '../layouts/Base.astro';
+import SplitText from '../components/SplitText.astro';
+import { site, url } from '../data/site';
+
+// Módulos de create-my-saas Pro y combinaciones de plantillas que admite cada uno.
+const modules = [
+	{ name: 'Admin dashboard', text: 'Consola de operación sobre el panel de administración de Community: roles de staff, suspensión de usuarios, sesiones, facturación de solo lectura y auditoría.', stacks: ['FastAPI + Next.js'] },
+	{ name: 'API keys', text: 'Claves API por organización con permisos read, write y delete, rotación y registro de auditoría.', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'Background jobs', text: 'Tareas en segundo plano sobre Redis con reintentos, programación, tareas periódicas y un worker independiente.', stacks: ['FastAPI', 'NestJS', 'Fastify'] },
+	{ name: 'Billing avanzado', text: 'Límites por plan, cuotas aplicadas, medición de uso y cobro por uso con Stripe sobre la facturación de Community.', stacks: ['FastAPI + Next.js'] },
+	{ name: 'Commerce', text: 'Varios productos con suscripción propia, pedidos y entrega duradera de accesos.', stacks: ['FastAPI + Next.js'] },
+	{ name: 'Object storage', text: 'Archivos por organización en almacenamiento compatible con S3, con subidas y descargas firmadas y control de acceso.', stacks: ['FastAPI + Next.js'] },
+	{ name: 'Observability', text: 'Logs JSON con datos sensibles ocultos, trazas y métricas con OpenTelemetry, endpoint de Prometheus protegido y sondas de salud.', stacks: ['FastAPI'] },
+];
+
+const plans = [
+	{ meta: 'Suscripción', name: 'Pro mensual', price: '29 €/mes', text: 'Los siete módulos y soporte prioritario. 14 días gratis.' },
+	{ meta: 'Suscripción', name: 'Pro anual', price: '290 €/año', text: 'Lo mismo que el plan mensual, con dos meses de ahorro. 14 días gratis.' },
+	{ meta: 'Pago único', name: 'Puesta en marcha', price: '199 €', text: 'Te ayudamos a desplegar tu primer SaaS.' },
+];
+
+const editions = [
+	{ name: 'Community', meta: 'Gratis · licencia MIT', items: ['CLI y las seis plantillas', 'Autenticación, organizaciones y permisos', 'Facturación con Stripe', 'Panel global de administración', 'Despliegue con Docker Compose y preset de Coolify', 'Actualizaciones con upgrade'] },
+	{ name: 'Pro', meta: 'Suscripción · licencia comercial', items: ['Todo lo de Community', 'Los siete módulos Pro', 'Paquetes verificados con sumas de comprobación', 'Soporte prioritario'] },
+];
+
+const faqs = [
+	{ q: '¿Community sigue siendo gratis?', a: 'Sí. La CLI y las plantillas son MIT y están completas por sí mismas: Pro añade módulos, no desbloquea funciones recortadas de Community.' },
+	{ q: '¿Cómo se instala un módulo?', a: 'Desde la Tienda descargas el paquete del módulo, con su manifiesto y sus sumas de comprobación. Al generar el proyecto lo indicas a la CLI con --extensions-dir y --feature, y la CLI comprueba que encaje con el backend y el frontend elegidos.' },
+	{ q: '¿Funciona con cualquier combinación de plantillas?', a: 'Cada módulo indica arriba las combinaciones que admite. La mayoría están pensados para FastAPI con Next.js; la CLI rechaza las combinaciones que un módulo no admite antes de escribir ningún archivo.' },
+	{ q: '¿Puedo usar Pro en un producto comercial?', a: 'Sí, puedes construir y vender tu SaaS con los módulos. Lo que no permite la licencia es redistribuir, revender o publicar los módulos ni sus paquetes.' },
+	{ q: '¿Los precios incluyen IVA?', a: 'Sí, todos los precios son finales con IVA incluido. La suscripción se renueva cada mes o cada año y se gestiona desde la propia Tienda.' },
+];
+const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
+---
+
+<Base title="Pro" description="create-my-saas Pro: módulos comerciales de producción para tu SaaS, con soporte prioritario. Desde 29 € al mes, IVA incluido.">
+	<section class="shell hero">
+		<span class="eyebrow">create-my-saas Pro · por LAKBAST</span>
+		<div class="hero-grid">
+			<h1><SplitText text="Lo que tu SaaS necesita" /> <em><SplitText text="cuando crece." start={4} /></em></h1>
+			<div class="hero-side">
+				<p class="lead">Siete módulos de producción sobre Community: claves API, tareas en segundo plano, facturación por uso, almacenamiento, observabilidad y más. Todos incluidos en una suscripción.</p>
+				<div class="hero-actions">
+					<a class="button" href={site.store}>Ver en la Tienda LAKBAST <span aria-hidden="true">↗</span></a>
+					<a class="arrow-link" href={url('empezar/quick-start/')}>Empezar gratis con Community <span aria-hidden="true">→</span></a>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="shell section" style="margin-top: clamp(64px, 7vw, 96px)">
+		<div class="section-head">
+			<span class="eyebrow">01 / Módulos</span>
+			<div>
+				<h2>Siete módulos, una suscripción.</h2>
+				<p class="section-intro">Cada módulo es una extensión independiente con su manifiesto, su guía y sus pruebas. Instalas solo los que necesitas.</p>
+			</div>
+		</div>
+		<div class="feature-list">
+			{modules.map((module, index) => (
+				<article class="feature-row">
+					<span class="feature-num">{String(index + 1).padStart(2, '0')}</span>
+					<h3>{module.name}</h3>
+					<div class="pro-module">
+						<p>{module.text}</p>
+						<ul class="pro-stacks" aria-label="Combinaciones admitidas">{module.stacks.map((stack) => <li>{stack}</li>)}</ul>
+					</div>
+				</article>
+			))}
+		</div>
+	</section>
+
+	<div class="dark-panel">
+		<section class="shell section">
+			<div class="section-head">
+				<span class="eyebrow">02 / Precios</span>
+				<div>
+					<h2>Precios finales, IVA incluido.</h2>
+					<p class="section-intro">La suscripción incluye todos los módulos y el soporte prioritario. Pruébala 14 días gratis.</p>
+				</div>
+			</div>
+			<p class="stack-label">Planes <span class="swipe-hint" aria-hidden="true">Desliza →</span></p>
+			<div class="stack-grid">
+				{plans.map((plan) => (
+					<a class="stack-card" href={site.store}>
+						<span class="meta">{plan.meta}</span>
+						<div><h3>{plan.name}</h3><p>{plan.text}</p></div>
+						<strong class="pro-price">{plan.price}</strong>
+					</a>
+				))}
+			</div>
+			<p class="note">La compra, la facturación y la descarga de los módulos se hacen en la <a href={site.store}>Tienda LAKBAST</a>.</p>
+		</section>
+	</div>
+
+	<section class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">03 / Community y Pro</span>
+			<div>
+				<h2>Pro se suma a Community, no lo sustituye.</h2>
+			</div>
+		</div>
+		<div class="pro-editions">
+			{editions.map((edition) => (
+				<article>
+					<span class="meta">{edition.meta}</span>
+					<h3>{edition.name}</h3>
+					<ul>{edition.items.map((item) => <li>{item}</li>)}</ul>
+				</article>
+			))}
+		</div>
+		<div class="pro-command">
+			<div class="command">
+				<code><b aria-hidden="true">$</b>{command}</code>
+				<button class="copy-button" type="button" data-copy={command}>Copiar</button>
+			</div>
+		</div>
+	</section>
+
+	<section class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">04 / Preguntas</span>
+			<div>
+				<h2>Lo que conviene saber antes de suscribirte.</h2>
+			</div>
+		</div>
+		<div class="pro-faq">
+			{faqs.map((faq) => (
+				<details>
+					<summary>{faq.q}<span class="plus-icon" aria-hidden="true"></span></summary>
+					<p>{faq.a}</p>
+				</details>
+			))}
+		</div>
+	</section>
+
+	<section class="shell section cta">
+		<span class="eyebrow">Empieza hoy</span>
+		<h2>Genera con Community. Crece con Pro.</h2>
+		<div class="hero-actions">
+			<a class="button" href={site.store}>Ver en la Tienda LAKBAST <span aria-hidden="true">↗</span></a>
+			<a class="arrow-link" href={url('empezar/quick-start/')}>Ir al quick start <span aria-hidden="true">→</span></a>
+		</div>
+	</section>
+</Base>

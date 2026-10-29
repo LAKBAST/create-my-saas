@@ -6,6 +6,7 @@ export const site = {
 	org: 'https://github.com/LAKBAST',
 	lakbast: 'https://lakbast.com',
 	npm: 'https://www.npmjs.com/package/@soymanolo/create-my-saas',
+	store: 'https://tienda.lakbast.com/store',
 	command: 'npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs',
 };
 

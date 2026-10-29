@@ -58,6 +58,16 @@ Estas comprobaciones validan los manifiestos y la CLI. Consulta
 [la guía de desarrollo](docs/development.md) para las pruebas de cada starter,
 la matriz E2E y los requisitos de publicación.
 
+## create-my-saas Pro
+
+Community es gratuito y completo con licencia MIT. create-my-saas Pro añade
+siete módulos comerciales de producción (claves API, tareas en segundo plano,
+facturación por uso, almacenamiento de archivos, observabilidad, consola de
+administración y commerce) y soporte prioritario, con una única suscripción
+desde 29 € al mes, IVA incluido. Detalles en
+[createmysaas.dev/pro](https://createmysaas.dev/pro/); se contrata en la
+[Tienda LAKBAST](https://tienda.lakbast.com/store).
+
 ## Contribuir
 
 Las contribuciones llegan como pull requests contra `main`. Antes de abrir uno,
