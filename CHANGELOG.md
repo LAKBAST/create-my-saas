@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-29
+
 ### Added
 
 - Portada pública en Next.js, escaparate de planes sin sesión y retorno seguro a facturación con confirmación explícita.
@@ -13,6 +15,10 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - El panel de Next.js se mueve de `/` a `/app`; consulta la guía de actualización.
+- Las plantillas FastAPI, NestJS, Next.js y React Router pasan a `0.2.0` y Astro
+  a `0.3.0`; Fastify no cambia. En versiones `0.x` el rango `^0.1.0` no acepta
+  `0.2.0`, así que las extensiones que declaren `^0.1.0` deben actualizar su
+  `supportedStacks` para usarse con esta versión.
 
 ## [1.9.0] - 2026-10-29
 
@@ -438,7 +444,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.7.1...v1.8.0
