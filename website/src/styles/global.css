@@ -393,3 +393,28 @@ details[open] > summary .plus-icon::after { transform: none; }
   .js .reveal.is-visible { animation: fade-up .8s var(--reveal-delay, 0s) cubic-bezier(.2, .7, .2, 1) backwards; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .site-header, .arrow-link span, .menu-label > span, .menu-icon::before, .menu-icon::after, .stack-card, .stack-card::before, .feature-num, .feature-row h3, .desktop-nav a, .footer-links a, .button, .button::before { transition: none; } }
+
+/* Página Pro */
+.pro-module p { margin-bottom: 18px; }
+.pro-stacks { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.pro-stacks li { font-family: var(--mono); font-size: 12px; line-height: 1.4; padding: 5px 10px; border: 1px solid var(--line-strong); color: var(--copy); }
+.pro-price { font-size: clamp(28px, 3vw, 40px); line-height: 1; letter-spacing: -.03em; font-weight: 500; }
+.dark-panel .note a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.pro-editions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.pro-editions article { border: 1px solid var(--line-strong); padding: 28px; }
+.pro-editions .meta { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.pro-editions h3 { font-size: clamp(28px, 3vw, 42px); line-height: 1.05; letter-spacing: -.03em; font-weight: 500; margin: 14px 0 20px; }
+.pro-editions ul { margin: 0; padding-left: 18px; color: var(--copy); line-height: 1.7; }
+.pro-command { margin-top: 24px; }
+.pro-faq { border-bottom: 1px solid var(--line-strong); }
+.pro-faq details { border-top: 1px solid var(--line-strong); }
+.pro-faq summary { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 0; cursor: pointer; list-style: none; font-size: clamp(19px, 2vw, 24px); font-weight: 500; letter-spacing: -.015em; }
+.pro-faq summary::-webkit-details-marker { display: none; }
+.pro-faq p { max-width: 760px; margin: 0 0 26px; line-height: 1.6; color: var(--copy); font-size: 17px; }
+@media (max-width: 900px) {
+  .pro-module { grid-column: 2; }
+}
+@media (max-width: 640px) {
+  .pro-editions { grid-template-columns: 1fr; }
+  .pro-editions article { padding: 22px; }
+}
