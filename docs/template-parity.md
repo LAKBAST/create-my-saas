@@ -19,6 +19,16 @@ Consulta [la guía de administración](./admin-dashboard.md).
 
 ## Contrato de NestJS
 
+Las organizaciones conservan `createdById` (`created_by_id` en PostgreSQL),
+como el dato de creador de FastAPI. Se asigna al crear un equipo o espacio
+personal y no cambia al transferir la propiedad. La migración
+`1773140400000-add-organization-creator.ts` añade una clave foránea a `users`,
+rellena con la membresía `owner` más antigua (desempate por id) y aplica
+`NOT NULL` solo si no quedan casos sin propietario. Si existen, registra su
+recuento y deja `NULL`, sin inventar usuarios; el operador debe revisar esos
+casos antes de imponer la restricción. El modelo admite esos valores históricos
+desconocidos y las nuevas creaciones siempre guardan al actor real.
+
 | Operación | Contrato compartido |
 | --- | --- |
 | Crear y listar organizaciones | 201 y 200; objetos con `id`, `name`, `slug` |

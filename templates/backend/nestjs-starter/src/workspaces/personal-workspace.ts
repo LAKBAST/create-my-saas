@@ -17,7 +17,7 @@ export async function ensurePersonalWorkspace(manager: EntityManager, user: User
   const preferredSlug = `personal-${user.id}`;
   // Older projects could already contain this formerly-unreserved team slug.
   const slug = await organizations.existsBy({ slug: preferredSlug }) ? `personal-${randomUUID()}` : preferredSlug;
-  const workspace = await organizations.save(organizations.create({ name: 'Espacio personal', slug, personalOwnerUserId: user.id }));
+  const workspace = await organizations.save(organizations.create({ name: 'Espacio personal', slug, personalOwnerUserId: user.id, createdById: user.id }));
   const memberships = manager.getRepository(Membership);
   await memberships.save(memberships.create({ organizationId: workspace.id, userId: user.id, role: 'owner' }));
   return workspace;
