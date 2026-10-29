@@ -49,8 +49,25 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 		</aside>
 
 		<article>
-			<details class="docs-nav-mobile">
-				<summary>Índice de la documentación <small>{entry.data.title}</small></summary>
+			<details class="docs-nav-mobile" data-docs-nav>
+				<summary>
+					<span class="docs-nav-mobile-label">
+						<small>{group}</small>
+						<span>{entry.data.title}</span>
+					</span>
+					<span class="docs-nav-mobile-action">Índice <span class="plus-icon" aria-hidden="true"></span></span>
+				</summary>
+				<div class="docs-nav-mobile-panel">
+				{toc.length > 0 && (
+					<div class="docs-nav-group docs-nav-toc">
+						<span>En esta página</span>
+						<ul>
+							{toc.filter((heading) => heading.depth === 2).map((heading) => (
+								<li><a href={`#${heading.slug}`}>{heading.text}</a></li>
+							))}
+						</ul>
+					</div>
+				)}
 				<nav class="docs-nav-groups" aria-label="Documentación">
 					{nav.map((navGroup) => (
 						<div class="docs-nav-group">
@@ -63,6 +80,7 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 						</div>
 					))}
 				</nav>
+				</div>
 			</details>
 
 			<header class="docs-header">
@@ -103,13 +121,28 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 </Base>
 
 <script>
-	// Las tablas anchas se desplazan dentro de su caja en lugar de desbordar la página.
+	// Las tablas anchas se desplazan dentro de su caja en lugar de desbordar la
+	// página. Cada celda guarda el nombre de su columna para que, en móvil, las
+	// filas se lean como fichas.
 	for (const table of document.querySelectorAll('.prose table')) {
 		const wrap = document.createElement('div');
 		wrap.className = 'table-wrap';
 		table.replaceWith(wrap);
 		wrap.append(table);
+		const labels = [...table.querySelectorAll('thead th')].map((th) => th.textContent?.trim() ?? '');
+		for (const row of table.querySelectorAll('tbody tr')) {
+			[...row.children].forEach((cell, index) => cell.setAttribute('data-label', labels[index] ?? ''));
+		}
 	}
+
+	// En móvil, el índice se cierra al elegir un destino.
+	const docsNav = document.querySelector<HTMLDetailsElement>('[data-docs-nav]');
+	docsNav?.addEventListener('click', (event) => {
+		if ((event.target as HTMLElement).closest('a')) docsNav.open = false;
+	});
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && docsNav?.open) docsNav.open = false;
+	});
 
 	// Enlace a cada sección, visible al pasar por encima del título.
 	for (const heading of document.querySelectorAll<HTMLElement>('.prose :is(h2, h3)[id]')) {
