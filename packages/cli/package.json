@@ -3,6 +3,7 @@
   "version": "1.8.1",
   "description": "Generate a SaaS project from the create-my-saas template catalog.",
   "license": "MIT",
+  "homepage": "https://createmysaas.dev/",
   "type": "module",
   "bin": {
     "create-my-saas": "bin/create-my-saas.js"

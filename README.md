@@ -5,7 +5,7 @@ productos SaaS con un backend y/o un frontend versionados, elegidos desde la
 terminal. La CLI combina plantillas compatibles, configura su conexión local y
 registra la selección; cada starter sigue siendo independiente y sustituible.
 
-**[Documentación web →](https://lakbast.github.io/create-my-saas/)**
+**[Documentación web →](https://createmysaas.dev/)**
 
 ## Instalación y uso
 

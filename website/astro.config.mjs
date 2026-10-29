@@ -1,10 +1,10 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 
-// GitHub Pages sirve el sitio en /create-my-saas. Con un dominio propio,
-// define SITE_URL=https://tu-dominio y BASE_PATH=/ en el workflow.
-const site = process.env.SITE_URL ?? 'https://lakbast.github.io';
-const base = process.env.BASE_PATH ?? '/create-my-saas';
+// El sitio se publica en la raíz del dominio propio; las variables permiten
+// adaptar el origen y la ruta base para otros despliegues.
+const site = process.env.SITE_URL ?? 'https://createmysaas.dev';
+const base = process.env.BASE_PATH ?? '/';
 
 export default defineConfig({
 	site,
