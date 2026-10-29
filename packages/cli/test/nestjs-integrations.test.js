@@ -5,6 +5,9 @@ import { join, dirname } from 'node:path';
 import test from 'node:test';
 import { generateProject } from '../src/generator.js';
 
+// Fixtures require the CLI under test; the extensions.nestjs capability gates the feature.
+const { version: packageVersion } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'nestjs-integrations-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -25,7 +28,7 @@ function fixture(t) {
     const manifest = {
       schemaVersion: 1, id: 'community:' + name, version: '1.0.0', displayName: name,
       description: 'Generic integration fixture.', provides: [],
-      requires: { cli: '^1.11.0', capabilities: ['extensions.nestjs'], extensions: [] },
+      requires: { cli: `^${packageVersion}`, capabilities: ['extensions.nestjs'], extensions: [] },
       supportedStacks: [{ backend: { id: 'backend:nestjs', version: '^0.2.0' } }],
       targets: [{ template: 'backend:nestjs', overlay: 'backend', replace: [], environment: [],
         migrations: [`src/database/migrations/1800000000000-${name}.ts`] }],
