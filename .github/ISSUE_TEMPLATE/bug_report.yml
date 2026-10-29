@@ -1,0 +1,66 @@
+name: Informar de un error
+description: Algo no funciona en la CLI o en un proyecto generado.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrirlo, revisa la [resolución de problemas](https://createmysaas.dev/referencia/troubleshooting/) y busca si ya existe un issue parecido.
+        Si es una vulnerabilidad, no la publiques aquí: usa *Security → Report a vulnerability*.
+  - type: textarea
+    id: description
+    attributes:
+      label: Qué ocurre
+      description: Qué esperabas que pasara y qué ha pasado.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Cómo reproducirlo
+      description: Comandos exactos, empezando por el que genera el proyecto.
+      placeholder: |
+        npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs
+        cd my-saas
+        npx @soymanolo/create-my-saas@latest setup
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión de la CLI
+      description: La que aparece en `.create-my-saas.json` o en `npm view @soymanolo/create-my-saas version`.
+      placeholder: "1.9.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options: [FastAPI, NestJS, Fastify, Ninguno]
+    validations:
+      required: true
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: Frontend
+      options: [Next.js, React Router, Astro, Ninguno]
+    validations:
+      required: true
+  - type: dropdown
+    id: product-model
+    attributes:
+      label: Modelo de producto
+      options: [teams, individual, mixed, No lo sé]
+  - type: input
+    id: environment
+    attributes:
+      label: Entorno
+      description: Sistema operativo, versión de Node.js y, si aplica, de Docker.
+      placeholder: Windows 11, Node 24.1, Docker 27
+  - type: textarea
+    id: logs
+    attributes:
+      label: Salida o registros
+      description: Pega la salida del error. Revisa que no contenga secretos ni datos personales.
+      render: shell

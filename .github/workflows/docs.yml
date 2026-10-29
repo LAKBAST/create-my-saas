@@ -2,10 +2,10 @@ name: Docs website
 
 on:
   pull_request:
-    paths: ["website/**", "docs/**", ".github/workflows/docs.yml"]
+    paths: ["website/**", "docs/**", "CONTRIBUTING.md", ".github/workflows/docs.yml"]
   push:
     branches: [main]
-    paths: ["website/**", "docs/**", ".github/workflows/docs.yml"]
+    paths: ["website/**", "docs/**", "CONTRIBUTING.md", ".github/workflows/docs.yml"]
   workflow_dispatch:
 
 permissions:

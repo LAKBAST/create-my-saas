@@ -1,0 +1,33 @@
+name: Proponer una mejora
+description: Una funcionalidad nueva, una plantilla o un cambio en el comportamiento.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Revisa la [visión de Community](https://createmysaas.dev/referencia/project/) para comprobar que la propuesta encaja con el rumbo del proyecto.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema
+      description: Qué necesitas hacer y por qué no es posible o es difícil hoy.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Propuesta
+      description: Cómo lo resolverías. Indica qué plantillas o comandos se verían afectados.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas
+      description: Otras soluciones que hayas considerado.
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribución
+      options:
+        - label: Me gustaría implementarlo yo con un pull request.
