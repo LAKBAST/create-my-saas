@@ -83,13 +83,13 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 				</div>
 			</details>
 
-			<header class="docs-header">
-				<span class="eyebrow">{group}</span>
+			<header class="docs-header" data-pagefind-body>
+				<span class="eyebrow" data-pagefind-meta="group">{group}</span>
 				<h1>{entry.data.title}</h1>
 				{entry.data.description && <p>{entry.data.description}</p>}
 			</header>
 
-			<div class="prose">
+			<div class="prose" data-pagefind-body>
 				<Content />
 			</div>
 
