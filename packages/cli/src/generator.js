@@ -15,6 +15,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { defaultExtensionsDirectory, defaultTemplatesDirectory, findTemplate, loadCatalog } from './catalog.js';
 import { extensionTargetFiles, resolveExtensions, selectExtensions } from './extensions.js';
 import { buildManifest, normalizedFileContents, writeManifest } from './manifest.js';
+import { writeCoolifyPreset } from './coolify-preset.js';
 
 const { version: cliVersion } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 
@@ -86,7 +87,7 @@ function configureFrontendApiProxyTarget(destinationDirectory, backend) {
 function thirdPartyNotices(templateLicense) {
   return `# Third-party notices
 
-This project was generated with [create-my-saas](https://github.com/SoyManoolo/create-my-saas)
+This project was generated with [create-my-saas](https://github.com/LAKBAST/create-my-saas)
 and includes code from its templates. That code is distributed under the
 licence below, which must be kept with it. The rest of the project is yours:
 add a LICENSE file with the terms you choose (generated projects declare
@@ -378,6 +379,8 @@ docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up --build ${
 ${apiLine}
 
 ${frontendLine}
+
+Para Coolify, usa el preset independiente descrito en \`COOLIFY.md\`.
 
 ## Producción
 
@@ -756,6 +759,7 @@ export function generateProject({
         writeFileSync(path, /^PRODUCT_MODEL=.*$/m.test(current) ? current.replace(/^PRODUCT_MODEL=.*$/m, value) : `${current.trimEnd()}\n${value}\n`, 'utf8');
       }
     }
+    writeCoolifyPreset(temporaryDirectory, backend, frontend, resolvedProductModel);
     writeGitignore(temporaryDirectory, backend, frontend);
 
     normalizeProject(temporaryDirectory);

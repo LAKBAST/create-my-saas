@@ -86,3 +86,18 @@ El `deployment/README.md` generado detalla la receta según las plantillas
 seleccionadas. Revisa también las copias de seguridad, las pruebas de
 restauración y la rotación de secretos de los servicios gestionados antes de
 usar el despliegue con datos reales.
+## Preset Coolify
+
+Los proyectos nuevos incluyen `deployment/compose.coolify.yaml` y
+`deployment/COOLIFY.md`. Este preset usa la aplicación Docker Compose desde Git
+de Coolify, con variables obligatorias validadas por interpolación. Coolify
+termina TLS; el gateway HTTP generado mantiene frontend y API bajo el mismo
+origen sin publicar puertos del host. PostgreSQL y Redis siguen siendo externos.
+El trabajo `migrate` se ejecuta manualmente una sola vez por versión antes de
+servir la API. El preset también cubre API sin frontend y Astro estático.
+
+La receta Compose genérica sigue disponible. Al actualizar proyectos existentes,
+`create-my-saas upgrade --dry-run` muestra los archivos nuevos o los conflictos
+antes de escribir. El upgrade preserva `.env` y los archivos editados. Consulta
+la [documentación de Compose de Coolify](https://coolify.io/docs/applications/builds/docker-compose)
+para configurar el archivo del repositorio, las variables y el dominio.

@@ -1,0 +1,15 @@
+---
+// Divide un texto en palabras enmascaradas para animarlas una a una.
+// El texto sigue siendo legible y accesible: solo se añaden envoltorios.
+interface Props {
+  text: string;
+  start?: number;
+}
+
+const { text, start = 0 } = Astro.props;
+const words = text.split(' ');
+---
+
+{words.map((word, index) => (
+  <Fragment><span class="word"><span style={`--i:${start + index}`}>{word}</span></span>{index < words.length - 1 && ' '}</Fragment>
+))}
