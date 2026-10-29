@@ -32,14 +32,27 @@ const faqs = [
 	{ q: '¿Puedo usar Pro en un producto comercial?', a: 'Sí, puedes construir y vender tu SaaS con los módulos. Lo que no permite la licencia es redistribuir, revender o publicar los módulos ni sus paquetes.' },
 	{ q: '¿Los precios incluyen IVA?', a: 'Sí, todos los precios son finales con IVA incluido. La suscripción se renueva cada mes o cada año y se gestiona desde la propia Tienda.' },
 ];
+// Versión de cada módulo que funciona con cada Community. Las plantillas de
+// Community 1.10 son 0.2 (Astro 0.3) y en versiones 0.x el rango ^0.1.0 no
+// acepta 0.2.0, así que cada salto de plantillas tiene su versión de módulo.
+const communities = ['1.10 o posterior', '1.8 – 1.9', '1.5 – 1.7'];
+const compatibility = [
+	{ name: 'Admin dashboard', versions: ['2.1', '2.0', '1.0'] },
+	{ name: 'API keys', versions: ['1.3', '1.2', '1.1'] },
+	{ name: 'Background jobs', versions: ['1.2', '1.1', '1.0'] },
+	{ name: 'Billing avanzado', versions: ['1.1', '1.0', '1.0'] },
+	{ name: 'Commerce', versions: ['1.2', '1.1', '1.0'] },
+	{ name: 'Object storage', versions: ['1.1', '1.0', '1.0'] },
+	{ name: 'Observability', versions: ['1.2', '1.1', '1.0'] },
+];
 const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
 ---
 
 <Base title="Pro" description="create-my-saas Pro: módulos comerciales de producción para tu SaaS, con soporte prioritario. Desde 29 € al mes, IVA incluido.">
-	<section class="shell hero">
-		<span class="eyebrow">create-my-saas Pro · por LAKBAST</span>
+	<section data-pagefind-body class="shell hero">
+		<span class="eyebrow" data-pagefind-meta="group:Pro">create-my-saas Pro · por LAKBAST</span>
 		<div class="hero-grid">
-			<h1><SplitText text="Lo que tu SaaS necesita" /> <em><SplitText text="cuando crece." start={4} /></em></h1>
+			<h1 data-pagefind-meta="title:create-my-saas Pro"><SplitText text="Lo que tu SaaS necesita" /> <em><SplitText text="cuando crece." start={4} /></em></h1>
 			<div class="hero-side">
 				<p class="lead">Siete módulos de producción sobre Community: claves API, tareas en segundo plano, facturación por uso, almacenamiento, observabilidad y más. Todos incluidos en una suscripción.</p>
 				<div class="hero-actions">
@@ -50,7 +63,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 		</div>
 	</section>
 
-	<section class="shell section" style="margin-top: clamp(64px, 7vw, 96px)">
+	<section data-pagefind-body class="shell section" style="margin-top: clamp(64px, 7vw, 96px)">
 		<div class="section-head">
 			<span class="eyebrow">01 / Módulos</span>
 			<div>
@@ -73,7 +86,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 	</section>
 
 	<div class="dark-panel">
-		<section class="shell section">
+		<section data-pagefind-body class="shell section">
 			<div class="section-head">
 				<span class="eyebrow">02 / Precios</span>
 				<div>
@@ -95,7 +108,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 		</section>
 	</div>
 
-	<section class="shell section">
+	<section data-pagefind-body class="shell section">
 		<div class="section-head">
 			<span class="eyebrow">03 / Community y Pro</span>
 			<div>
@@ -119,9 +132,26 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 		</div>
 	</section>
 
-	<section class="shell section">
+	<section data-pagefind-body class="shell section">
 		<div class="section-head">
-			<span class="eyebrow">04 / Preguntas</span>
+			<span class="eyebrow">04 / Compatibilidad</span>
+			<div>
+				<h2>Qué versión de cada módulo va con tu Community.</h2>
+				<p class="section-intro">Cada versión de Pro sigue a las plantillas de una versión de Community. Comprueba la tuya en <code>cliVersion</code> de <code>.create-my-saas.json</code>.</p>
+			</div>
+		</div>
+		<div class="pro-compat">
+			<table>
+				<thead><tr><th scope="col">Módulo</th>{communities.map((community) => <th scope="col">Community {community}</th>)}</tr></thead>
+				<tbody>{compatibility.map((row) => <tr><th scope="row">{row.name}</th>{row.versions.map((version, index) => <td data-label={`Community ${communities[index]}`}>{version}</td>)}</tr>)}</tbody>
+			</table>
+		</div>
+		<p class="note pro-compat-note">La Tienda LAKBAST entrega siempre la versión de la primera columna. Si tu proyecto usa una Community anterior, actualízalo con <code>npx @soymanolo/create-my-saas@latest upgrade</code> antes de instalar los módulos. Pro se comprueba a partir de Community 1.5.</p>
+	</section>
+
+	<section data-pagefind-body class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">05 / Preguntas</span>
 			<div>
 				<h2>Lo que conviene saber antes de suscribirte.</h2>
 			</div>
@@ -136,7 +166,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 		</div>
 	</section>
 
-	<section class="shell section cta">
+	<section data-pagefind-body class="shell section cta">
 		<span class="eyebrow">Empieza hoy</span>
 		<h2>Genera con Community. Crece con Pro.</h2>
 		<div class="hero-actions">

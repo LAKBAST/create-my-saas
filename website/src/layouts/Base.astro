@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import LogoSprite from '../components/LogoSprite.astro';
+import Search from '../components/Search.astro';
 import { site, url } from '../data/site';
 import interTight from '@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2?url';
 
@@ -116,6 +117,7 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 					))}
 				</nav>
 				<div class="header-actions">
+					<Search />
 					<button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro" aria-pressed="false">
 						<span class="theme-toggle-icon" aria-hidden="true"></span>
 						<span class="theme-toggle-label">Oscuro</span>

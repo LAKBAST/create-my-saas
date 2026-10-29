@@ -1,0 +1,98 @@
+---
+import { url } from '../data/site';
+
+// Índice de Pagefind generado al compilar (npm run build); en `astro dev` no existe.
+const pagefind = url('pagefind/pagefind.js');
+---
+
+<button class="search-open" type="button" data-search-open aria-haspopup="dialog" aria-label="Buscar en la web">
+	<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="m20 20-4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+	<span class="search-open-label">Buscar</span>
+	<kbd class="search-open-key">Ctrl K</kbd>
+</button>
+
+<dialog class="search-dialog" data-search data-pagefind={pagefind} aria-label="Buscar en la web">
+	<form class="search-form" method="dialog" role="search">
+		<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="m20 20-4.2-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+		<input type="search" name="q" placeholder="Busca en la documentación…" autocomplete="off" spellcheck="false" aria-label="Texto a buscar" aria-controls="search-results" data-search-input />
+		<button class="search-close" type="button" data-search-close>Esc</button>
+	</form>
+	<p class="search-status" data-search-status aria-live="polite">Escribe al menos dos letras.</p>
+	<ol class="search-results" id="search-results" data-search-results></ol>
+</dialog>
+
+<script>
+	type Result = { url: string; excerpt: string; meta: { title?: string; group?: string } };
+	type Pagefind = { init: () => Promise<void>; debouncedSearch: (term: string, options?: object, ms?: number) => Promise<{ results: Array<{ data: () => Promise<Result> }> } | null> };
+
+	const dialog = document.querySelector<HTMLDialogElement>('[data-search]');
+	const input = dialog?.querySelector<HTMLInputElement>('[data-search-input]');
+	const status = dialog?.querySelector<HTMLElement>('[data-search-status]');
+	const list = dialog?.querySelector<HTMLOListElement>('[data-search-results]');
+	let engine: Promise<Pagefind | null> | undefined;
+
+	function load() {
+		engine ??= import(/* @vite-ignore */ dialog!.dataset.pagefind!)
+			.then(async (module: Pagefind) => { await module.init(); return module; })
+			.catch(() => null);
+		return engine;
+	}
+
+	function open() {
+		if (!dialog || dialog.open) return;
+		dialog.showModal();
+		input?.select();
+		void load();
+	}
+
+	// Pagefind devuelve el extracto con <mark> sobre los términos; el resto se escapa.
+	function excerpt(html: string) {
+		const text = document.createElement('div');
+		text.textContent = html.replace(/<\/?mark>/g, '\u0000');
+		return text.innerHTML.replace(/\u0000([^\u0000]*)\u0000/g, '<mark>$1</mark>');
+	}
+
+	async function search(term: string) {
+		if (!list || !status) return;
+		if (term.trim().length < 2) { list.replaceChildren(); status.textContent = 'Escribe al menos dos letras.'; return; }
+		const pagefind = await load();
+		if (!pagefind) { status.textContent = 'El buscador solo está disponible en la web compilada.'; return; }
+		const found = await pagefind.debouncedSearch(term, {}, 200);
+		if (!found) return;
+		const results = await Promise.all(found.results.slice(0, 8).map((result) => result.data()));
+		status.textContent = results.length ? `${found.results.length} ${found.results.length === 1 ? 'resultado' : 'resultados'}` : `Sin resultados para «${term.trim()}».`;
+		list.replaceChildren(...results.map((result) => {
+			const item = document.createElement('li');
+			const link = Object.assign(document.createElement('a'), { href: result.url });
+			link.innerHTML = `<span class="search-group"></span><strong></strong><span class="search-excerpt">${excerpt(result.excerpt)}</span>`;
+			link.querySelector('.search-group')!.textContent = result.meta.group ?? '';
+			link.querySelector('strong')!.textContent = result.meta.title ?? result.url;
+			item.append(link);
+			return item;
+		}));
+	}
+
+	document.addEventListener('click', (event) => {
+		const target = event.target as Element;
+		if (target.closest('[data-search-open]')) open();
+		else if (target.closest('[data-search-close]') || target === dialog) dialog?.close();
+		else if (target.closest('.search-results a')) dialog?.close();
+	});
+	document.addEventListener('keydown', (event) => {
+		const typing = event.target instanceof HTMLElement && (event.target.isContentEditable || /^(input|textarea|select)$/i.test(event.target.tagName));
+		if ((event.key === 'k' && (event.ctrlKey || event.metaKey)) || (event.key === '/' && !typing)) { event.preventDefault(); open(); }
+		// En un campo de búsqueda, el navegador gasta el primer Esc en vaciarlo.
+		if (event.key === 'Escape' && dialog?.open) { event.preventDefault(); dialog.close(); }
+		if (event.key === 'ArrowDown' && dialog?.open) {
+			const links = [...(list?.querySelectorAll('a') ?? [])];
+			const index = links.indexOf(document.activeElement as HTMLAnchorElement);
+			links[Math.min(index + 1, links.length - 1)]?.focus(); event.preventDefault();
+		}
+		if (event.key === 'ArrowUp' && dialog?.open) {
+			const links = [...(list?.querySelectorAll('a') ?? [])];
+			const index = links.indexOf(document.activeElement as HTMLAnchorElement);
+			(index <= 0 ? input : links[index - 1])?.focus(); event.preventDefault();
+		}
+	});
+	input?.addEventListener('input', () => void search(input.value));
+</script>
