@@ -88,3 +88,22 @@ interfaz de facturación requiere `--feature billing`. Ese alias corresponde a
 5. Añade `development` para un backend y los requisitos de compatibilidad para
    un frontend que use API. Ejecuta `npm run validate:templates` y añade pruebas
    de generación y de las combinaciones compatibles.
+
+## Catálogo y compatibilidad
+
+| Capa | Opción | Estado y propósito |
+| --- | --- | --- |
+| Backend | `fastapi` | API Python completa: sesiones de navegador, CSRF, usuarios, organizaciones, RBAC, audit log, recuperación/verificación, OAuth y billing. |
+| Backend | `nestjs` | API TypeScript modular con el mismo contrato funcional que FastAPI. |
+| Backend | `fastify` | API TypeScript ligera con PostgreSQL, sesiones, CSRF, recuperación, verificación de email y OAuth de Google/GitHub. No incluye todavía organizaciones ni Stripe Billing. |
+| Frontend | `nextjs` | Dashboard con sesión de navegador, rutas protegidas y flujos de cuenta. |
+| Frontend | `react-router` | Dashboard React con renderizado Framework Mode, rutas protegidas y proxy de API same-origin. |
+| Frontend | `astro` | Sitio rápido de marketing, documentación y blog, con zona autenticada ligera compatible con los tres backends. La facturación por organización es opcional. |
+
+Las capacidades de cada starter están declaradas en su
+`template.manifest.json`. La CLI las compara antes de escribir archivos: los
+dashboards que requieren organizaciones y Stripe Billing necesitan FastAPI o
+NestJS. Fastify puede generarse solo o con Astro ligero, porque cubre el
+contrato de sesión, recuperación, verificación y OAuth de esa área autenticada.
+Para añadir billing a Astro se selecciona explícitamente `--feature billing`;
+la CLI lo limita a FastAPI y NestJS.

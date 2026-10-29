@@ -86,6 +86,7 @@ El `deployment/README.md` generado detalla la receta según las plantillas
 seleccionadas. Revisa también las copias de seguridad, las pruebas de
 restauración y la rotación de secretos de los servicios gestionados antes de
 usar el despliegue con datos reales.
+
 ## Preset Coolify
 
 Los proyectos nuevos incluyen `deployment/compose.coolify.yaml` y
@@ -101,3 +102,23 @@ La receta Compose genérica sigue disponible. Al actualizar proyectos existentes
 antes de escribir. El upgrade preserva `.env` y los archivos editados. Consulta
 la [documentación de Compose de Coolify](https://coolify.io/docs/applications/builds/docker-compose)
 para configurar el archivo del repositorio, las variables y el dominio.
+
+## Requisitos para producción
+
+Antes de poner un SaaS real en línea todavía hay que conectar las integraciones
+del producto final. No es código ausente de los starters: son servicios y
+credenciales que pertenecen a cada despliegue. Configura PostgreSQL, Redis con
+TLS, la entrega transaccional de correo y las credenciales OAuth de los
+proveedores que ofrezcas. Si vas a cobrar, configura también Stripe, los precios
+permitidos y el endpoint de webhooks.
+
+FastAPI, NestJS y Fastify exigen explícitamente los servicios de los que
+dependen en `staging` y `production` y fallan de forma segura si faltan o no se
+pueden usar. En particular, los límites de petición requieren Redis mediante
+`rediss://` y los flujos de cuenta requieren una entrega de correo autenticada.
+FastAPI y NestJS también dejan Checkout, Portal y webhooks de Stripe
+deshabilitados hasta que se proporcione una configuración válida. Consulta el
+README y el archivo `.env.example` del starter generado para los nombres de
+variables y los callbacks registrados.
+
+Consulta el [contrato operativo común](../templates/backend/backend-infrastructure-contract.md) para los detalles de infraestructura.
