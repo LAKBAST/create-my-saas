@@ -26,6 +26,8 @@ function Billing() {
   const { getAccessToken } = useAuth();
   const mounted = useRef(false);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
+  useEffect(() => { const timer = setTimeout(() => setSelectedPrice(new URLSearchParams(window.location.search).get("priceId")), 0); return () => clearTimeout(timer); }, []);
   const [workspace, setWorkspace] = useState<WorkspaceContext>();
   const [showCreate, setShowCreate] = useState(false);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -97,6 +99,7 @@ function Billing() {
     </header>
     {!loading && workspace && !workspace.billingSupported && <p className="notice">Este backend no incluye facturación.</p>}
     {notice && <p className="notice" role="status">{notice}</p>}
+    {workspace?.model === "teams" && !organizationId && !loading && <p className="notice">Para contratar un plan de equipo necesitas una organización: la suscripción y las personas invitadas pertenecen a ese equipo.</p>}
     {workspace?.model === "mixed" && <p className="notice">Tu plan personal y el de cada equipo se contratan y cancelan por separado.</p>}
     {canCreateTeam && !loading && organizationId && <button type="button" className="btn btn-secondary" onClick={() => setShowCreate((value) => !value)}>{showCreate ? "Cerrar creación de equipo" : "Crear un equipo"}</button>}
     {canCreateTeam && !loading && (!organizationId || showCreate) && <CreateOrganization onCreated={(organization) => { setOrganizations((current) => [...current, organization]); setWorkspace((current) => current ? { ...current, teams: [...current.teams, organization] } : current); setShowCreate(false); selectOrganization(organization.id); }} />}
@@ -113,8 +116,8 @@ function Billing() {
       <h2 className={styles.sectionTitle}>Planes disponibles</h2>
       <div className={styles.grid}>{configuration.plans.map((plan) => {
         const current = subscription?.plan === plan.name;
-        return <article className={`${styles.card} ${current ? styles.featured : ""}`} key={plan.priceId}>
-          <p>{current ? "Tu plan" : "Plan"}</p><h2>{plan.name}</h2>
+        return <article className={`${styles.card} ${current || selectedPrice === plan.priceId ? styles.featured : ""}`} key={plan.priceId}>
+          <p>{current ? "Tu plan" : selectedPrice === plan.priceId ? "Plan seleccionado: confirma para continuar" : "Plan"}</p><h2>{plan.name}</h2>
           {plan.price && <p>{formatBillingPrice(plan.price)}</p>}
           <ul>{Object.entries(plan.entitlements).map(([key, limit]) => <li key={key}><strong><Icon name="check" size={15} style={{ color: "var(--success)", verticalAlign: "-3px", marginRight: 6 }} />{plan.labels[key] ?? key}</strong><span>{entitlement(limit)}</span></li>)}</ul>
           <button type="button" onClick={() => void redirect("checkout", plan.priceId)} disabled={Boolean(pending) || current}>{current ? "Plan actual" : pending === plan.priceId ? "Redirigiendo…" : "Elegir este plan"}</button>

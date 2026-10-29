@@ -79,3 +79,41 @@ test('bootstrap proxy preserves POST, authentication and CSRF headers', async ({
     expect(incoming).toEqual({ path: '/workspaces/bootstrap', method: 'POST', auth: 'Bearer workspace-test', csrf: 'test-csrf' });
   } finally { await new Promise(resolve => server.close(resolve)); }
 });
+
+test('visitor chooses a plan, registers and returns to personal billing for confirmation', async ({ page }) => {
+  let signedIn = false;
+  let checkout = 0;
+  const user = { id: 'user-1', name: 'Customer', email: 'customer@example.test', email_verified: true, is_active: true };
+  await page.route('**/billing/plans', route => route.fulfill({ json: { plans: [{ priceId: 'price_pro', name: 'Pro', priceLabel: '29 €/mes', labels: ['API'] }] } }));
+  await page.route('**/auth/refresh', route => route.fulfill(signedIn ? { json: { accessToken: 'workspace-test', user } } : { status: 401, json: {} }));
+  await page.route('**/auth/register', route => route.fulfill({ status: 201, json: user }));
+  await page.route('**/auth/login', route => { signedIn = true; return route.fulfill({ json: { accessToken: 'workspace-test', user } }); });
+  await page.route('**/api/admin/access', route => route.fulfill({ json: { allowed: false } }));
+  await page.route('**/workspaces/bootstrap', route => route.fulfill({ json: { model: 'individual', personalWorkspace: personal, teams: [], billingSupported: true } }));
+  await page.route(/\/(organizations\/[^/]+\/billing\/|billing\/organizations\/)/, route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path.endsWith('/checkout')) { checkout++; return route.fulfill({ json: { url: null } }); }
+    if (path.endsWith('/configuration')) return route.fulfill({ json: { configured: true, plans: [{ priceId: 'price_pro', name: 'Pro', entitlements: {}, labels: {}, price: null }] } });
+    return route.fulfill({ json: { plan: 'Free', status: 'active', seats: 1, currentPeriodEnd: null, cancelAtPeriodEnd: false, entitlements: [], usage: [] } });
+  });
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Precios' })).toBeVisible();
+  await expect(page.getByText('29 €/mes')).toBeVisible();
+  await page.getByRole('link', { name: 'Elegir plan' }).click();
+  await expect(page).toHaveURL(/\/register\?next=/);
+  await expect(page.getByRole('link', { name: 'Iniciar sesión' })).toHaveAttribute('href', /next=/);
+  await page.getByLabel('Nombre').fill('Customer');
+  await page.getByLabel('Correo electrónico').fill('customer@example.test');
+  await page.getByLabel('Contraseña').fill('password123');
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await expect(page.getByText(/Hemos enviado un enlace de verificación/)).toBeVisible();
+  if (new URL(page.url()).pathname === '/register') await page.getByRole('link', { name: /iniciar sesión/i }).click();
+  await expect(page).toHaveURL(/\/login\?/);
+  await page.getByLabel('Correo electrónico').fill('customer@example.test');
+  await page.getByLabel('Contraseña').fill('password123');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await expect(page).toHaveURL(/\/billing\?priceId=price_pro/);
+  await expect(page.getByText('Plan seleccionado: confirma para continuar')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Crea tu organización' })).toHaveCount(0);
+  expect(checkout).toBe(0);
+});

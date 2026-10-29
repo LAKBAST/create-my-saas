@@ -1,3 +1,4 @@
+import { PublicPlans } from "../components/public-plans";
 import { Link } from "react-router";
 import { Icon, type IconName } from "../components/icons";
 import { PRODUCT_NAME } from "../lib/brand";
@@ -35,6 +36,7 @@ export default function Home() {
         <div className={styles.featureIcon}><Icon name={feature.icon} /></div>
         <strong>{feature.title}</strong><span>{feature.text}</span>
       </article>)}</section>
+      <PublicPlans />
     </main>
   </div>;
 }

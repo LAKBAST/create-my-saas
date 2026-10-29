@@ -1,16 +1,22 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import styles from "../auth.module.css";
 import { AuthCard } from "../components/auth-card";
 import { OAuthButtons } from "../components/oauth-buttons";
 import { captureAnalyticsEvent } from "../components/posthog-provider";
 import { ApiError, api } from "../lib/api.client";
+import { safeNext } from "../lib/safe-next";
 import { privatePageMetadata } from "../lib/seo";
 
 export function meta() { return privatePageMetadata({ title: "Crear cuenta", description: "Crea una cuenta para acceder al producto.", path: "/register" }); }
 
 export default function Register() {
   const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const next = safeNext(search.get("next"));
+  const loginHref = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { const timer = setTimeout(() => setHydrated(true), 0); return () => clearTimeout(timer); }, []);
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
 
@@ -23,11 +29,11 @@ export default function Register() {
     try {
       await api.register({ name: String(data.get("name")), email: String(data.get("email")), password: String(data.get("password")) });
       captureAnalyticsEvent("signup_requested");
-      navigate("/login?registered=1", { replace: true });
+      navigate(`${loginHref}${next ? "&" : "?"}registered=1`, { replace: true });
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : "No se ha podido crear la cuenta.");
     } finally { setPending(false); }
   }
 
-  return <AuthCard><h1>Crea tu cuenta</h1><p>Empieza con la base de tu nuevo producto.</p><form className={styles.form} onSubmit={submit}><label>Nombre<input name="name" autoComplete="name" placeholder="Tu nombre" required /></label><label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@empresa.com" required /></label><label>Contraseña<input name="password" type="password" autoComplete="new-password" placeholder="8 caracteres, letra y número" minLength={8} required /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={pending}>{pending ? "Creando cuenta…" : "Crear cuenta"}</button></form><OAuthButtons /><p className={styles.footer}>¿Ya tienes cuenta? <Link to="/login">Iniciar sesión</Link></p></AuthCard>;
+  return <AuthCard><h1>Crea tu cuenta</h1><p>Empieza con la base de tu nuevo producto.</p><form className={styles.form} onSubmit={submit}><label>Nombre<input name="name" autoComplete="name" placeholder="Tu nombre" required /></label><label>Correo electrónico<input name="email" type="email" autoComplete="email" placeholder="tu@empresa.com" required /></label><label>Contraseña<input name="password" type="password" autoComplete="new-password" placeholder="8 caracteres, letra y número" minLength={8} required /></label>{error && <p className={styles.error} role="alert">{error}</p>}<button type="submit" disabled={pending || !hydrated}>{pending ? "Creando cuenta…" : "Crear cuenta"}</button></form><OAuthButtons /><p className={styles.footer}>¿Ya tienes cuenta? <Link to={loginHref}>Iniciar sesión</Link></p></AuthCard>;
 }

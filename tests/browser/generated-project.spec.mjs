@@ -25,7 +25,7 @@ const apiPort = { fastapi: 8000, nestjs: 3001, fastify: 3002 }[backend];
 const apiOrigin = `http://127.0.0.1:${apiPort}`;
 const frontendOrigin = 'http://127.0.0.1:3100';
 const paths = {
-  nextjs: { protected: '/', login: '/login', register: '/register', forgot: '/forgot-password', reset: '/reset-password' },
+  nextjs: { protected: '/app', login: '/login', register: '/register', forgot: '/forgot-password', reset: '/reset-password' },
   'react-router': { protected: '/app', login: '/login', register: '/register', forgot: '/forgot-password', reset: '/reset-password' },
   astro: { protected: '/app/', login: '/login/', register: '/register/', forgot: '/forgot-password/', reset: '/reset-password/' },
 }[frontend];

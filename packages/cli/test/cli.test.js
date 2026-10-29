@@ -142,7 +142,7 @@ test('loads a compatible external extension through --extensions-dir', (t) => {
     description: 'External compatibility fixture.',
     provides: ['reports.api'],
     requires: { cli: '^1.0.0', capabilities: ['auth.password'], extensions: [] },
-    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.1.0' } }],
+    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.2.0' } }],
     targets: [{ template: 'backend:fastapi', overlay: 'overlays/backend', replace: [], environment: [{ name: 'REPORTS_RETENTION_DAYS', value: '30', secret: false, description: 'Days to retain reports.' }], migrations: [] }],
   });
   writeFileSync(join(overlayDirectory, 'reports.py'), 'REPORTS_ENABLED = True\n', 'utf8');
@@ -229,10 +229,10 @@ test('generates selected templates and omits local artifacts', (t) => {
 
   const metadata = JSON.parse(readFileSync(join(destination, '.create-my-saas.json'), 'utf8'));
   assert.deepEqual(metadata.templates.backend, {
-    id: 'backend:fastapi', version: '0.1.0', source: 'backend/fastapi-starter',
+    id: 'backend:fastapi', version: '0.2.0', source: 'backend/fastapi-starter',
   });
   assert.deepEqual(metadata.templates.frontend, {
-    id: 'frontend:nextjs', version: '0.1.0', source: 'frontend/nextjs-starter',
+    id: 'frontend:nextjs', version: '0.2.0', source: 'frontend/nextjs-starter',
   });
   assert.deepEqual(readdirSync(workspace), ['demo']);
 });
@@ -452,7 +452,9 @@ test('generates the lightweight authenticated Astro site with Fastify', (t) => {
   assert.match(frontendEnvironment, /^API_PROXY_TARGET=http:\/\/localhost:3002$/m);
   assert.equal(existsSync(join(destination, 'backend', 'src', 'server.ts')), true);
   assert.equal(existsSync(join(destination, 'frontend', 'src', 'pages', 'billing', 'index.astro')), false);
-  assert.doesNotMatch(readFileSync(join(destination, 'frontend', 'astro.config.mjs'), 'utf8'), /organizations|billing/);
+  const astroConfig = readFileSync(join(destination, 'frontend', 'astro.config.mjs'), 'utf8');
+  assert.doesNotMatch(astroConfig, /organizations|billing\/organizations/);
+  assert.match(astroConfig, /billing\/plans/);
   const deploymentCompose = readFileSync(join(destination, 'deployment', 'compose.yaml'), 'utf8');
   assert.match(deploymentCompose, /fetch\('http:\/\/127\.0\.0\.1:8000\/ready'\)/);
   assert.match(readFileSync(join(destination, 'deployment', 'nginx.conf'), 'utf8'), /location = \/ready/);
@@ -512,7 +514,7 @@ test('generates Astro billing with NestJS and records the selected feature', (t)
   const metadata = JSON.parse(readFileSync(join(destination, '.create-my-saas.json'), 'utf8'));
   assert.equal(metadata.schemaVersion, 4);
   assert.deepEqual(metadata.extensions, [{
-    id: 'community:astro-billing', version: '1.0.0', source: 'community-astro-billing', manifestSchemaVersion: 1,
+    id: 'community:astro-billing', version: '1.1.0', source: 'community-astro-billing', manifestSchemaVersion: 1,
   }]);
   assert.match(readFileSync(join(destination, 'frontend', '.env.example'), 'utf8'), /^PUBLIC_POSTHOG_KEY=$/m);
   const billingLayout = readFileSync(join(destination, 'frontend', 'src', 'layouts', 'BaseLayout.astro'), 'utf8');

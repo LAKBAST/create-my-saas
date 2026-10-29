@@ -40,6 +40,7 @@ export default defineConfig((() => {
           '/workspaces': apiTarget,
           '/organizations': apiTarget,
           '/billing/organizations': apiTarget,
+          '/billing/plans': apiTarget,
         },
       },
     } : undefined,

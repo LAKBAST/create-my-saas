@@ -72,6 +72,7 @@ export type OrganizationApi = {
 // Billing paths differ between NestJS and FastAPI. Clients resolve the path,
 // while these operation shapes remain the same for either backend.
 export type BillingApi = {
+  publicPlans: { input: void; output: PublicBillingPlans };
   configuration: { input: { organizationId: string }; output: BillingConfiguration };
   subscription: { input: { organizationId: string }; output: BillingSubscription };
   checkout: { input: { organizationId: string; priceId: string; quantity: number }; output: BillingRedirect };
@@ -89,3 +90,7 @@ export type ApiCapabilities = {
   productModel: ProductModel | null;
   organizations: boolean; billing: boolean; admin: boolean;
 };
+
+/** Storefront data configured locally by the operator. */
+export type PublicBillingPlan = { priceId: string; name: string; priceLabel: string | null; labels: string[] };
+export type PublicBillingPlans = { plans: PublicBillingPlan[] };

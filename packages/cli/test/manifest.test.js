@@ -166,7 +166,7 @@ test('templates and extension overlays reproduce across CRLF, LF, source modes a
     writeFileSync(join(extension, 'extension.manifest.json'), JSON.stringify({
       schemaVersion: 1, id: 'test:example', aliases: ['example'], version: '1.0.0', displayName: 'Example', description: 'Reproducibility fixture.',
       provides: [], requires: { cli: '^1.0.0', capabilities: [], extensions: [] }, conflictsWith: [],
-      supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.1.0' } }],
+      supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.2.0' } }],
       targets: [{ template: 'backend:fastapi', overlay: 'overlay', replace: [], migrations: [], environment: [
         { name: 'APP_ENV', value: 'development', secret: false, description: 'Keep the existing development value.' },
         { name: 'EXAMPLE_SECRET', value: '', secret: true, description: 'Set your own unique secret before starting the application.' },

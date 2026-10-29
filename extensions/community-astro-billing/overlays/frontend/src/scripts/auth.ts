@@ -1,3 +1,4 @@
+import { safeNext, takeOAuthNext } from "./safe-next";
 import type { User, UserWire, Authentication as Session, AuthenticationWire, Organization, BillingConfiguration, BillingSubscription, BillingRedirect } from './api-contract';
 import { captureAnalyticsEvent, identifyAnalyticsUser, resetAnalyticsUser } from "./posthog";
 import { initializeAdmin, clearAdminSession, adminUnavailable } from "./admin";
@@ -204,7 +205,7 @@ function bindForms() {
       if (kind === "login") {
         const result = await request<AuthenticationWire>("/auth/login", { method: "POST", body: { email: values.get("email"), password: values.get("password") } });
         accessToken = String(result.accessToken ?? result.access_token);
-        window.location.assign("/app/"); return;
+        window.location.assign(safeNext(new URLSearchParams(location.search).get("next")) ?? "/app/"); return;
       }
       if (kind === "register") { await request("/auth/register", { method: "POST", body: { name: values.get("name"), email: values.get("email"), password: values.get("password") } }); captureAnalyticsEvent("signup_requested"); completeForm(form, "Revisa tu correo. Hemos enviado un enlace de verificación a tu correo. Cuando termines, ya puedes iniciar sesión.", "Revisa tu correo"); }
       if (kind === "forgot") { await request("/auth/password/reset/request", { method: "POST", body: { email: values.get("email") } }); completeForm(form, "Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña."); }
@@ -225,6 +226,8 @@ function bindOAuth() {
   document.querySelectorAll<HTMLButtonElement>("[data-oauth-provider]").forEach((button) => button.addEventListener("click", async () => {
     const status = document.querySelector("[data-oauth-status]");
     button.disabled = true;
+    const next = safeNext(new URLSearchParams(location.search).get("next"));
+    if (next) sessionStorage.setItem("oauth-next", next); else sessionStorage.removeItem("oauth-next");
     try { await startOAuth(button.dataset.oauthProvider as "google" | "github"); }
     catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido iniciar sesión con este proveedor.", true); button.disabled = false; }
   }));
@@ -253,7 +256,7 @@ async function bindProtectedPage() {
   } catch (error) {
     clearAdminSession();
     if (document.querySelector('[data-admin-page]') && error instanceof ApiError && [0, 404].includes(error.status)) adminUnavailable();
-    else window.location.replace(`/login/?next=${encodeURIComponent(location.pathname)}`);
+    else window.location.replace(`/login/?next=${encodeURIComponent(location.pathname + location.search)}`);
   }
 }
 
@@ -330,7 +333,8 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
   if (!configuration.configured) { billingStatus("Configura Stripe y los planes permitidos en el backend para habilitar Checkout."); return; }
   for (const plan of configuration.plans) {
     const current = subscription.plan === plan.name;
-    const card = element("article", current ? "card featured" : "card");
+    const selected = new URLSearchParams(location.search).get("priceId") === plan.priceId;
+    const card = element("article", current || selected ? "card featured" : "card");
     const entitlements = element("ul");
     for (const [key, limit] of Object.entries(plan.entitlements)) {
       const item = element("li");
@@ -339,7 +343,7 @@ function renderBilling(summary: HTMLElement, plans: HTMLElement, configuration: 
     }
     const checkout = element("button", current ? "btn btn-secondary" : "btn btn-primary", current ? "Plan actual" : "Elegir este plan"); checkout.type = "button"; checkout.disabled = current;
     checkout.addEventListener("click", () => void startRedirect("checkout", organizationId, token, checkout, plan.priceId));
-    card.append(element("p", "", current ? "Tu plan" : "Plan"), element("h2", "", plan.name));
+    card.append(element("p", "", current ? "Tu plan" : selected ? "Plan seleccionado: confirma para continuar" : "Plan"), element("h2", "", plan.name));
     if (plan.price) card.append(element("p", "", formatBillingPrice(plan.price)));
     card.append(entitlements, checkout); plans.append(card);
   }
@@ -445,16 +449,46 @@ async function bindBilling(token: string) {
   } catch (cause) { billingStatus(cause instanceof Error ? cause.message : "No se han podido cargar las organizaciones.", true); }
 }
 
+async function bindPublicPlans() {
+  const root = document.querySelector<HTMLElement>("[data-public-plans]");
+  if (!root) return;
+  try {
+    const response = await fetch(baseUrl + "/billing/plans", { credentials: "omit" });
+    if (!response.ok) return;
+    const data = await response.json() as { plans: Array<{ priceId: string; name: string; priceLabel: string | null; labels: string[] }> };
+    if (!Array.isArray(data.plans) || !data.plans.length) return;
+    let authenticated = false;
+    try { await restoreSession(); authenticated = true; } catch { /* anonymous */ }
+    root.hidden = false;
+    for (const plan of data.plans) {
+      const card = document.createElement("article"); card.className = "feature";
+      const name = document.createElement("strong"); name.textContent = plan.name; card.append(name);
+      if (plan.priceLabel) { const price = document.createElement("p"); price.textContent = plan.priceLabel; card.append(price); }
+      const list = document.createElement("ul");
+      for (const label of plan.labels) { const item = document.createElement("li"); item.textContent = label; list.append(item); }
+      card.append(list);
+      if (root.dataset.checkout === "true") {
+        const next = "/billing/?priceId=" + encodeURIComponent(plan.priceId);
+        const link = document.createElement("a"); link.className = "btn btn-primary"; link.textContent = "Elegir plan";
+        link.href = authenticated ? next : "/register/?next=" + encodeURIComponent(next); card.append(link);
+      }
+      root.append(card);
+    }
+  } catch { /* Backend has no public billing capability. */ }
+}
+
 function toggleMobileMenu() {
   const open = document.querySelector("[data-mobile-menu]")?.classList.toggle("open") ?? false;
   document.querySelectorAll<HTMLElement>("[data-mobile-menu-button][aria-expanded]").forEach((button) => button.setAttribute("aria-expanded", String(open)));
 }
 
 if (typeof document !== "undefined") document.addEventListener("DOMContentLoaded", () => {
-  bindForms(); bindOAuth(); void bindProtectedPage();
+  bindForms(); bindOAuth(); void bindProtectedPage(); bindPublicPlans();
+  const next = safeNext(new URLSearchParams(location.search).get("next"));
+  if (next) document.querySelectorAll<HTMLAnchorElement>('a[href="/login/"], a[href="/register/"]').forEach((link) => { link.href += "?next=" + encodeURIComponent(next); });
   document.querySelectorAll<HTMLElement>("[data-mobile-menu-button]").forEach((button) => button.addEventListener("click", toggleMobileMenu));
   document.querySelectorAll<HTMLButtonElement>("[data-logout]").forEach((button) => button.addEventListener("click", async () => { try { await request("/auth/logout", { method: "POST" }); } finally { accessToken = null; clearAdminSession(); resetAnalyticsUser(); window.location.assign("/login/"); } }));
   document.querySelectorAll<HTMLButtonElement>("[data-resend-verification]").forEach((button) => button.addEventListener("click", async () => { const status = document.querySelector("[data-account-status]"); button.disabled = true; button.textContent = "Enviando…"; try { if (!accessToken) throw new Error("La sesión ha caducado. Inicia sesión de nuevo."); await request("/auth/email/resend", { method: "POST", token: accessToken }); setStatus(status, "Hemos enviado un nuevo enlace de verificación."); } catch (cause) { setStatus(status, cause instanceof Error ? cause.message : "No se ha podido reenviar el enlace.", true); } finally { button.disabled = false; button.textContent = "Reenviar verificación"; } }));
-  if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace("/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión. Vuelve a intentarlo.", true));
+  if (document.querySelector("[data-oauth-callback]")) void restoreSession().then(() => window.location.replace(takeOAuthNext() ?? "/app/")).catch(() => setStatus(document.querySelector("[data-oauth-status]"), "No se ha podido completar el inicio de sesión. Vuelve a intentarlo.", true));
   if (document.querySelector("[data-verify-email]")) { const token = new URLSearchParams(location.search).get("token"); const status = document.querySelector("[data-verify-status]"); if (!token) setStatus(status, "El enlace de verificación no es válido.", true); else void request("/auth/email/verify", { method: "POST", body: { token } }).then(() => { setStatus(status, "Tu correo se ha verificado correctamente."); const heading = document.querySelector("[data-verify-email] h1"); if (heading) heading.textContent = "Correo verificado"; }).catch((cause) => setStatus(status, cause instanceof Error ? cause.message : "No se ha podido verificar el correo.", true)); }
 });

@@ -37,6 +37,7 @@ export default defineConfig((() => {
           '/auth': apiTarget,
           '/users': apiTarget,
           '/workspaces': apiTarget,
+          '/billing/plans': apiTarget,
         },
       },
     } : undefined,

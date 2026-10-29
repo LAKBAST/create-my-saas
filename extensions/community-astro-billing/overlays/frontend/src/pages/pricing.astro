@@ -1,23 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Icon from '../components/Icon.astro';
-import type { IconName } from '../lib/icons';
-
-const features: Array<{ icon: IconName; title: string; text: string }> = [
-  { icon: 'check', title: 'Planes permitidos', text: 'La interfaz sólo muestra los price IDs permitidos por la configuración de Stripe.' },
-  { icon: 'billing', title: 'Checkout seguro', text: 'El pago se crea en el backend y continúa en la URL devuelta por Stripe.' },
-  { icon: 'user', title: 'Portal de cliente', text: 'La suscripción, las facturas y el método de pago se gestionan en el portal de Stripe.' },
-];
 ---
-
-<BaseLayout title="Precios" description="Planes configurados desde el backend del producto.">
-  <section class="hero">
-    <p class="eyebrow">Precios</p>
-    <h1>Planes configurados desde tu backend.</h1>
-    <p class="lead">Los planes reales y Checkout se muestran dentro del área protegida para la organización elegida.</p>
-    <div class="actions"><a class="btn btn-primary" href="/billing/">Ver facturación <Icon name="arrow" size={16} /></a></div>
-  </section>
-  <section class="features" aria-label="Facturación">
-    {features.map((feature) => <article class="feature"><div class="feature-icon"><Icon name={feature.icon} /></div><strong>{feature.title}</strong><span>{feature.text}</span></article>)}
-  </section>
+<BaseLayout title="Precios" description="Planes disponibles del producto.">
+  <section class="hero"><p class="eyebrow">Precios</p><h1>Planes para tu producto</h1><p class="lead">Descubre los planes disponibles.</p></section>
+  <section class="features" aria-label="Planes disponibles" data-public-plans data-checkout="true" hidden></section>
 </BaseLayout>

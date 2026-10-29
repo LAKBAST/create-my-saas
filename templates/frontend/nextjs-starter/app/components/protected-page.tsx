@@ -9,7 +9,7 @@ export function ProtectedPage({ children }: { children: ReactNode }) {
   const { status } = useAuth();
 
   useEffect(() => {
-    if (status === "anonymous") router.replace("/login");
+    if (status === "anonymous") router.replace("/login?next=" + encodeURIComponent(window.location.pathname + window.location.search));
   }, [router, status]);
 
   if (status !== "authenticated") return <main className="page-status" aria-live="polite">Comprobando tu sesión…</main>;
