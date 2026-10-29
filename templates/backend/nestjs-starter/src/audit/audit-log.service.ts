@@ -1,3 +1,5 @@
+import { extensionAuditActions } from '../extensions/audit.generated';
+import { composeAuditActions, validateAuditMetadata, type AuditValue, type AuditActionDefinition } from '../extensions/audit-registry';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -5,16 +7,8 @@ import { EntityManager, Repository } from 'typeorm';
 import { AppError } from '../common/errors/app.error';
 import { AuditLog } from './audit-log.entity';
 
-export type AuditAction =
-  | 'organization.invitation.created'
-  | 'organization.invitation.accepted'
-  | 'organization.member.role_changed'
-  | 'organization.member.removed'
-  | 'organization.ownership.transferred'
-  | 'billing.checkout.created'
-  | 'billing.portal.created';
+export type AuditAction = string;
 
-type AuditValue = string | number | boolean | null;
 type AuditInput = {
   organizationId: string;
   actorUserId: string | null;
@@ -24,15 +18,17 @@ type AuditInput = {
   metadata?: Record<string, AuditValue>;
 };
 
-const allowedMetadata: Record<AuditAction, ReadonlySet<string>> = {
-  'organization.invitation.created': new Set(['email', 'role']),
-  'organization.invitation.accepted': new Set(['role']),
-  'organization.member.role_changed': new Set(['previousRole', 'newRole']),
-  'organization.member.removed': new Set(['role']),
-  'organization.ownership.transferred': new Set(['previousOwnerNewRole', 'newOwnerPreviousRole']),
-  'billing.checkout.created': new Set(['provider', 'plan', 'quantity']),
-  'billing.portal.created': new Set(['provider']),
+const coreActions: Record<string, AuditActionDefinition> = {
+  'organization.invitation.created': { metadata: ['email', 'role'] },
+  'organization.invitation.accepted': { metadata: ['role'] },
+  'organization.member.role_changed': { metadata: ['previousRole', 'newRole'] },
+  'organization.member.removed': { metadata: ['role'] },
+  'organization.ownership.transferred': { metadata: ['previousOwnerNewRole', 'newOwnerPreviousRole'] },
+  'billing.checkout.created': { metadata: ['provider', 'plan', 'quantity'] },
+  'billing.portal.created': { metadata: ['provider'] },
 };
+
+const allowedActions = composeAuditActions(coreActions, extensionAuditActions);
 
 @Injectable()
 export class AuditLogService {
@@ -41,14 +37,10 @@ export class AuditLogService {
     private readonly config: ConfigService,
   ) {}
 
-  /** Persist only allowlisted scalar metadata; never pass request/provider payloads here. */
+  /** Persist only allowlisted metadata; never pass request/provider payloads here. */
   async record(input: AuditInput, manager?: EntityManager): Promise<AuditLog | null> {
     const metadata = input.metadata ?? {};
-    const unexpected = Object.keys(metadata).filter((key) => !allowedMetadata[input.action].has(key));
-    if (unexpected.length) throw new Error(`Audit metadata is not allowed for ${input.action}: ${unexpected.sort().join(', ')}`);
-    if (Object.values(metadata).some((value) => value !== null && !['string', 'number', 'boolean'].includes(typeof value))) {
-      throw new Error('Audit metadata values must be scalar.');
-    }
+    validateAuditMetadata(allowedActions, input.action, metadata);
     if (!this.config.get<boolean>('AUDIT_LOG_ENABLED', true)) return null;
     const repository = manager?.getRepository(AuditLog) ?? this.logs;
     return repository.save(repository.create({

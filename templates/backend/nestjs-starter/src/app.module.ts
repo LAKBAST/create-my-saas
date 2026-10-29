@@ -1,3 +1,4 @@
+import { extensionModules } from './extensions/modules.generated';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +25,7 @@ import { validateEnvironment } from './config';
     OrganizationsModule,
     BillingModule,
     AdminModule,
+    ...extensionModules,
   ],
   controllers: [AppController, WorkspacesController],
   providers: [AppService, ReadinessService],

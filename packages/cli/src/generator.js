@@ -1,3 +1,4 @@
+import { writeNestjsIntegrations } from './nestjs-integrations.js';
 import {
   chmodSync,
   copyFileSync,
@@ -611,6 +612,7 @@ function fastapiIntegrations(extensions) {
 }
 
 function writeExtensionIntegrations(destinationDirectory, backend, frontend, extensions) {
+  writeNestjsIntegrations(destinationDirectory, backend, extensions);
   if (backend?.id === 'backend:fastapi') {
     const integrations = fastapiIntegrations(extensions);
     const routers = integrations.flatMap(({ integration }) => integration.routers ?? []);

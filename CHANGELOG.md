@@ -5,6 +5,10 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Registro declarativo componible de módulos, entidades, migraciones y acciones de auditoría para NestJS; la CLI propuesta es 1.11.0 y la plantilla 0.2.1, pendientes de publicación.
+
 ## [1.10.0] - 2026-10-29
 
 ### Added

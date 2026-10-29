@@ -1,3 +1,4 @@
+import { extensionEntities } from '../extensions/database.generated';
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule, type TypeOrmModuleOptions } from '@nestjs/typeorm';
@@ -27,7 +28,7 @@ import { PlatformAdmin } from '../admin/platform-admin.entity';
             type: 'sqljs',
             autoSave: false,
             synchronize: true,
-            entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin],
+            entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin, ...extensionEntities],
           };
         }
 
@@ -35,6 +36,7 @@ import { PlatformAdmin } from '../admin/platform-admin.entity';
           type: 'postgres',
           url: config.getOrThrow<string>('DATABASE_URL'),
           autoLoadEntities: true,
+          entities: extensionEntities,
           synchronize: false,
           ssl: config.get<boolean>('DATABASE_SSL', false) ? { rejectUnauthorized: true } : false,
         };
