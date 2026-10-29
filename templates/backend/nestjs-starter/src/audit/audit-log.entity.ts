@@ -1,3 +1,4 @@
+import type { AuditValue } from '../extensions/audit-registry';
 import { randomUUID } from 'node:crypto';
 import { BeforeInsert, Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
@@ -12,7 +13,7 @@ export class AuditLog {
   @Column({ type: 'varchar', length: 80 }) action!: string;
   @Column({ name: 'target_type', type: 'varchar', length: 40 }) targetType!: string;
   @Column({ name: 'target_id', type: 'varchar', length: 255, nullable: true }) targetId!: string | null;
-  @Column({ type: 'simple-json', default: '{}' }) metadata!: Record<string, string | number | boolean | null>;
+  @Column({ type: 'simple-json', default: '{}' }) metadata!: Record<string, AuditValue>;
   @Column({ name: 'created_at', type: dateType, default: () => 'CURRENT_TIMESTAMP' }) createdAt!: Date;
   @BeforeInsert() assignId(): void { this.id ??= randomUUID(); }
 }

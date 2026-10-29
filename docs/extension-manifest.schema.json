@@ -48,6 +48,79 @@
             "auditActions": { "type": "array", "uniqueItems": true, "items": { "type": "object", "additionalProperties": false, "required": ["name", "metadata"], "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)*$" }, "metadata": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" } } } } }
           }
         },
+        "nestjs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "modules": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^src/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$",
+                "not": {
+                  "pattern": "\\.(?:ts|js):"
+                }
+              }
+            },
+            "entities": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^src/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$",
+                "not": {
+                  "pattern": "\\.(?:ts|js):"
+                }
+              }
+            },
+            "migrations": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^src/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$",
+                "not": {
+                  "pattern": "\\.(?:ts|js):"
+                }
+              }
+            },
+            "auditActions": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "metadata"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)*$"
+                  },
+                  "metadata": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    }
+                  },
+                  "stringListMetadata": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]*$"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
         "frontendRoutes": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^/[A-Za-z0-9_./-]*$" } }
       }
     },

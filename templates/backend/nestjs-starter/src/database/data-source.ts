@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { extensionEntities, extensionMigrations } from '../extensions/database.generated';
 import { DataSource } from 'typeorm';
 import { User } from '../users/user.entity';
 import { AuthToken } from '../auth/auth-token.entity';
@@ -38,7 +39,7 @@ export default new DataSource({
   type: 'postgres',
   url: databaseUrl,
   ssl: ['1', 'true', 'yes', 'on'].includes(process.env.DATABASE_SSL?.trim().toLowerCase() ?? '') ? { rejectUnauthorized: true } : false,
-  entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin],
-  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000, TrackPreviousSubscriptions1773140000000, AddSubscriptionSeats1773140100000, AddPlatformAdmins1773140200000, AddPersonalWorkspaces1773140300000],
+  entities: [User, AuthToken, RefreshSession, OAuthState, OAuthAccount, Organization, Membership, Invitation, BillingCustomer, Subscription, BillingEntitlement, UsageRecord, BillingWebhookEvent, AuditLog, PlatformAdmin, ...extensionEntities],
+  migrations: [CreateUsers1773139200000, AddSaasCore1773139300000, HardenOrganizationInvitations1773139400000, AddStripeBilling1773139500000, AddAuditLogs1773139600000, AddOAuthAccounts1773139700000, AddReferentialIntegrity1773139800000, AddInvitationDelivery1773139900000, TrackPreviousSubscriptions1773140000000, AddSubscriptionSeats1773140100000, AddPlatformAdmins1773140200000, AddPersonalWorkspaces1773140300000, ...extensionMigrations],
   synchronize: false,
 });

@@ -56,7 +56,7 @@ function validIntegrationSettings(value) {
 
 function validIntegrations(value) {
   if (value === undefined) return true;
-  if (!isObject(value) || Object.keys(value).some((key) => !['fastapi', 'frontendRoutes'].includes(key))) return false;
+  if (!isObject(value) || Object.keys(value).some((key) => !['fastapi', 'nestjs', 'frontendRoutes'].includes(key))) return false;
   const fastapi = value.fastapi;
   if (fastapi !== undefined) {
     if (!isObject(fastapi) || Object.keys(fastapi).some((key) => !['routers', 'settings', 'auditActions'].includes(key))) return false;
@@ -68,6 +68,22 @@ function validIntegrations(value) {
         && uniqueStrings(action.metadata, /^[A-Za-z][A-Za-z0-9_]*$/)
         && Object.keys(action).every((key) => ['name', 'metadata'].includes(key)))
       || new Set(fastapi.auditActions.map(({ name }) => name)).size !== fastapi.auditActions.length)) return false;
+  }
+  const nestjs = value.nestjs;
+  if (nestjs !== undefined) {
+    if (!isObject(nestjs) || Object.keys(nestjs).some((key) => !['modules', 'entities', 'migrations', 'auditActions'].includes(key))) return false;
+    for (const key of ['modules', 'entities', 'migrations']) {
+      if (nestjs[key] !== undefined && (!uniqueStrings(nestjs[key], /^src\/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$/)
+        || nestjs[key].some((reference) => /\.(?:ts|js):/.test(reference)))) return false;
+    }
+    if (nestjs.auditActions !== undefined && (!Array.isArray(nestjs.auditActions)
+      || !nestjs.auditActions.every((action) => isObject(action)
+        && typeof action.name === 'string' && auditActionPattern.test(action.name)
+        && uniqueStrings(action.metadata, /^[A-Za-z][A-Za-z0-9_]*$/)
+        && (action.stringListMetadata === undefined || (uniqueStrings(action.stringListMetadata, /^[A-Za-z][A-Za-z0-9_]*$/)
+          && action.stringListMetadata.every((key) => action.metadata.includes(key))))
+        && Object.keys(action).every((key) => ['name', 'metadata', 'stringListMetadata'].includes(key)))
+      || new Set(nestjs.auditActions.map(({ name }) => name)).size !== nestjs.auditActions.length)) return false;
   }
   return value.frontendRoutes === undefined || uniqueStrings(value.frontendRoutes, /^\/[A-Za-z0-9_./-]*$/);
 }
