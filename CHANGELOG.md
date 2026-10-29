@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-10-29
+
 ### Added
 
 - Registro declarativo componible de módulos, entidades, migraciones y acciones de
@@ -452,7 +454,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.0...v1.8.1
