@@ -5,6 +5,11 @@ contribuciones mediante pull requests contra `main`: haz un fork, trabaja en una
 rama y abre el PR desde ella. Al contribuir aceptas que tu código se distribuya
 bajo la [licencia MIT](./LICENSE) del proyecto.
 
+Este repositorio es create-my-saas Community. create-my-saas Pro es un producto
+comercial aparte, con módulos adicionales que se contratan en la
+[Tienda LAKBAST](https://tienda.lakbast.com/store); lo que aportes aquí sigue
+siendo MIT y forma parte de Community.
+
 ## Antes de empezar
 
 - **Errores y propuestas**: abre un [issue](https://github.com/LAKBAST/create-my-saas/issues/new/choose)
