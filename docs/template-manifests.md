@@ -1,6 +1,6 @@
 # Template manifests
 
-Each starter has a `template.manifest.json` at its root. The future
+Each starter has a `template.manifest.json` at its root. The
 `create-my-saas` CLI discovers templates by finding those files below
 `templates/`; it must not infer support from a directory name or from a
 framework-specific package file.
@@ -52,9 +52,9 @@ frontend must proxy browser requests under its own origin so `HttpOnly` refresh
 cookies and the browser-readable CSRF cookie follow the shared authentication
 contract.
 
-Static-first frontends, such as Astro, should not claim
-`auth.browser-sessions`. They can be generated independently and should only
-add a backend integration when their own documented feature needs one.
+Astro includes browser sessions for its lightweight authenticated area and can
+also be generated independently for a public site. Its optional billing
+interface is supplied by an extension.
 
 ## Compatibility
 
@@ -75,3 +75,22 @@ by a frontend template. See [the extension-manifest contract](./extension-manife
 For example, Astro's `billing` selector resolves to the public
 `community:astro-billing` extension. Its manifest permits only FastAPI or
 NestJS because those backends declare `organizations` and `billing.stripe`.
+
+## Catálogo y compatibilidad
+
+| Capa | Opción | Estado y propósito |
+| --- | --- | --- |
+| Backend | `fastapi` | API Python completa: sesiones de navegador, CSRF, usuarios, organizaciones, RBAC, audit log, recuperación/verificación, OAuth y billing. |
+| Backend | `nestjs` | API TypeScript modular con el mismo contrato funcional que FastAPI. |
+| Backend | `fastify` | API TypeScript ligera con PostgreSQL, sesiones, CSRF, recuperación, verificación de email y OAuth de Google/GitHub. No incluye todavía organizaciones ni Stripe Billing. |
+| Frontend | `nextjs` | Dashboard con sesión de navegador, rutas protegidas y flujos de cuenta. |
+| Frontend | `react-router` | Dashboard React con renderizado Framework Mode, rutas protegidas y proxy de API same-origin. |
+| Frontend | `astro` | Sitio rápido de marketing, documentación y blog, con zona autenticada ligera compatible con los tres backends. La facturación por organización es opcional. |
+
+Las capacidades de cada starter están declaradas en su
+`template.manifest.json`. La CLI las compara antes de escribir archivos: los
+dashboards que requieren organizaciones y Stripe Billing necesitan FastAPI o
+NestJS. Fastify puede generarse solo o con Astro ligero, porque cubre el
+contrato de sesión, recuperación, verificación y OAuth de esa área autenticada.
+Para añadir billing a Astro se selecciona explícitamente `--feature billing`;
+la CLI lo limita a FastAPI y NestJS.
