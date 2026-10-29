@@ -12,7 +12,7 @@ import { BillingWebhookEvent } from './billing-webhook-event.entity';
 import { Subscription } from './subscription.entity';
 import { UsageRecord } from './usage-record.entity';
 
-type Plan = { name: string; entitlements: Record<string, number | null>; labels: Record<string, string> };
+type Plan = { name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; priceLabel?: string };
 type PlanPrice = { unitAmount: number; currency: string; interval: Stripe.Price.Recurring.Interval | null; intervalCount: number };
 type PublicPlan = Plan & { priceId: string; price: PlanPrice | null };
 type PortalResult = { configured: boolean; url: string | null; reason?: string };
@@ -56,6 +56,10 @@ export class BillingService {
       currentPeriodStart: subscription.currentPeriodStart, currentPeriodEnd: subscription.currentPeriodEnd, cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
       entitlements: entitlements.map(({ key, limit, enabled, source, expiresAt }) => ({ key, limit, enabled, source, expiresAt })), usage,
     };
+  }
+
+  publicPlans() {
+    return { plans: [...this.pricePlans()].map(([priceId, plan]) => ({ priceId, name: plan.name, priceLabel: plan.priceLabel ?? null, labels: Object.values(plan.labels) })) };
   }
 
   async configuration(): Promise<{ configured: boolean; provider: 'stripe'; usageMeterConfigured: boolean; plans: PublicPlan[] }> {
@@ -317,7 +321,7 @@ export class BillingService {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} must be an object.`, 500);
     return new Map(Object.entries(value as Record<string, unknown>).map(([priceId, plan]) => {
       if (!/^price_[A-Za-z0-9]+$/.test(priceId) || !plan || typeof plan !== 'object' || Array.isArray(plan)) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} contains an invalid plan.`, 500);
-      const typed = plan as { name?: unknown; entitlements?: unknown; labels?: unknown };
+      const typed = plan as { name?: unknown; entitlements?: unknown; labels?: unknown; priceLabel?: unknown };
       if (typeof typed.name !== 'string' || !typed.name.trim()) throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} plans require a name.`, 500);
       const entitlements = this.parseEntitlements(JSON.stringify(typed.entitlements ?? {}), setting);
       const labels = typed.labels === undefined ? {} : typed.labels;
@@ -325,7 +329,8 @@ export class BillingService {
           Object.entries(labels).some(([key, label]) => !Object.hasOwn(entitlements, key) || typeof label !== 'string')) {
         throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} contains invalid labels.`, 500);
       }
-      return [priceId, { name: typed.name, entitlements, labels: labels as Record<string, string> }];
+      if (typed.priceLabel !== undefined && typed.priceLabel !== null && typeof typed.priceLabel !== 'string') throw new AppError('INVALID_BILLING_CONFIGURATION', `${setting} contains an invalid price label.`, 500);
+      return [priceId, { name: typed.name, entitlements, labels: labels as Record<string, string>, ...(typeof typed.priceLabel === 'string' ? { priceLabel: typed.priceLabel } : {}) }];
     }));
   }
 

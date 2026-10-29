@@ -46,6 +46,13 @@ describe('AppController (e2e)', () => {
     }
   });
 
+  it('exposes only cacheable public plan details without a session', async () => {
+    app.get(ConfigService).set('STRIPE_PRICE_PLANS', JSON.stringify({ price_allowed: { name: 'Pro', priceLabel: '29 €/mes', entitlements: { api_calls: 100 }, labels: { api_calls: 'API calls' }, secret: 'hidden' } }));
+    const response = await request(app.getHttpServer()).get('/billing/plans').expect(200);
+    expect(response.headers['cache-control']).toBe('public, max-age=60');
+    expect(response.body).toEqual({ plans: [{ priceId: 'price_allowed', name: 'Pro', priceLabel: '29 €/mes', labels: ['API calls'] }] });
+  });
+
   it('integrates platform access with real authentication and database grants', async () => {
     const email = 'platform-admin@example.com';
     await request(app.getHttpServer()).post('/auth/register').send({ email, password: 'password123', name: 'Operator' }).expect(201);

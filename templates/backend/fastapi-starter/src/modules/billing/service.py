@@ -341,7 +341,12 @@ class BillingService:
             labels = plan.get("labels", {})
             if not isinstance(labels, dict) or any(key not in entitlements or not isinstance(label, str) for key, label in labels.items()):
                 raise AppError("STRIPE_PRICE_PLANS contains invalid labels.", code="INVALID_BILLING_CONFIGURATION", status_code=500)
+            price_label = plan.get("priceLabel")
+            if price_label is not None and not isinstance(price_label, str):
+                raise AppError("STRIPE_PRICE_PLANS contains an invalid price label.", code="INVALID_BILLING_CONFIGURATION", status_code=500)
             plans[price_id] = {"name": plan["name"], "entitlements": entitlements, "labels": labels}
+            if price_label is not None:
+                plans[price_id]["priceLabel"] = price_label
         return plans
 
     def free_entitlements(self) -> dict[str, int | None]:
