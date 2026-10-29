@@ -1,39 +1,44 @@
-# Creating extensions
+# Manifiestos de extensiones
 
-Extensions are versioned, declarative overlays installed only when selected
-with `--feature`. They can live in the package's `extensions/` directory or in
-any local directory passed to the 1.0.0 CLI with `--extensions-dir`. The CLI
-reads those directories recursively; it never downloads an extension or runs a
-command declared by one.
+Las extensiones son overlays declarativos y versionados que se instalan al
+seleccionarlos con `--feature`. Pueden residir en `extensions/` del paquete o
+en directorios locales indicados con `--extensions-dir`. La CLI recorre esos
+directorios de forma recursiva; no descarga extensiones ni ejecuta comandos
+declarados por ellas.
+
+Desde un checkout del repositorio:
 
 ```sh
-create-my-saas app --backend fastapi --frontend nextjs \
-  --extensions-dir ./my-extensions --feature acme:reports
+node packages/cli/bin/create-my-saas.js app --backend fastapi --frontend nextjs \
+  --extensions-dir ./mis-extensiones --feature acme:reports
 ```
 
-`--extensions-dir` is repeatable. Extension IDs have the form
-`namespace:name`, for example `acme:reports`; choose a namespace you control.
-An optional unique short alias can make selection more convenient.
+Los flags `--extensions-dir` y `--feature` son repetibles. Los IDs tienen la
+forma `namespace:name`, como `acme:reports`; elige un namespace propio. El campo
+opcional `aliases` permite selectores cortos, únicos en el catálogo. La extensión
+incluida es `community:astro-billing` (`1.0.0`), con alias `billing`: añade
+facturación a Astro y admite FastAPI o NestJS como backend. Los IDs y versiones
+de las plantillas se detallan en [su guía](./template-manifests.md).
 
-## Extension layout
+## Estructura
 
-Every extension directory contains an `extension.manifest.json` and any
-overlay files it declares:
+Cada extensión contiene `extension.manifest.json` y los archivos declarados:
 
 ```text
-my-extensions/
+mis-extensiones/
   reports/
     extension.manifest.json
     overlays/
       backend/
-        src/reports.js
-        migrations/001-reports.sql
+        src/modules/reports/router.py
+        alembic/versions/001_reports.py
 ```
 
-The manifest must conform to
-[`extension-manifest.schema.json`](./extension-manifest.schema.json). Its
-`schemaVersion` is versioned independently from the extension's own `version`.
-The current public manifest version is `1`.
+El manifiesto debe cumplir
+[`extension-manifest.schema.json`](./extension-manifest.schema.json).
+`schemaVersion` es independiente de `version`; el formato actual es `1`.
+El siguiente ejemplo ilustra los metadatos; los archivos del overlay deben
+implementar realmente las capacidades declaradas:
 
 ```json
 {
@@ -41,8 +46,8 @@ The current public manifest version is `1`.
   "schemaVersion": 1,
   "id": "acme:reports",
   "version": "1.0.0",
-  "displayName": "Reports",
-  "description": "Adds report endpoints.",
+  "displayName": "Informes",
+  "description": "Añade endpoints de informes.",
   "provides": ["reports.api"],
   "requires": {
     "cli": "^1.0.0",
@@ -58,72 +63,82 @@ The current public manifest version is `1`.
       "overlay": "overlays/backend",
       "replace": [],
       "environment": [],
-      "migrations": ["migrations/001-reports.sql"]
+      "migrations": ["alembic/versions/001_reports.py"]
     }
   ]
 }
 ```
 
-## Compatibility contract
+## Compatibilidad y dependencias
 
-`requires.cli` accepts an exact semantic version or a caret range. Supported
-stacks use the same version syntax for each backend or frontend template. The
-generator rejects a selected extension before writing files unless one complete
-stack matches, all required capabilities are available, and every required
-extension is available at a compatible version. Available dependencies are
-selected automatically and installed first; dependencies not present in the
-configured extension directories are rejected.
+`requires.cli` y las versiones requeridas en `supportedStacks` y
+`requires.extensions` aceptan una versión exacta `X.Y.Z` o un rango `^X.Y.Z`.
+La CLI comprueba que coincida al menos una entrada de `supportedStacks`, que
+estén disponibles todas las capacidades requeridas y que las dependencias
+seleccionadas tengan versiones compatibles antes de escribir el proyecto.
+Un componente omitido en una entrada de `supportedStacks` no restringe ese lado
+de la combinación.
 
-`provides` adds capabilities in dependency order. Use `conflictsWith` when two
-extensions cannot coexist. The manifest can also declare `apiPrefixes` for new
-HTTP route prefixes; the generator includes them in the generated gateway
-configuration.
+Declara las dependencias como objetos `{ "id": "acme:base", "version": "^1.0.0" }`
+en `requires.extensions`. Las dependencias disponibles en los directorios del
+catálogo se seleccionan automáticamente y se ordenan antes de la extensión
+dependiente; se rechazan las ausentes, incompatibles o cíclicas.
 
-## Composable integration points
+`provides` añade capacidades en ese orden. `conflictsWith` declara IDs de
+extensiones que no pueden coexistir. `apiPrefixes` permite declarar nuevos
+prefijos HTTP que la CLI añade a la configuración del gateway generado.
 
-For FastAPI extensions, `integrations.fastapi` declaratively registers router
-imports, environment-backed settings (with a minimum-length validation rule),
-and allowlisted audit actions. The generator combines those entries into the
-base integration registry, so extensions never need to replace `main.py`, the
-settings module, or the audit service. `integrations.frontendRoutes` records
-Next.js routes in `app/extensions.generated.ts`; the route components remain
-ordinary overlay files and therefore compose by path.
+## Puntos de integración
+
+`integrations.fastapi` registra imports de routers, ajustes de entorno con
+longitud mínima y acciones de auditoría permitidas. La CLI combina las entradas
+en el registro de integración de la base, sin reemplazar `main.py`, el módulo de
+configuración ni el servicio de auditoría. `integrations.frontendRoutes` registra
+rutas de Next.js en `app/extensions.generated.ts`; los componentes se añaden
+como archivos normales del overlay.
+
+Este fragmento se añade como propiedad `integrations` del manifiesto:
 
 ```json
-"integrations": {
-  "fastapi": {
-    "routers": ["src.modules.reports.router:router"],
-    "settings": [{ "name": "REPORTS_TOKEN", "default": "", "minLength": 32 }],
-    "auditActions": [{ "name": "reports.exported", "metadata": ["format"] }]
-  },
-  "frontendRoutes": ["/settings/reports"]
+{
+  "integrations": {
+    "fastapi": {
+      "routers": ["src.modules.reports.router:router"],
+      "settings": [{ "name": "REPORTS_TOKEN", "default": "", "minLength": 32 }],
+      "auditActions": [{ "name": "reports.exported", "metadata": ["format"] }]
+    },
+    "frontendRoutes": ["/settings/reports"]
+  }
 }
 ```
 
-## Overlays and migrations
+## Overlays y migraciones
 
-Overlays are copied after the selected base template. New files are allowed.
-To replace a base-template file, list its relative path in `replace`; selected
-extensions may not write the same path. Paths must remain inside the extension
-directory and overlays cannot contain symbolic links.
+Los overlays se copian después de la plantilla base. Se admiten archivos nuevos;
+para sustituir uno existente, declara su ruta relativa en `replace`. Dos
+extensiones seleccionadas no pueden escribir la misma ruta. Las rutas deben
+permanecer dentro de la extensión y los overlays no admiten enlaces simbólicos.
 
-List every migration relative to the overlay in `migrations`. The CLI copies
-migration files but never executes them. An extension must provide the package
-manifest and lockfile as explicit overlay replacements when it needs dependency
-changes; the CLI never edits package-manager files heuristically.
+Declara cada migración en `migrations`, con ruta relativa al overlay. La CLI
+copia esos archivos pero no los ejecuta. Si cambian las dependencias, el overlay
+debe aportar el manifiesto del gestor de paquetes y su lockfile, con los
+reemplazos correspondientes en `replace`; la CLI no los modifica por heurísticas.
 
-## Environment variables
+## Variables de entorno
 
-`targets[].environment` belongs to that target only: backend values are added
-to `backend/.env.example`, and frontend values are added to
-`frontend/.env.example`. Frontend variable names must start with
-`NEXT_PUBLIC_` and cannot be secrets.
+`targets[].environment` afecta solo al target: las variables de backend van a
+`backend/.env.example` y las de frontend a `frontend/.env.example`. El validador
+actual exige el prefijo `NEXT_PUBLIC_` para cualquier target frontend, incluido
+Astro; no adapta ese prefijo al framework. No incluyas secretos en variables
+públicas.
 
-Use root-level `deploymentEnvironment` for values consumed by production
-deployment. Those values are added only to `deployment/.env.production.example`.
-Each environment item has `name`, `value`, `secret`, and `description`; a
-secret must have an empty value. Identical declarations from multiple selected
-extensions are emitted once, while conflicting declarations are rejected.
+Usa `deploymentEnvironment`, en la raíz del manifiesto, para valores destinados
+a `deployment/.env.production.example`. Cada entrada de entorno contiene `name`,
+`value`, `secret` y `description`; si `secret` es `true`, `value` debe estar vacío.
+Las declaraciones idénticas de varias extensiones se emiten una vez y las
+declaraciones incompatibles se rechazan.
 
-Validate bundled manifests with `pnpm run validate:extensions`, and test each
-declared stack by generating a disposable project with the extension selected.
+Desde la raíz, ejecuta `npm run validate:extensions` y prueba cada combinación
+declarada generando un proyecto temporal con la extensión seleccionada. Aplica
+las migraciones con las herramientas del backend, según la
+[guía de despliegue](./deployment.md).

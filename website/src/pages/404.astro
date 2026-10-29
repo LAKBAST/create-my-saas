@@ -1,0 +1,20 @@
+---
+import Base from '../layouts/Base.astro';
+import { url } from '../data/site';
+---
+
+<Base title="Página no encontrada">
+	<section class="shell hero">
+		<span class="eyebrow">Error 404</span>
+		<div class="hero-grid">
+			<h1>Esta página <em>no existe.</em></h1>
+			<div class="hero-side">
+				<p class="lead">Puede que la hayamos movido al reorganizar la documentación.</p>
+				<div class="hero-actions">
+					<a class="button" href={url('empezar/introduccion/')}>Ir a la documentación <span aria-hidden="true">→</span></a>
+					<a class="arrow-link" href={url()}>Inicio <span aria-hidden="true">→</span></a>
+				</div>
+			</div>
+		</div>
+	</section>
+</Base>

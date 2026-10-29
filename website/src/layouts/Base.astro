@@ -1,0 +1,203 @@
+---
+import '../styles/global.css';
+import LogoSprite from '../components/LogoSprite.astro';
+import { site, url } from '../data/site';
+import interTight from '@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2?url';
+
+interface Props {
+	title: string;
+	description?: string;
+}
+
+const { title, description = site.description } = Astro.props;
+const fullTitle = title === site.name ? `${site.name} — Genera tu SaaS desde la terminal` : `${title} — ${site.name}`;
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const current = Astro.url.pathname;
+const docsHome = url('empezar/introduccion/');
+const nav = [
+	{ href: docsHome, label: 'Documentación', active: current !== url() && !current.includes('/quick-start/') },
+	{ href: url('empezar/quick-start/'), label: 'Quick start', active: current.includes('/quick-start/') },
+	{ href: site.repo, label: 'GitHub', external: true },
+	{ href: site.npm, label: 'npm', external: true },
+];
+// Inter Tight servida desde la propia web, con una alternativa local ajustada
+// a sus medidas para que el cambio de fuente no mueva el texto.
+const fontFaces = `@font-face{font-family:"Inter Tight";font-style:normal;font-weight:100 900;font-display:swap;src:url(${interTight}) format("woff2")}@font-face{font-family:"Inter Tight Fallback";src:local("Arial"),local("Helvetica"),local("Roboto");size-adjust:96%;ascent-override:101%;descent-override:25%;line-gap-override:0%}`;
+const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.svg') };
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="theme-color" content="#f7f7f5" />
+		<title>{fullTitle}</title>
+		<link rel="preload" href={interTight} as="font" type="font/woff2" crossorigin />
+		<style is:inline set:html={fontFaces}></style>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical} />
+		<link id="site-favicon" rel="icon" type="image/svg+xml" href={favicons.light} />
+		<meta property="og:type" content="website" />
+		<meta property="og:site_name" content={site.name} />
+		<meta property="og:title" content={fullTitle} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={canonical} />
+		<script is:inline define:vars={{ favicons }}>
+			(() => {
+				document.documentElement.classList.add('js');
+				const key = 'create-my-saas-theme';
+				const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+				const savedTheme = () => {
+					try {
+						const value = localStorage.getItem(key);
+						return value === 'light' || value === 'dark' ? value : null;
+					} catch {
+						return null;
+					}
+				};
+				const applyTheme = (theme) => {
+					document.documentElement.dataset.theme = theme;
+					document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#111315' : '#f7f7f5');
+					document.getElementById('site-favicon')?.setAttribute('href', theme === 'dark' ? favicons.dark : favicons.light);
+					const toggle = document.querySelector('[data-theme-toggle]');
+					if (toggle) {
+						toggle.setAttribute('aria-pressed', String(theme === 'dark'));
+						toggle.setAttribute('aria-label', theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro');
+						toggle.querySelector('.theme-toggle-label').textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
+					}
+				};
+				applyTheme(savedTheme() || (systemTheme.matches ? 'dark' : 'light'));
+				document.addEventListener('click', (event) => {
+					const toggle = event.target.closest?.('[data-theme-toggle]');
+					if (!toggle) return;
+					const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+					try { localStorage.setItem(key, nextTheme); } catch { /* El selector funciona sin almacenamiento. */ }
+					const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+					if (!document.startViewTransition || reduceMotion) return applyTheme(nextTheme);
+					// El tema nuevo se revela con un círculo que crece desde el botón.
+					const root = document.documentElement;
+					const { left, top, width, height } = toggle.getBoundingClientRect();
+					const x = left + width / 2;
+					const y = top + height / 2;
+					const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+					root.classList.add('theme-transition');
+					const transition = document.startViewTransition(() => applyTheme(nextTheme));
+					transition.ready.then(() => {
+						root.animate(
+							{ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+							{ duration: 650, easing: 'cubic-bezier(.6, 0, .2, 1)', pseudoElement: '::view-transition-new(root)' },
+						);
+					}).catch(() => {});
+					transition.finished.finally(() => root.classList.remove('theme-transition'));
+				});
+				document.addEventListener('DOMContentLoaded', () => applyTheme(document.documentElement.dataset.theme));
+				systemTheme.addEventListener?.('change', (event) => {
+					if (!savedTheme()) applyTheme(event.matches ? 'dark' : 'light');
+				});
+			})();
+		</script>
+	</head>
+	<body>
+		<LogoSprite />
+		<a class="skip-link" href="#contenido">Saltar al contenido</a>
+		<header class="site-header">
+			<div class="shell header-inner">
+				<a class="brand" href={url()} aria-label="create-my-saas, por LAKBAST — inicio">
+					<span class="brand-name">create-my-saas</span>
+					<span class="brand-org" aria-hidden="true">
+						por <svg class="logo" viewBox="0 0 1441 309" width="1441" height="309" focusable="false"><use href="#lakbast-logo" /></svg>
+					</span>
+				</a>
+				<nav class="desktop-nav" aria-label="Navegación principal">
+					{nav.map((item) => (
+						<a href={item.href} aria-current={item.active ? 'page' : undefined} {...(item.external ? { target: '_blank', rel: 'noopener' } : {})}>{item.label}</a>
+					))}
+				</nav>
+				<div class="header-actions">
+					<button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro" aria-pressed="false">
+						<span class="theme-toggle-icon" aria-hidden="true"></span>
+						<span class="theme-toggle-label">Oscuro</span>
+					</button>
+					<details class="mobile-menu" data-mobile-menu>
+						<summary aria-label="Abrir menú">
+							<span class="menu-label" aria-hidden="true"><span>Menú</span><span>Cerrar</span></span>
+							<span class="menu-icon" aria-hidden="true"></span>
+						</summary>
+						<div class="mobile-menu-panel">
+							<nav aria-label="Navegación móvil">
+								{nav.map((item, index) => (
+									<a href={item.href} style={`--i:${index}`} {...(item.external ? { target: '_blank', rel: 'noopener' } : {})}>
+										<span class="mobile-menu-num" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+										{item.label}
+										<span class="mobile-menu-arrow" aria-hidden="true">↗</span>
+									</a>
+								))}
+							</nav>
+							<div class="mobile-menu-foot">
+								<span class="eyebrow">Un proyecto de</span>
+								<a href={site.lakbast}>lakbast.com</a>
+							</div>
+						</div>
+					</details>
+				</div>
+			</div>
+		</header>
+		<main id="contenido">
+			<slot />
+		</main>
+		<footer class="site-footer">
+			<div class="shell footer-top">
+				<div>
+					<span class="footer-name">create-my-saas</span>
+					<p>CLI open source para generar la base de un producto SaaS a partir de plantillas versionadas. Licencia MIT.</p>
+					<a class="footer-by" href={site.lakbast} aria-label="Un proyecto de LAKBAST">
+						Un proyecto de
+						<svg class="logo" viewBox="0 0 1441 309" width="1441" height="309" aria-hidden="true" focusable="false"><use href="#lakbast-logo" /></svg>
+					</a>
+				</div>
+				<div class="footer-links">
+					<a href={docsHome}>Documentación</a>
+					<a href={url('empezar/quick-start/')}>Quick start</a>
+					<a href={url('referencia/cli/')}>Referencia de la CLI</a>
+					<a href={url('guias/plantillas/')}>Plantillas</a>
+				</div>
+				<div class="footer-links">
+					<a href={site.repo}>GitHub</a>
+					<a href={site.npm}>npm</a>
+					<a href={`${site.repo}/blob/main/CHANGELOG.md`}>Changelog</a>
+					<a href={`${site.repo}/issues`}>Reportar un problema</a>
+				</div>
+			</div>
+			<div class="shell footer-bottom"><span>© {new Date().getFullYear()} LAKBAST</span><span>Licencia MIT</span></div>
+		</footer>
+		<script>
+			import { initReveal } from '../lib/reveal';
+			import { initMobileMenu } from '../lib/mobile-menu';
+			import { initStickyHeader } from '../lib/sticky-header';
+			initMobileMenu();
+			initStickyHeader();
+			initReveal();
+			// Botones de copiar: el del comando de la portada y uno por bloque de código.
+			for (const pre of document.querySelectorAll<HTMLElement>('.prose pre')) {
+				const button = document.createElement('button');
+				button.type = 'button';
+				button.className = 'copy-code';
+				button.textContent = 'Copiar';
+				button.dataset.copy = '';
+				pre.append(button);
+			}
+			document.addEventListener('click', async (event) => {
+				const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-copy]');
+				if (!button) return;
+				const source = button.dataset.copy || button.closest('pre')?.querySelector('code')?.textContent || '';
+				try {
+					await navigator.clipboard.writeText(source.trim());
+					const label = button.textContent;
+					button.textContent = 'Copiado';
+					setTimeout(() => { button.textContent = label; }, 1600);
+				} catch { /* Sin permiso de portapapeles, el texto sigue seleccionable. */ }
+			});
+		</script>
+	</body>
+</html>

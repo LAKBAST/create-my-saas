@@ -1,0 +1,171 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import { docsNav, site, url } from '../data/site';
+
+export async function getStaticPaths() {
+	const entries = await getCollection('docs');
+	const byId = new Map(entries.map((entry) => [entry.id, entry]));
+	const order = docsNav.flatMap((group) => group.items.map((id) => ({ id, group: group.label })));
+	for (const { id } of order) {
+		if (!byId.has(id)) throw new Error(`El índice cita "${id}", pero no existe src/content/docs/${id}.md`);
+	}
+	return order.map(({ id, group }, index) => ({
+		params: { slug: id },
+		props: {
+			entry: byId.get(id)!,
+			group,
+			prev: order[index - 1] && byId.get(order[index - 1].id),
+			next: order[index + 1] && byId.get(order[index + 1].id),
+			nav: docsNav.map((navGroup) => ({
+				label: navGroup.label,
+				items: navGroup.items.map((itemId) => ({ id: itemId, title: byId.get(itemId)!.data.title })),
+			})),
+		},
+	}));
+}
+
+const { entry, group, prev, next, nav } = Astro.props;
+const { Content, headings } = await render(entry);
+const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
+const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.filePath}`;
+---
+
+<Base title={entry.data.title} description={entry.data.description}>
+	<div class="shell docs">
+		<aside class="docs-sidebar" aria-label="Documentación">
+			<nav class="docs-nav-groups">
+				{nav.map((navGroup) => (
+					<div class="docs-nav-group">
+						<span>{navGroup.label}</span>
+						<ul>
+							{navGroup.items.map((item) => (
+								<li><a href={url(`${item.id}/`)} aria-current={item.id === entry.id ? 'page' : undefined}>{item.title}</a></li>
+							))}
+						</ul>
+					</div>
+				))}
+			</nav>
+		</aside>
+
+		<article>
+			<details class="docs-nav-mobile" data-docs-nav>
+				<summary>
+					<span class="docs-nav-mobile-label">
+						<small>{group}</small>
+						<span>{entry.data.title}</span>
+					</span>
+					<span class="docs-nav-mobile-action">Índice <span class="plus-icon" aria-hidden="true"></span></span>
+				</summary>
+				<div class="docs-nav-mobile-panel">
+				{toc.length > 0 && (
+					<div class="docs-nav-group docs-nav-toc">
+						<span>En esta página</span>
+						<ul>
+							{toc.filter((heading) => heading.depth === 2).map((heading) => (
+								<li><a href={`#${heading.slug}`}>{heading.text}</a></li>
+							))}
+						</ul>
+					</div>
+				)}
+				<nav class="docs-nav-groups" aria-label="Documentación">
+					{nav.map((navGroup) => (
+						<div class="docs-nav-group">
+							<span>{navGroup.label}</span>
+							<ul>
+								{navGroup.items.map((item) => (
+									<li><a href={url(`${item.id}/`)} aria-current={item.id === entry.id ? 'page' : undefined}>{item.title}</a></li>
+								))}
+							</ul>
+						</div>
+					))}
+				</nav>
+				</div>
+			</details>
+
+			<header class="docs-header">
+				<span class="eyebrow">{group}</span>
+				<h1>{entry.data.title}</h1>
+				{entry.data.description && <p>{entry.data.description}</p>}
+			</header>
+
+			<div class="prose">
+				<Content />
+			</div>
+
+			<a class="docs-edit" href={editUrl} target="_blank" rel="noopener">
+				<div>
+					<strong>¿Ves algo mejorable en esta página?</strong>
+					<span>Propón un cambio directamente en GitHub.</span>
+				</div>
+				<span class="arrow" aria-hidden="true">↗</span>
+			</a>
+
+			<nav class="docs-pager" aria-label="Paginación">
+				{prev && <a class="prev" href={url(`${prev.id}/`)}><small>← Anterior</small><span>{prev.data.title}</span></a>}
+				{next && <a class="next" href={url(`${next.id}/`)}><small>Siguiente →</small><span>{next.data.title}</span></a>}
+			</nav>
+		</article>
+
+		{toc.length > 0 && (
+			<aside class="docs-toc" aria-label="En esta página">
+				<span>En esta página</span>
+				<ul>
+					{toc.map((heading) => (
+						<li><a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a></li>
+					))}
+				</ul>
+			</aside>
+		)}
+	</div>
+</Base>
+
+<script>
+	// Las tablas anchas se desplazan dentro de su caja en lugar de desbordar la
+	// página. Cada celda guarda el nombre de su columna para que, en móvil, las
+	// filas se lean como fichas.
+	for (const table of document.querySelectorAll('.prose table')) {
+		const wrap = document.createElement('div');
+		wrap.className = 'table-wrap';
+		table.replaceWith(wrap);
+		wrap.append(table);
+		const labels = [...table.querySelectorAll('thead th')].map((th) => th.textContent?.trim() ?? '');
+		for (const row of table.querySelectorAll('tbody tr')) {
+			[...row.children].forEach((cell, index) => cell.setAttribute('data-label', labels[index] ?? ''));
+		}
+	}
+
+	// En móvil, el índice se cierra al elegir un destino.
+	const docsNav = document.querySelector<HTMLDetailsElement>('[data-docs-nav]');
+	docsNav?.addEventListener('click', (event) => {
+		if ((event.target as HTMLElement).closest('a')) docsNav.open = false;
+	});
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && docsNav?.open) docsNav.open = false;
+	});
+
+	// Enlace a cada sección, visible al pasar por encima del título.
+	for (const heading of document.querySelectorAll<HTMLElement>('.prose :is(h2, h3)[id]')) {
+		const anchor = document.createElement('a');
+		anchor.className = 'heading-anchor';
+		anchor.href = `#${heading.id}`;
+		anchor.textContent = '#';
+		anchor.setAttribute('aria-label', 'Enlace a esta sección');
+		heading.append(anchor);
+	}
+
+	// Marca en el índice la sección que se está leyendo.
+	const links = new Map([...document.querySelectorAll<HTMLAnchorElement>('.docs-toc a')].map((link) => [decodeURIComponent(link.hash.slice(1)), link]));
+	if (links.size && 'IntersectionObserver' in window) {
+		const observer = new IntersectionObserver((entries) => {
+			const visible = entries.filter((entry) => entry.isIntersecting);
+			if (!visible.length) return;
+			for (const link of links.values()) link.classList.remove('is-active');
+			links.get(visible[0].target.id)?.classList.add('is-active');
+		}, { rootMargin: '0px 0px -70% 0px' });
+		for (const id of links.keys()) {
+			const heading = document.getElementById(id);
+			if (heading) observer.observe(heading);
+		}
+	}
+</script>

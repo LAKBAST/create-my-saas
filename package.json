@@ -5,12 +5,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SoyManoolo/create-my-saas.git"
+    "url": "git+https://github.com/LAKBAST/create-my-saas.git"
   },
   "bugs": {
-    "url": "https://github.com/SoyManoolo/create-my-saas/issues"
+    "url": "https://github.com/LAKBAST/create-my-saas/issues"
   },
-  "homepage": "https://github.com/SoyManoolo/create-my-saas#readme",
+  "homepage": "https://github.com/LAKBAST/create-my-saas#readme",
   "type": "module",
   "bin": {
     "create-my-saas": "packages/cli/bin/create-my-saas.js"

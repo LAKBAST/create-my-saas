@@ -1,7 +1,8 @@
 # Publicar la CLI
 
-Las releases de `@soymanolo/create-my-saas` se publican automáticamente desde
-un tag Git. El workflow valida la versión, ejecuta las comprobaciones de la
+El paquete npm sigue llamándose `@soymanolo/create-my-saas`, aunque el repositorio
+es `LAKBAST/create-my-saas`. El workflow `.github/workflows/publish.yml` se activa
+al subir un tag `v*`. Valida la versión, ejecuta las comprobaciones de la
 CLI, inspecciona el contenido de npm, publica el paquete y crea la GitHub
 Release con notas generadas a partir de su sección del changelog. La excepción es el tag de
 arranque `v1.0.0`, detallado abajo.
@@ -18,7 +19,7 @@ arranque `v1.0.0`, detallado abajo.
 
    | Campo | Valor |
    | --- | --- |
-   | Organización o usuario | `SoyManoolo` |
+   | Organización o usuario | `LAKBAST` |
    | Repositorio | `create-my-saas` |
    | Workflow | `publish.yml` |
    | Environment | dejar vacío |
@@ -27,15 +28,18 @@ arranque `v1.0.0`, detallado abajo.
    Esta relación usa credenciales OIDC de corta duración. El workflow necesita
    `id-token: write` para solicitarlas, pero no guarda credenciales de npm.
 
-4. Verifica que el paquete sea público. Los paquetes sin scope se publican
-   públicamente.
+4. Verifica que el paquete con scope `@soymanolo` sea público. El workflow
+   ejecuta `npm publish` sin `--access public`; no convierte un paquete privado
+   en público. Tras trasladar el repositorio, revisa que la relación de confianza
+   de npm use el propietario `LAKBAST`.
 
-La primera vez es necesario que el paquete exista para poder configurar el
-proveedor de confianza. Publica `1.0.0` manualmente desde un checkout limpio:
+El siguiente procedimiento corresponde al arranque histórico de `1.0.0` y no
+debe repetirse para una versión ya publicada. La primera publicación manual del
+paquete con scope se realiza desde la raíz de un checkout limpio de esa versión:
 
 ```sh
 npm login
-npm publish
+npm publish --access public
 ```
 
 No copies el token de npm a este repositorio, a secretos de GitHub ni a un chat.
@@ -87,5 +91,6 @@ npm view @soymanolo/create-my-saas version
 npx @soymanolo/create-my-saas@latest example-saas --backend nestjs --frontend nextjs
 ```
 
-La publicación con Trusted Publishing genera automáticamente la procedencia
-de npm cuando el repositorio y el paquete son públicos.
+La configuración efectiva de Trusted Publishing y la procedencia del paquete
+se comprueban en npm y en el resultado de la publicación; el código del workflow
+por sí solo no confirma que esa relación externa esté configurada.

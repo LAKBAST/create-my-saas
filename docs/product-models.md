@@ -7,7 +7,7 @@ que corresponden a Pro.
 
 ## Selección
 
-Con la CLI 1.8.0 o posterior (aquí, desde el checkout del repositorio):
+Con la CLI del repositorio (comandos desde su raíz):
 
 ```sh
 node packages/cli/bin/create-my-saas.js personal --backend fastapi --frontend nextjs --product-model individual
@@ -25,11 +25,15 @@ FastAPI y NestJS soportan los tres modelos y conservan `teams` por defecto para
 los proyectos que no seleccionan uno. Fastify soporta únicamente `individual`,
 sin organizaciones ni facturación. Las combinaciones de plantillas siguen
 sujetas a sus capacidades: elegir `individual` no añade Stripe a Fastify.
+Fastify se combina con Astro; Next.js y React Router requieren organizaciones
+y Stripe incluso al seleccionar `individual`. Consulta el
+[catálogo y la compatibilidad](./template-manifests.md).
 La selección explícita requiere un backend; un sitio Astro público sin API no
 necesita un modelo de cuentas.
 
-La CLI guarda `productModel` en `.create-my-saas.json` con esquema 4 y escribe
-`PRODUCT_MODEL` en los ejemplos de entorno del backend y de despliegue. Copia
+En proyectos con backend, la CLI guarda `productModel` en `.create-my-saas.json`
+con esquema 4 y escribe `PRODUCT_MODEL` en los ejemplos de entorno del backend
+y de despliegue. Copia
 ese valor a la configuración real del servicio. Los frontends descubren el
 modelo desde la API, evitando una segunda configuración que pueda contradecirla.
 La interfaz de facturación de Astro se añade con `--feature billing`; su modo
@@ -57,7 +61,7 @@ Su contrato es:
 ```json
 {
   "model": "mixed",
-  "personalWorkspace": { "id": "uuid", "name": "Espacio personal", "slug": "personal-uuid" },
+  "personalWorkspace": { "id": "uuid", "name": "Personal", "slug": "personal-uuid" },
   "teams": [],
   "billingSupported": true
 }
@@ -79,7 +83,10 @@ Para desactivar una cuenta con una suscripción personal de Stripe renovable,
 primero hay que cancelar su renovación mediante el portal de facturación. La
 API responde `409 ACTIVE_PERSONAL_SUBSCRIPTION` si la suscripción sigue renovando;
 las cuentas gratuitas y las suscripciones con cancelación programada pueden
-desactivarse. La baja de cuenta no cancela suscripciones automáticamente.
+desactivarse si cumplen las demás comprobaciones. Ser el último propietario
+activo de un equipo también bloquea la baja con `409 LAST_ACTIVE_OWNER`:
+transfiere antes su propiedad a otro miembro activo. La baja de cuenta no
+cancela suscripciones automáticamente.
 
 Las migraciones conservan las organizaciones existentes como equipos. No
 reasignan sus datos, miembros ni suscripciones. Cambiar `PRODUCT_MODEL` no es

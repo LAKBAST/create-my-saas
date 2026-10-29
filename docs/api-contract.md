@@ -13,11 +13,16 @@ campos de usuario y token. Las diferencias de rutas de billing entre FastAPI y
 NestJS siguen resueltas por los adaptadores existentes.
 
 `CoreApi` describe las operaciones presentes en los tres backends.
-`OrganizationApi`, `BillingApi` y `AdminApi` son capacidades opcionales:
-Fastify ofrece solo el modelo individual y no expone esas rutas. Astro sin la
+`OrganizationApi` y `BillingApi` describen capacidades que Fastify no ofrece:
+este backend solo admite el modelo individual. `AdminApi` describe las consultas
+administrativas; los tres backends ofrecen acceso, resumen y usuarios, pero
+solo FastAPI y NestJS ofrecen organizaciones y suscripciones. Astro sin la
 extensión de billing tampoco muestra flujos de organización o facturación.
 La selección real de capacidades permanece en el manifiesto de las plantillas
-y en el contexto de `/workspaces/bootstrap`.
+y en el contexto de `POST /workspaces/bootstrap`. Para administración,
+`GET /admin/access` anuncia los recursos disponibles. Consulta
+[los modelos de producto](./product-models.md) y
+[la guía de administración](./admin-dashboard.md).
 
 Las pruebas HTTP de proyectos generados verifican los contratos de backend y
 frontend en las combinaciones afectadas. TypeScript comprueba las tres
