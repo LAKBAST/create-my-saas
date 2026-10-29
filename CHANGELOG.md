@@ -7,7 +7,11 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Registro declarativo componible de módulos, entidades, migraciones y acciones de auditoría para NestJS; la CLI propuesta es 1.11.0 y la plantilla 0.2.1, pendientes de publicación.
+- Registro declarativo componible de módulos, entidades, migraciones y acciones de
+  auditoría para NestJS (`integrations.nestjs`): varias extensiones se pueden
+  instalar juntas sin sustituir `AppModule`, los registros de TypeORM ni el
+  servicio de auditoría. La plantilla NestJS pasa a `0.2.1` con la capacidad
+  `extensions.nestjs`. Consulta `docs/nestjs-extensions.md`.
 
 ## [1.10.0] - 2026-10-29
 
