@@ -15,7 +15,7 @@ declara los recursos: FastAPI y NestJS incluyen usuarios, organizaciones y
 suscripciones; Fastify incluye usuarios. Astro funciona con y sin billing.
 El resumen representa datos actuales y
 altas por periodo, sin atribuirles métricas de actividad o ingresos.
-Consulta [la guía de administración](admin-dashboard.md).
+Consulta [la guía de administración](./admin-dashboard.md).
 
 ## Contrato de NestJS
 
@@ -80,7 +80,7 @@ cookies, correo y Redis se conservan.
 | Verificación de correo | `/verify-email` | La misma | `/verify-email/` | `/verify-email/` |
 | Retorno OAuth | `/auth/oauth/callback` | La misma | La misma con `/` final | La misma con `/` final |
 | Facturación | `/billing` | `/billing` | Fuera de alcance | `/billing/` |
-| Crear primera organización desde Facturación | Sí | Sí | Fuera de alcance | Sí |
+| Crear organización desde Facturación (`teams` o `mixed`) | Sí | Sí | Fuera de alcance | Sí |
 | Portada pública | No, inicio privado | `/` | `/` | `/` |
 | Precios, documentación y blog públicos | No | No | `/pricing`, `/docs`, `/blog` | Las mismas |
 
@@ -93,7 +93,8 @@ solicitudes. Astro añade los estados de éxito, el progreso inicial y, con la
 extensión, la creación de organización, sus plazas y la presentación explícita
 de planes y de facturación sin configurar. El estado de suscripción se presenta
 con etiquetas en español en lugar de repetir el código de Stripe en el título.
-`PRODUCT_NAME` también se utiliza en los tres avisos de consentimiento.
+El nombre del producto se utiliza en los avisos de consentimiento; los enlaces
+de privacidad y cookies dependen de las URL configuradas en cada frontend.
 
 React Router conserva la redirección tras registrarse a `/login?registered=1`,
 que comprueba la prueba de navegador. Astro conserva sus atributos `data-*`
@@ -101,7 +102,11 @@ de estado y los enlaces y el comportamiento para tokens ausentes utilizados por
 esa prueba. Las etiquetas de suscripción ya presentes en Next.js y React Router
 se mantienen; los códigos desconocidos siguen siendo visibles como alternativa.
 
-## Extensiones Pro
+## Extensiones Pro (referencia externa)
+
+Las afirmaciones de este apartado se conservan como referencia histórica de Pro.
+Sus overlays no están incluidos en este repositorio Community y deben verificarse
+en el repositorio Pro antes de aplicarlas a una versión actual.
 
 Las copias de `app.module.ts` de `api-keys` y `background-jobs` aplican las
 mismas reglas de producción. Conservan la validación inline para admitir también
@@ -112,33 +117,41 @@ plazas una sola vez. Su definición inline usa el mismo nombre y SQL, por el
 mismo motivo de compatibilidad. No se encontraron llamadas consumidoras a
 `DELETE /users/me` ni a `/organizations/:id/billing/*` en las extensiones.
 
-## Comprobaciones locales
+## Comprobaciones reproducibles
 
-| Comprobación | Resultado |
+Instala las dependencias del starter antes de ejecutar sus comandos. Las filas
+siguientes indican el directorio de trabajo dentro del repositorio; no son un
+registro de resultados de una ejecución concreta.
+
+| Directorio | Comandos |
 | --- | --- |
-| FastAPI: `uv run python -m unittest discover -s tests` | 62 correctos, 9 omitidos |
-| NestJS: `npx tsc --noEmit -p tsconfig.json` y `pnpm test --runInBand` | Correctos; 51 tests correctos, 1 de Redis omitido |
-| NestJS: `pnpm run test:e2e --runInBand` | 18 correctos con SQL.js |
-| Fastify: `pnpm run typecheck` y `pnpm test` | Correctos; 23 tests correctos, 1 de Redis omitido |
-| React Router: `pnpm run typecheck` y `pnpm lint` | Correctos |
-| Astro: `pnpm run check` | 24 archivos, 0 errores, avisos e indicaciones |
-| Astro generado con facturación: `pnpm run check` | 25 archivos, 0 errores, avisos e indicaciones |
-| Next.js: `pnpm lint` y `npx tsc --noEmit` | Correctos |
-| CLI: `node --test --test-concurrency=1` en `packages/cli` | 39 correctos; 2 fallos conocidos `EPERM` al crear enlaces simbólicos en Windows |
-| Pro: `npm test` | 11 correctos, 6 omitidos; también con Community 1.4.0 |
-| Pro api-keys + NestJS: typecheck y tests | 68 correctos, 1 de Redis omitido |
-| Pro background-jobs + NestJS: typecheck y tests | 71 correctos, 15 omitidos |
+| Raíz | `npm run validate:templates` y `npm test` |
+| `templates/backend/fastapi-starter` | `uv sync --locked` y `uv run python -m unittest discover -s tests` |
+| `templates/backend/nestjs-starter` | `pnpm build`, `pnpm test --runInBand` y `pnpm run test:e2e --runInBand` |
+| `templates/backend/fastify-starter` | `pnpm run typecheck` y `pnpm test` |
+| `templates/frontend/react-router-starter` | `pnpm run typecheck` y `pnpm lint` |
+| `templates/frontend/astro-starter` | `pnpm run check` |
+| `templates/frontend/nextjs-starter` | `pnpm lint` y `pnpm exec tsc --noEmit` |
 
-Los tests de comercio omitidos en Pro requieren `COMMERCE_TEST_DATABASE_URL`;
-la integración de despliegue requiere Docker y
-`RUN_API_KEYS_DEPLOYMENT_INTEGRATION=1`. Las pruebas omitidas de bases de datos y
-Redis requieren sus servicios y variables de integración.
+Para Astro con facturación, genera un proyecto con
+`--frontend astro --backend fastapi --feature billing`, instala sus dependencias y ejecuta
+`pnpm run check` en `frontend/`. Las pruebas de integración de bases de datos
+y Redis requieren los servicios y las variables que declara cada suite.
 
-La matriz de CI conserva las nueve combinaciones compatibles de navegador. El
-test crea la primera organización desde la interfaz y comprueba invitaciones,
-identificadores de miembros, permisos y facturación usando las rutas canónicas.
-Su ejecución remota se consulta en el PR; los checks locales no sustituyen ese
-resultado.
+Desde la raíz, `npm run test:e2e:contract` ejecuta por defecto FastAPI + Next.js.
+Para otra combinación, usa el script directamente; por ejemplo:
+
+```sh
+node scripts/e2e-generated-projects.mjs --backend nestjs --frontend astro --feature billing
+```
+
+Las nueve combinaciones contempladas por las pruebas son FastAPI y NestJS con
+Next.js, React Router, Astro base o Astro con `billing`, más Fastify con Astro
+base. No todas tienen flujos de organizaciones o facturación. La selección de
+jobs de CI depende de los archivos afectados; comprueba los resultados del PR
+para conocer las suites ejecutadas. Consulta también
+[el contrato API](./api-contract.md) y
+[los manifiestos de plantillas](./template-manifests.md).
 
 ## Diferencias preservadas
 

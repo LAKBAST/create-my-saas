@@ -28,8 +28,9 @@ node dist/admin/manage-admin.js grant <user-uuid>
 node dist/admin/manage-admin.js revoke <user-uuid>
 ```
 
-FastAPI: aplica `alembic upgrade head` y ejecuta
-`python -m src.modules.admin.manage grant <user-uuid>` o `revoke <user-uuid>`.
+FastAPI: aplica `uv run alembic upgrade heads` y ejecuta
+`uv run python -m src.modules.admin.manage grant <user-uuid>` o
+`uv run python -m src.modules.admin.manage revoke <user-uuid>`.
 Fastify: aplica `pnpm db:migrate`, compila con `pnpm build` y ejecuta
 `node dist/admin/manage-admin.js grant <user-uuid>` o `revoke <user-uuid>`.
 
@@ -93,8 +94,8 @@ Todas las rutas requieren una sesión válida mediante `Authorization: Bearer`.
 - `GET /admin/access`: devuelve `{ allowed: boolean, resources: string[] }` para descubrir el acceso y los recursos disponibles.
 - `GET /admin/overview?days=30`: resumen, con un periodo de 1 a 365 días.
 - `GET /admin/users?page=1&pageSize=25&search=...`.
-- `GET /admin/organizations?page=1&pageSize=25&search=...`.
-- `GET /admin/subscriptions?page=1&pageSize=25&search=...`.
+- `GET /admin/organizations?page=1&pageSize=25&search=...` (FastAPI y NestJS).
+- `GET /admin/subscriptions?page=1&pageSize=25&search=...` (FastAPI y NestJS).
 
 Las listas devuelven `{ items, total, page, pageSize }`, con un máximo de 100
 elementos por página. Sin permiso global, las consultas de datos responden
@@ -105,11 +106,20 @@ datos aunque se acceda directamente a la API.
 
 Desde la raíz, `npm run test:e2e:admin` ejecuta las pruebas de navegador de
 Next.js. React Router y Astro incluyen sus propias suites en `test/` y
-`playwright.admin.config.mjs`; sus README indican cómo ejecutarlas. Las suites
-usan respuestas simuladas para verificar estados y permisos de interfaz y una
+`playwright.admin.config.mjs`. Tras instalar las dependencias del frontend y
+Playwright con Chromium, ejecuta desde la raíz del repositorio:
+
+```sh
+npx playwright test --config templates/frontend/react-router-starter/playwright.admin.config.mjs
+```
+
+Para Astro, entra en `templates/frontend/astro-starter` y ejecuta
+`npx playwright test --config playwright.admin.config.mjs`.
+Las suites usan respuestas simuladas para verificar estados y permisos de interfaz y una
 API local de prueba para comprobar los proxies reales.
 
 Estas pruebas no sustituyen la comprobación del backend: los tests de FastAPI,
 NestJS y Fastify cubren autorización, consultas y concesiones globales. Consulta
 los comandos de cada starter y comprueba las migraciones en PostgreSQL antes de
-activar el panel en un despliegue real.
+activar el panel en un despliegue real. Consulta también
+[la guía de despliegue](./deployment.md).
