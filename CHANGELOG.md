@@ -5,6 +5,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- La portada de Next.js y React Router ya no presenta las organizaciones como
+  incluidas en cualquier proyecto: el texto vale para los modelos individual,
+  teams y mixed.
+
 ## [1.11.0] - 2026-10-29
 
 ### Added

@@ -8,7 +8,7 @@ import styles from "../landing.module.css";
 
 const features: Array<{ icon: IconName; title: string; text: string }> = [
   { icon: "user", title: "Sesión segura", text: "Refresh cookies HttpOnly y access token sólo en memoria." },
-  { icon: "building", title: "Organizaciones", text: "Equipos, invitaciones y roles por organización desde el primer día." },
+  { icon: "building", title: "Espacios y equipos", text: "Espacio personal, organizaciones con invitaciones y roles, o ambos, según el modelo de producto." },
   { icon: "billing", title: "Facturación", text: "Planes, Checkout y portal de cliente de Stripe a través del backend." },
 ];
 
