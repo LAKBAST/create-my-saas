@@ -165,3 +165,7 @@ para conocer las suites ejecutadas. Consulta también
   la implementación de sesiones.
 - No se inventan políticas ni identidad legal. Los avisos pueden enlazar a las
   URLs reales de privacidad y cookies configuradas por cada producto.
+
+## Escaparate de planes
+
+FastAPI y NestJS anuncian `billing.plans.public` y sirven `GET /billing/plans` sin sesión. Fastify no ofrece facturación. Next.js y React Router muestran planes en la portada; Astro los muestra en Precios y requiere la característica billing para contratar. La elección conserva el precio hasta facturación, donde el usuario confirma antes de abrir Stripe.

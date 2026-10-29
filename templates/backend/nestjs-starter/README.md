@@ -391,3 +391,7 @@ ocultan el precio ausente y usan la clave del entitlement si no hay etiqueta.
 Next.js, React Router y Astro muestran el importe con formato `es-ES` y el
 intervalo en español. Esto sólo añade información visible: Checkout conserva
 el flujo de suscripción existente.
+
+### Planes públicos
+
+`GET /billing/plans` expone sin sesión solo `priceId`, `name`, `priceLabel` opcional y las etiquetas de prestaciones de `STRIPE_PRICE_PLANS`. Por ejemplo: `{"price_example":{"name":"Pro","priceLabel":"29 €/mes","entitlements":{"api_calls":1000},"labels":{"api_calls":"Llamadas API"}}}`. La respuesta se cachea 60 segundos y no consulta Stripe. La configuración es pública: no incluyas secretos en estos campos.

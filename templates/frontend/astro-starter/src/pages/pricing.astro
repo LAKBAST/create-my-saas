@@ -1,11 +1,13 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { appNavigation } from '../lib/navigation';
 ---
 
 <BaseLayout title="Precios" description="Información de precios y planes del producto.">
   <section class="hero">
     <p class="eyebrow">Precios</p>
-    <h1>Diseña una página de precios para tu producto.</h1>
-    <p class="lead">Este starter no inventa planes ni precios. Añade aquí la información comercial que corresponda a tu producto.</p>
+    <h1>Planes para tu producto</h1>
+    <p class="lead">Descubre los planes disponibles.</p>
   </section>
+  <section class="features" aria-label="Planes disponibles" data-public-plans data-checkout={String(appNavigation.some((item) => item.href === "/billing/"))} hidden></section>
 </BaseLayout>

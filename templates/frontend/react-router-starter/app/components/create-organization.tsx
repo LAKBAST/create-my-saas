@@ -36,7 +36,7 @@ export function CreateOrganization({ onCreated }: { onCreated: (organization: Or
   }
 
   return <section className={styles.panel} aria-labelledby="create-organization">
-    <div className={styles.panelHeader}><div><h2 id="create-organization">Crea tu organización</h2><p>Las compras, la facturación y el equipo pertenecen a una organización. Puedes invitar a más personas después.</p></div><span className={styles.cardIcon} style={{ margin: 0 }}><Icon name="building" /></span></div>
+    <div className={styles.panelHeader}><div><h2 id="create-organization">Crea tu organización</h2><p>Una organización reúne a las personas de un equipo y su facturación. Créala si quieres contratar para un equipo o invitar a otras personas.</p></div><span className={styles.cardIcon} style={{ margin: 0 }}><Icon name="building" /></span></div>
     <form onSubmit={submit} style={{ display: "grid", gap: 14, padding: "18px 20px" }}>
       <label className="field">Nombre de la organización<input value={name} onChange={(event) => setName(event.target.value)} placeholder="Mi empresa" maxLength={160} required autoComplete="organization" /></label>
       {slug && <small style={{ color: "var(--muted)", fontSize: 12.5 }}>Identificador: <code>{slug}</code></small>}

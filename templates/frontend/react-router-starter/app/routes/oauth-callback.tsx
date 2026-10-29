@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { takeOAuthNext } from "../lib/safe-next";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../lib/auth-context";
 import { privatePageMetadata } from "../lib/seo";
@@ -8,7 +9,8 @@ export function meta() { return privatePageMetadata({ title: "Completando inicio
 export default function OAuthCallback() {
   const navigate = useNavigate();
   const { completeOAuth } = useAuth();
+  const started = useRef(false);
   const [error, setError] = useState<string>();
-  useEffect(() => { void completeOAuth().then(() => navigate("/app", { replace: true })).catch(() => setError("No se ha podido completar el inicio de sesión. Vuelve a intentarlo.")); }, [completeOAuth, navigate]);
+  useEffect(() => { if (started.current) return; started.current = true; void completeOAuth().then(() => navigate(takeOAuthNext() ?? "/app", { replace: true })).catch(() => setError("No se ha podido completar el inicio de sesión. Vuelve a intentarlo.")); }, [completeOAuth, navigate]);
   return <main className="page-status" aria-live="polite">{error ?? "Completando inicio de sesión…"}</main>;
 }

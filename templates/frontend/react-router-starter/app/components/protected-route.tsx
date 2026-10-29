@@ -9,9 +9,9 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (status === "anonymous") {
-      navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true });
+      navigate(`/login?next=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
     }
-  }, [location.pathname, navigate, status]);
+  }, [location.pathname, location.search, navigate, status]);
 
   if (status !== "authenticated") return <main className="page-status" aria-live="polite">Comprobando tu sesión…</main>;
   return <>{children}</>;

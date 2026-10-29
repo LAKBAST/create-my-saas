@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Header, Headers, HttpCode, Param, Post, Req, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -7,6 +7,7 @@ import { OrganizationRoles } from '../organizations/roles.decorator';
 import { User } from '../users/user.entity';
 import { BillingService } from './billing.service';
 import { CreateCheckoutDto } from './dto/create-checkout.dto';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 
 @Controller()
 @UseGuards(JwtAuthGuard, OrganizationRoleGuard)
@@ -20,6 +21,14 @@ export class BillingController {
   checkout(@CurrentUser() user: User, @Param('organizationId') id: string, @Body() body: CreateCheckoutDto) { return this.billing.checkout(id, body.priceId, body.quantity, user.id); }
   @Post(['billing/organizations/:organizationId/portal', 'organizations/:organizationId/billing/portal']) @HttpCode(200)
   portal(@CurrentUser() user: User, @Param('organizationId') id: string) { return this.billing.portal(id, user.id); }
+}
+
+@Controller('billing')
+@UseGuards(RateLimitGuard)
+export class PublicBillingController {
+  constructor(private readonly billing: BillingService) {}
+  @Get('plans') @Header('Cache-Control', 'public, max-age=60')
+  plans() { return this.billing.publicPlans(); }
 }
 
 @Controller('billing/webhooks')

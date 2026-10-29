@@ -28,3 +28,7 @@ Las pruebas HTTP de proyectos generados verifican los contratos de backend y
 frontend en las combinaciones afectadas. TypeScript comprueba las tres
 plantillas frontend; las respuestas externas siguen siendo datos no fiables y
 los adaptadores validan o normalizan los campos que usan antes de mostrarlos.
+
+## Planes públicos
+
+FastAPI y NestJS ofrecen `GET /billing/plans` sin sesión, con el límite de peticiones público y `Cache-Control: public, max-age=60`. La respuesta contiene `plans`, una lista de objetos con `priceId`, `name`, `priceLabel` (texto o null) y `labels` (lista de textos). Proceden de `STRIPE_PRICE_PLANS`; no se consulta Stripe ni se devuelven secretos, clientes o límites internos. Fastify carece de la capacidad `billing.plans.public`.

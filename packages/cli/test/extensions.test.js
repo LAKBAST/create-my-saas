@@ -315,7 +315,7 @@ test('lets an extension add sections to the Next.js administration panel through
   const navigation = '"use client";\n\nexport function AdminExtensionNavigation() {\n  return <nav aria-label="Extra">Extra</nav>;\n}\n';
   addExtension(extensions, 'admin-sections', extensionManifest('community:admin-sections', {
     requires: { cli: `^${packageVersion}`, capabilities: [], extensions: [] },
-    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.1.0' }, frontend: { id: 'frontend:nextjs', version: '^0.1.0' } }],
+    supportedStacks: [{ backend: { id: 'backend:fastapi', version: '^0.2.0' }, frontend: { id: 'frontend:nextjs', version: '^0.2.0' } }],
     targets: [{ template: 'frontend:nextjs', overlay: 'frontend', replace: ['app/admin/admin-extensions.tsx'], environment: [], migrations: [] }],
   }), { 'frontend/app/admin/admin-extensions.tsx': navigation });
   const destination = join(root, 'generated');

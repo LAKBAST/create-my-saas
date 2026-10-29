@@ -149,3 +149,7 @@ Configura `VITE_PRIVACY_POLICY_URL` y `VITE_COOKIE_POLICY_URL` con las
 URLs HTTPS o rutas del mismo sitio de tus políticas publicadas. El aviso muestra
 los enlaces configurados; los valores vacíos no generan enlaces a páginas
 inexistentes. El texto del aviso usa `PRODUCT_NAME` de `app/lib/brand.ts`.
+
+### Escaparate público
+
+Los planes configurados en el backend se muestran sin iniciar sesión. Al elegir uno se solicita registro o inicio de sesión y se vuelve a facturación con el plan seleccionado; el usuario debe confirmar la compra antes de abrir Stripe. Fastify no ofrece el endpoint y se oculta el escaparate. En Astro la contratación requiere `--feature billing`.

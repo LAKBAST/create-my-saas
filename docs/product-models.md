@@ -97,3 +97,14 @@ El upgrade conserva el modelo registrado en el esquema 4. Los manifiestos
 antiguos se siguen admitiendo: los proyectos completos mantienen su flujo de
 equipos y Fastify su alcance individual. Actualiza y aplica las migraciones antes
 de servir una versión que utilice espacios personales.
+
+## Cuándo hace falta una organización
+
+| Acción | individual | mixed | teams |
+| --- | --- | --- | --- |
+| Ver portada y planes | No | No | No |
+| Comprar | Espacio personal automático | Personal por defecto; organización para comprar para un equipo | Sí, la suscripción pertenece al equipo |
+| Invitar | No disponible | Necesaria para el equipo | Necesaria para el equipo |
+| Administrar | Cuenta y plan personales | Cuenta personal; organización para administrar un equipo | Organización para administrar el equipo |
+
+El espacio personal es un límite interno de datos, no una organización que el usuario tenga que crear. En teams se explica su necesidad al contratar.

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, type OAuthProvider } from "../lib/api.client";
+import { safeNext } from "../lib/safe-next";
 import styles from "../auth.module.css";
 
 export function OAuthButtons() {
@@ -10,6 +11,8 @@ export function OAuthButtons() {
   useEffect(() => { let current = true; void api.oauthProviders().then((providers) => { if (current) setAvailable(providers); }); return () => { current = false; }; }, []);
   async function start(provider: OAuthProvider) {
     setError(undefined); setPending(provider);
+    const next = safeNext(new URLSearchParams(window.location.search).get("next"));
+    if (next) sessionStorage.setItem("oauth-next", next); else sessionStorage.removeItem("oauth-next");
     try { await api.beginOAuth(provider); }
     catch (cause) { setPending(undefined); setError(cause instanceof ApiError ? cause.message : "No se ha podido iniciar sesión con este proveedor."); }
   }

@@ -5,6 +5,15 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Portada pública en Next.js, escaparate de planes sin sesión y retorno seguro a facturación con confirmación explícita.
+- Capacidad pública de planes en FastAPI y NestJS y explicaciones de espacios personales y equipos.
+
+### Changed
+
+- El panel de Next.js se mueve de `/` a `/app`; consulta la guía de actualización.
+
 ## [1.9.0] - 2026-10-29
 
 ### Added

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Header, Request, Response
 from pydantic import AliasChoices, BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +25,13 @@ class CreateCheckout(BaseModel):
 
 async def require_billing_role(org_id: UUID, user: User, db: AsyncSession) -> None:
     await require_role(org_id, user, db, {MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.BILLING})
+
+
+@router.get("/plans")
+async def public_plans(response: Response):
+    response.headers["Cache-Control"] = "public, max-age=60"
+    plans = BillingService(None).price_plans()
+    return {"plans": [{"priceId": key, "name": plan["name"], "priceLabel": plan.get("priceLabel"), "labels": list(plan["labels"].values())} for key, plan in plans.items()]}
 
 
 @router.get("/organizations/{org_id}")

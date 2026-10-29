@@ -23,6 +23,17 @@ class BillingContractTests(unittest.TestCase):
     def setUp(self):
         _PRICE_CACHE.clear()
 
+    def test_public_plans_http_contract(self):
+        config = replace(settings, stripe_secret_key="sk_secret", stripe_price_plans=json.dumps({
+            "price_allowed": {"name": "Pro", "priceLabel": "29 €/mes", "entitlements": {"api_calls": 100}, "labels": {"api_calls": "API calls"}, "secret": "hidden"}
+        }))
+        service = BillingService(AsyncMock(), config)
+        with patch("src.modules.billing.router.BillingService", return_value=service), TestClient(app) as client:
+            response = client.get("/billing/plans")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["cache-control"], "public, max-age=60")
+        self.assertEqual(response.json(), {"plans": [{"priceId": "price_allowed", "name": "Pro", "priceLabel": "29 €/mes", "labels": ["API calls"]}]})
+
     def test_prices_labels_cache_and_provider_outage(self):
         config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
                          stripe_price_plans=json.dumps({"price_allowed": {"name": "Pro", "entitlements": {"api_calls": None}, "labels": {"api_calls": "API calls"}}}))

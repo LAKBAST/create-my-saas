@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "frontend:astro",
   "kind": "frontend",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Astro public site starter",
   "description": "An Astro starter with a public site plus real browser authentication and a protected product area.",
   "runtime": {

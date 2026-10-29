@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "frontend:nextjs",
   "kind": "frontend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Next.js SaaS starter",
   "description": "A reusable Next.js frontend with browser authentication and protected routes.",
   "runtime": {
