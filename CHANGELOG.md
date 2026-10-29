@@ -5,6 +5,31 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Preset de despliegue para Coolify: los proyectos generados incluyen
+  `deployment/compose.coolify.yaml`, un gateway HTTP y una guía para
+  aplicaciones Docker Compose desde Git. Valida las variables y los secretos
+  obligatorios, usa PostgreSQL y Redis externos con TLS, deja las migraciones
+  como trabajo manual y comprueba `/ready` antes de enrutar el frontend. Las
+  API, los frontends completos y Astro estático reciben solo los servicios que
+  necesitan, y `upgrade` puede incorporar los archivos nuevos sin tocar `.env`
+  ni datos.
+- Web de documentación con guía de instalación, quick start y las guías de
+  `docs/`, publicada desde el repositorio con GitHub Pages.
+- Guías nuevas: uso de la CLI, actualización de proyectos, resolución de
+  problemas, desarrollo y visión de Community.
+
+### Changed
+
+- El repositorio pasa a la organización LAKBAST
+  (`github.com/LAKBAST/create-my-saas`). El paquete de npm mantiene el nombre
+  `@soymanolo/create-my-saas` y se publica desde el nuevo repositorio con
+  Trusted Publishing.
+- El README se reduce a una entrada breve y remite a la documentación web.
+- Las guías de `docs/` se revisan y actualizan con el estado actual de las
+  plantillas, el contrato API, los manifiestos y el despliegue.
+
 ## [1.8.1] - 2026-10-29
 
 ### Fixed
@@ -401,19 +426,21 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/SoyManoolo/create-my-saas/compare/v1.7.1...HEAD
-[1.7.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.7.0...v1.7.1
-[1.7.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.6.0...v1.7.0
-[1.6.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.5.2...v1.6.0
-[1.5.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.5.1...v1.5.2
-[1.5.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.5.0...v1.5.1
-[1.5.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.4.0...v1.5.0
-[1.4.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.3...v1.4.0
-[1.3.3]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.2...v1.3.3
-[1.3.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.1...v1.3.2
-[1.3.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.3.0...v1.3.1
-[1.3.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.2...v1.3.0
-[1.2.2]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.1...v1.2.2
-[1.2.1]: https://github.com/SoyManoolo/create-my-saas/compare/v1.2.0...v1.2.1
-[1.2.0]: https://github.com/SoyManoolo/create-my-saas/compare/v1.0.0...v1.2.0
-[1.0.0]: https://github.com/SoyManoolo/create-my-saas/compare/v0.1.0...v1.0.0
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.0...v1.8.1
+[1.8.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.7.1...v1.8.0
+[1.7.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.7.0...v1.7.1
+[1.7.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.6.0...v1.7.0
+[1.6.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.5.2...v1.6.0
+[1.5.2]: https://github.com/LAKBAST/create-my-saas/compare/v1.5.1...v1.5.2
+[1.5.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.5.0...v1.5.1
+[1.5.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.3.3...v1.4.0
+[1.3.3]: https://github.com/LAKBAST/create-my-saas/compare/v1.3.2...v1.3.3
+[1.3.2]: https://github.com/LAKBAST/create-my-saas/compare/v1.3.1...v1.3.2
+[1.3.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.2.2...v1.3.0
+[1.2.2]: https://github.com/LAKBAST/create-my-saas/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/LAKBAST/create-my-saas/compare/v1.2.0...v1.2.1
+[1.2.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.0.0...v1.2.0
+[1.0.0]: https://github.com/LAKBAST/create-my-saas/compare/v0.1.0...v1.0.0
