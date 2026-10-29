@@ -87,7 +87,7 @@ function configureFrontendApiProxyTarget(destinationDirectory, backend) {
 function thirdPartyNotices(templateLicense) {
   return `# Third-party notices
 
-This project was generated with [create-my-saas](https://github.com/SoyManoolo/create-my-saas)
+This project was generated with [create-my-saas](https://github.com/LAKBAST/create-my-saas)
 and includes code from its templates. That code is distributed under the
 licence below, which must be kept with it. The rest of the project is yours:
 add a LICENSE file with the terms you choose (generated projects declare
