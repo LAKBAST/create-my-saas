@@ -10,16 +10,13 @@ const pagesDir = path.join(website, 'src', 'content', 'docs', 'referencia');
 const schemasDir = path.join(website, 'public', 'schemas');
 const repoBlob = 'https://github.com/LAKBAST/create-my-saas/blob/main/';
 
-// Las páginas propias de referencia/ (no generadas) no se borran.
-const handwritten = new Set(['cli.md']);
-
 const files = await readdir(sourceDir);
 await mkdir(pagesDir, { recursive: true });
 await rm(schemasDir, { recursive: true, force: true });
 await mkdir(schemasDir, { recursive: true });
 
 for (const existing of await readdir(pagesDir)) {
-	if (!handwritten.has(existing)) await rm(path.join(pagesDir, existing));
+	await rm(path.join(pagesDir, existing));
 }
 
 for (const file of files) {

@@ -19,21 +19,25 @@ export const docsNav = [
 			'guias/plantillas',
 			'referencia/product-models',
 			'referencia/admin-dashboard',
-			'guias/actualizar',
+			'referencia/upgrading',
 			'referencia/deployment',
+			'referencia/troubleshooting',
 		],
 	},
 	{
 		label: 'Referencia',
 		items: [
-			'referencia/cli',
+			'referencia/cli-usage',
 			'referencia/api-contract',
 			'referencia/template-manifests',
 			'referencia/extension-manifests',
 			'referencia/template-parity',
 		],
 	},
-	{ label: 'Contribuir', items: ['referencia/releasing'] },
+	{
+		label: 'Contribuir',
+		items: ['referencia/development', 'referencia/project', 'referencia/releasing'],
+	},
 ];
 
 /** Ruta con el prefijo de despliegue (BASE_PATH). */

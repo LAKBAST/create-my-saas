@@ -4,5 +4,4 @@ dist/
 
 # Generado por scripts/sync-docs.mjs a partir de ../docs
 src/content/docs/referencia/*
-!src/content/docs/referencia/cli.md
 public/schemas/

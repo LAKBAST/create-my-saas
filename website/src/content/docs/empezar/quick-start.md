@@ -78,4 +78,4 @@ git.
 - Prueba otras combinaciones: [plantillas disponibles](../../guias/plantillas/).
 - Elige entre producto [individual, de equipos o mixto](../../referencia/product-models/).
 - Prepara el [despliegue en producción](../../referencia/deployment/).
-- Mantén el proyecto al día con [`upgrade`](../../guias/actualizar/).
+- Mantén el proyecto al día con [`upgrade`](../../referencia/upgrading/).
