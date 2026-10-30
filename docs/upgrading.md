@@ -26,6 +26,24 @@ de una carpeta local (por ejemplo, Pro), vuelve a pasar `--extensions-dir`.
 
 ## Añadir o actualizar módulos Pro
 
+Con una licencia Pro activa, puedes consultar tus licencias e instalar un módulo
+directamente desde la tienda, sin descargar ni extraer archivos a mano:
+
+```sh
+create-my-saas pro list
+create-my-saas pro add admin-dashboard
+create-my-saas pro add pro:admin-dashboard ./mi-saas --version 2.2.0 --dry-run
+```
+
+La CLI usa `CREATE_MY_SAAS_TOKEN` o, de forma puntual, `--token <token>`. El
+token solo se envía en la cabecera de las peticiones; no se guarda en el
+proyecto. La tienda predeterminada es `https://tienda.lakbast.com`; puedes
+configurar otra con `CREATE_MY_SAAS_STORE_URL`. `pro add` usa la versión
+recomendada compatible con la versión Community del proyecto, salvo que indiques
+`--version`. `--dry-run` muestra licencia, versión, feature y comando sin
+descargar el módulo. Como `upgrade`, `pro add` exige el proyecto en git y sin
+cambios pendientes, y lo comprueba antes de descargar; `--allow-dirty` lo omite.
+
 Los módulos Pro se entregan como carpetas locales y también pueden añadirse o
 cambiar de versión en un proyecto ya generado. La fusión es la misma: la base se
 genera con los módulos que el proyecto tiene ahora y la versión nueva con los que

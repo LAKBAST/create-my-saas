@@ -62,7 +62,7 @@ export function generateWithPublishedCli({ version, destination, backendId, fron
   if (result.status !== 0) throw new Error(`Could not generate the base project with create-my-saas@${version}:\n${result.stderr || result.stdout}`);
 }
 
-function gitClean(projectDirectory) {
+export function gitClean(projectDirectory) {
   const result = spawnSync('git', ['status', '--porcelain'], { cwd: projectDirectory, encoding: 'utf8' });
   if (result.status !== 0) return { repository: false, clean: false };
   return { repository: true, clean: result.stdout.trim() === '' };

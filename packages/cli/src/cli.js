@@ -3,9 +3,12 @@ import { generateProject } from './generator.js';
 import { seedDemo } from './demo-seed.js';
 import { doctorProject, setupLocal } from './local-setup.js';
 import { formatUpgradeSummary, upgradeProject } from './upgrade.js';
+import { runProCommand } from './pro.js';
 
 const usage = `Usage: create-my-saas <destination> [options]
        create-my-saas upgrade [project] [upgrade options]
+        create-my-saas pro list [--token <token>]
+        create-my-saas pro add <module> [project] [--version X.Y.Z] [--dry-run] [--allow-dirty]
        create-my-saas setup [project]
        create-my-saas doctor [project] [--no-services]
        create-my-saas seed [project]
@@ -36,6 +39,8 @@ Examples:
   create-my-saas upgrade ./my-saas --from 1.3.3
   create-my-saas upgrade --feature object-storage-nestjs --extensions-dir ./pro-object-storage-1.2.0
   create-my-saas upgrade --base-extensions-dir ./pro-object-storage-1.1.0 --extensions-dir ./pro-object-storage-1.2.0
+  create-my-saas pro list
+  create-my-saas pro add admin-dashboard --dry-run
   create-my-saas setup ./my-saas
   create-my-saas doctor ./my-saas
   create-my-saas seed ./my-saas
@@ -162,6 +167,7 @@ function runUpgrade(argumentsList, log) {
 
 export function run(argumentsList, { log = console.log, error = console.error } = {}) {
   try {
+    if (argumentsList[0] === 'pro') return runProCommand(argumentsList.slice(1), { log, error });
     if (argumentsList[0] === 'upgrade') return runUpgrade(argumentsList.slice(1), log);
     if (argumentsList[0] === 'setup') {
       const { directory } = parseProjectCommand(argumentsList.slice(1));
