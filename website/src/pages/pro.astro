@@ -8,10 +8,10 @@ const modules = [
 	{ name: 'Admin dashboard', text: 'Consola de operación sobre el panel de administración de Community: roles de staff, suspensión de usuarios, sesiones, facturación de solo lectura y auditoría.', stacks: ['FastAPI + Next.js'] },
 	{ name: 'API keys', text: 'Claves API por organización con permisos read, write y delete, rotación y registro de auditoría.', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
 	{ name: 'Background jobs', text: 'Tareas en segundo plano sobre Redis con reintentos, programación, tareas periódicas y un worker independiente.', stacks: ['FastAPI', 'NestJS', 'Fastify'] },
-	{ name: 'Billing avanzado', text: 'Límites por plan, cuotas aplicadas, medición de uso y cobro por uso con Stripe sobre la facturación de Community.', stacks: ['FastAPI + Next.js'] },
+	{ name: 'Billing avanzado', text: 'Límites por plan, cuotas aplicadas, medición de uso y cobro por uso con Stripe sobre la facturación de Community.', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
 	{ name: 'Commerce', text: 'Varios productos con suscripción propia, pedidos y entrega duradera de accesos.', stacks: ['FastAPI + Next.js'] },
-	{ name: 'Object storage', text: 'Archivos por organización en almacenamiento compatible con S3, con subidas y descargas firmadas y control de acceso.', stacks: ['FastAPI + Next.js'] },
-	{ name: 'Observability', text: 'Logs JSON con datos sensibles ocultos, trazas y métricas con OpenTelemetry, endpoint de Prometheus protegido y sondas de salud.', stacks: ['FastAPI'] },
+	{ name: 'Object storage', text: 'Archivos por organización en almacenamiento compatible con S3, con subidas y descargas firmadas y control de acceso.', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'Observability', text: 'Logs JSON con datos sensibles ocultos, trazas y métricas con OpenTelemetry, endpoint de Prometheus protegido y sondas de salud.', stacks: ['FastAPI', 'NestJS'] },
 ];
 
 const plans = [
@@ -22,13 +22,14 @@ const plans = [
 
 const editions = [
 	{ name: 'Community', meta: 'Gratis · licencia MIT', items: ['CLI y las seis plantillas', 'Autenticación, organizaciones y permisos', 'Facturación con Stripe', 'Panel global de administración', 'Despliegue con Docker Compose y preset de Coolify', 'Actualizaciones con upgrade'] },
-	{ name: 'Pro', meta: 'Suscripción · licencia comercial', items: ['Todo lo de Community', 'Los siete módulos Pro', 'Paquetes verificados con sumas de comprobación', 'Soporte prioritario'] },
+	{ name: 'Pro', meta: 'Suscripción · licencia comercial', items: ['Todo lo de Community', 'Los siete módulos Pro', 'Todas las versiones publicadas de cada módulo', 'Paquetes verificados con sumas de comprobación', 'Soporte prioritario'] },
 ];
 
 const faqs = [
 	{ q: '¿Community sigue siendo gratis?', a: 'Sí. La CLI y las plantillas son MIT y están completas por sí mismas: Pro añade módulos, no desbloquea funciones recortadas de Community.' },
-	{ q: '¿Cómo se instala un módulo?', a: 'Desde la Tienda descargas el paquete del módulo, con su manifiesto y sus sumas de comprobación. Al generar el proyecto lo indicas a la CLI con --extensions-dir y --feature, y la CLI comprueba que encaje con el backend y el frontend elegidos.' },
-	{ q: '¿Funciona con cualquier combinación de plantillas?', a: 'Cada módulo indica arriba las combinaciones que admite. La mayoría están pensados para FastAPI con Next.js; la CLI rechaza las combinaciones que un módulo no admite antes de escribir ningún archivo.' },
+	{ q: '¿Cómo se instala un módulo?', a: 'Desde la Tienda descargas el paquete del módulo, con su manifiesto y sus sumas de comprobación. Al generar el proyecto lo indicas a la CLI con --extensions-dir y --feature, y la CLI comprueba que encaje con el backend y el frontend elegidos. Desde Community 1.13 también puedes añadirlo a un proyecto existente con upgrade --feature.' },
+	{ q: '¿Qué versión de cada módulo me descargo?', a: 'La que quieras: mientras la suscripción esté activa tienes todas las versiones publicadas. La Tienda te recomienda la más reciente compatible con tu versión de Community, y para cambiar de versión en tu proyecto usas upgrade con --base-extensions-dir y --extensions-dir.' },
+	{ q: '¿Funciona con cualquier combinación de plantillas?', a: 'Cada módulo indica arriba las combinaciones que admite. La mayoría funcionan con FastAPI o NestJS y Next.js; la CLI rechaza las combinaciones que un módulo no admite antes de escribir ningún archivo.' },
 	{ q: '¿Puedo usar Pro en un producto comercial?', a: 'Sí, puedes construir y vender tu SaaS con los módulos. Lo que no permite la licencia es redistribuir, revender o publicar los módulos ni sus paquetes.' },
 	{ q: '¿Los precios incluyen IVA?', a: 'Sí, todos los precios son finales con IVA incluido. La suscripción se renueva cada mes o cada año y se gestiona desde la propia Tienda.' },
 ];
@@ -40,10 +41,10 @@ const compatibility = [
 	{ name: 'Admin dashboard', versions: ['2.1', '2.1', '2.0', '1.0'] },
 	{ name: 'API keys', versions: ['1.4', '1.3', '1.2', '1.1'] },
 	{ name: 'Background jobs', versions: ['1.3', '1.2', '1.1', '1.0'] },
-	{ name: 'Billing avanzado', versions: ['1.1', '1.1', '1.0', '1.0'] },
+	{ name: 'Billing avanzado', versions: ['1.2', '1.1', '1.0', '1.0'] },
 	{ name: 'Commerce', versions: ['1.2', '1.2', '1.1', '1.0'] },
-	{ name: 'Object storage', versions: ['1.1', '1.1', '1.0', '1.0'] },
-	{ name: 'Observability', versions: ['1.2', '1.2', '1.1', '1.0'] },
+	{ name: 'Object storage', versions: ['1.2', '1.1', '1.0', '1.0'] },
+	{ name: 'Observability', versions: ['1.3', '1.2', '1.1', '1.0'] },
 ];
 const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
 ---
@@ -146,7 +147,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 				<tbody>{compatibility.map((row) => <tr><th scope="row">{row.name}</th>{row.versions.map((version, index) => <td data-label={`Community ${communities[index]}`}>{version}</td>)}</tr>)}</tbody>
 			</table>
 		</div>
-		<p class="note pro-compat-note">Desde Community 1.11, API keys y Background jobs se instalan juntos en NestJS sin sustituir archivos de la plantilla. La Tienda LAKBAST entrega siempre la versión de la primera columna. Si tu proyecto usa una Community anterior, actualízalo con <code>npx @soymanolo/create-my-saas@latest upgrade</code> antes de instalar los módulos. Pro se comprueba a partir de Community 1.5.</p>
+		<p class="note pro-compat-note">Desde Community 1.11, los módulos NestJS se instalan juntos sin sustituir los registros de la plantilla. Con la suscripción activa puedes descargar cualquier versión desde la Tienda LAKBAST: guarda allí tu versión de Community y te recomendará la que le corresponde. También puedes actualizar tu proyecto con <code>npx @soymanolo/create-my-saas@latest upgrade</code> y pasar a la primera columna. Pro se comprueba a partir de Community 1.5.</p>
 	</section>
 
 	<section data-pagefind-body class="shell section">
