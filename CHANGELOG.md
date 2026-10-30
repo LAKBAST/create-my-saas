@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-10-30
+
 ### Added
 
 - NestJS conserva el creador de organizaciones y espacios personales en
@@ -14,6 +16,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 - FastAPI y NestJS declaran `organizations.creation-provenance` para que las
   extensiones puedan exigir el dato del creador en ambos backends. FastAPI ya
   lo guarda con clave foránea a `users` y restricción `NOT NULL`.
+- Plantillas: NestJS `0.2.2`, FastAPI `0.2.1`, Next.js `0.2.1` y React Router
+  `0.2.1`. Son versiones de parche, compatibles con los rangos `^0.2.0`.
 
 ### Fixed
 
@@ -470,7 +474,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.8.1...v1.9.0
