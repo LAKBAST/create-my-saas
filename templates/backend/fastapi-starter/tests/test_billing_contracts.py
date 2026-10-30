@@ -252,6 +252,66 @@ class BillingContractTests(unittest.TestCase):
             asyncio.run(sync(local, {**event, "customer": "cus_foreign"}, {"sub_old": old, "sub_new": new}))
         self.assertEqual(error.exception.code, "BILLING_CUSTOMER_MISMATCH")
 
+    def test_portal_cancellation_with_cancel_at_is_scheduled_and_emailed_once(self):
+        organization_id = uuid4()
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans='{"price_allowed":{"name":"Pro mensual","entitlements":{"api_calls":100}}}')
+        local = SimpleNamespace(organization_id=organization_id, provider_customer_id="cus_ours", provider_subscription_id="sub_1",
+                                status="trialing", cancel_at_period_end=False)
+        period_end = 1794528000  # 13 November 2026
+        item = {"price": {"id": "price_allowed"}, "current_period_start": 1793318400, "current_period_end": period_end}
+
+        def sync(stripe_state):
+            stripe_object = {"id": "sub_1", "customer": "cus_ours", "created": 10, "items": {"data": [item]}, **stripe_state}
+            db = AsyncMock()
+            db.execute.side_effect = [SimpleNamespace(scalar_one_or_none=lambda: local), SimpleNamespace(),
+                                      SimpleNamespace(scalar_one_or_none=lambda: local)]
+            service = BillingService(db, config)
+            service._configure_stripe = lambda: None
+            service._replace_entitlements = AsyncMock()
+            with patch("src.modules.billing.service.stripe.Subscription.retrieve", return_value=stripe_object):
+                asyncio.run(service._sync_subscription(stripe_object))
+            return [(key, values["date"]) for key, _, values in service._notices]
+
+        # The customer portal sets cancel_at and leaves cancel_at_period_end false.
+        self.assertEqual(sync({"status": "trialing", "cancel_at_period_end": False, "cancel_at": period_end}),
+                         [("subscription_cancellation_scheduled", "13 de noviembre de 2026")])
+        self.assertTrue(local.cancel_at_period_end)
+        # A repeated or later event with the same schedule sends nothing.
+        self.assertEqual(sync({"status": "trialing", "cancel_at_period_end": False, "cancel_at": period_end}), [])
+        self.assertEqual(sync({"status": "trialing", "cancel_at_period_end": False, "cancel_at": None}),
+                         [("subscription_cancellation_reverted", "13 de noviembre de 2026")])
+        self.assertFalse(local.cancel_at_period_end)
+        self.assertEqual(sync({"status": "active", "cancel_at_period_end": True, "cancel_at": period_end}),
+                         [("subscription_cancellation_scheduled", "13 de noviembre de 2026")])
+        self.assertEqual(sync({"status": "canceled", "cancel_at_period_end": False, "cancel_at": period_end, "ended_at": period_end}),
+                         [("subscription_ended", "13 de noviembre de 2026")])
+        self.assertEqual(sync({"status": "canceled", "cancel_at_period_end": False, "cancel_at": period_end, "ended_at": period_end}), [])
+
+    def test_subscription_notices_go_to_billing_members_after_the_webhook(self):
+        organization_id = uuid4()
+        db = AsyncMock()
+        db.execute.side_effect = [SimpleNamespace(scalar_one_or_none=lambda: "Acme"),
+                                  SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: ["owner@example.com", "billing@example.com"]))]
+        service = BillingService(db, replace(settings, frontend_url="https://app.example.com"))
+        from datetime import datetime, timezone
+        service._notice("subscription_cancellation_scheduled", organization_id, "Pro mensual", datetime(2026, 11, 13, tzinfo=timezone.utc))
+        delivery = AsyncMock()
+        with patch("src.modules.billing.service.send_secure_email", new=delivery):
+            asyncio.run(service._send_notices())
+        self.assertEqual([call.kwargs["recipient"] for call in delivery.await_args_list], ["owner@example.com", "billing@example.com"])
+        message = delivery.await_args.kwargs
+        self.assertEqual(message["subject"], "Tu suscripción se cancelará el 13 de noviembre de 2026")
+        self.assertIn("La suscripción Pro mensual de Acme se cancelará el 13 de noviembre de 2026", message["body"])
+        self.assertIn("https://app.example.com/billing", message["html"])
+        self.assertEqual(service._notices, [])
+        # A failed delivery is logged and does not fail the stored webhook.
+        db.execute.side_effect = [SimpleNamespace(scalar_one_or_none=lambda: "Acme"),
+                                  SimpleNamespace(scalars=lambda: SimpleNamespace(all=lambda: ["owner@example.com"]))]
+        service._notice("subscription_ended", organization_id, "Pro mensual", None)
+        with patch("src.modules.billing.service.send_secure_email", new=AsyncMock(side_effect=RuntimeError("down"))):
+            asyncio.run(service._send_notices())
+
     def test_webhook_events_read_stripe_object_metadata(self):
         organization_id = uuid4()
         config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",

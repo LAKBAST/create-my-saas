@@ -14,12 +14,15 @@ describe('BillingService', () => {
     const repository = () => ({ findOneBy: jest.fn(), findOne: jest.fn(), find: jest.fn(), save: jest.fn(), create: jest.fn((value) => value), delete: jest.fn(), createQueryBuilder: jest.fn() });
     const customers = repository(); const subscriptions = repository(); const entitlements = repository(); const usage = repository(); const events = repository(); const organizations = repository();
     const manager = { getRepository: jest.fn((entity) => entity === BillingWebhookEvent ? events : entity === BillingCustomer ? customers : entity === Subscription ? subscriptions : entity === BillingEntitlement ? entitlements : repository()) };
-    const dataSource = { manager, transaction: jest.fn(async (callback) => callback(manager)) };
+    // Billing members read when a subscription notice is emailed.
+    const members = { innerJoin: jest.fn().mockReturnThis(), where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), getRawMany: jest.fn(async () => [] as Array<{ email: string }>) };
+    const dataSource = { manager, transaction: jest.fn(async (callback) => callback(manager)), getRepository: jest.fn(() => ({ createQueryBuilder: jest.fn(() => members) })) };
     const config = {
       get: jest.fn((key: string, fallback?: unknown) => values[key] ?? fallback),
       getOrThrow: jest.fn((key: string) => values[key]),
     };
     const audit = { record: jest.fn(async (event) => event) };
+    const secureEmail = { send: jest.fn(async () => undefined) };
     return {
       service: new BillingService(
         customers as unknown as Repository<BillingCustomer>,
@@ -30,8 +33,9 @@ describe('BillingService', () => {
         dataSource as unknown as DataSource,
         config as unknown as ConfigService,
         audit as never,
+        secureEmail as never,
       ),
-      events, config, audit, customers, subscriptions, entitlements, manager,
+      events, config, audit, customers, subscriptions, entitlements, manager, organizations, members, secureEmail,
     };
   }
 
@@ -158,6 +162,53 @@ describe('BillingService', () => {
 
     await expect(service.handleStripeWebhook(Buffer.from(payload), signature)).resolves.toEqual({ accepted: true, duplicate: true });
     expect(events.findOneBy).toHaveBeenNthCalledWith(2, { provider: 'stripe', providerEventId: 'evt_same' });
+  });
+
+  it('treats a portal cancellation with cancel_at as scheduled and notices each change once', async () => {
+    const { service, customers, subscriptions, manager } = setup({ STRIPE_PRICE_PLANS: '{"price_allowed":{"name":"Pro mensual","entitlements":{"api_calls":100}}}' });
+    const local: Record<string, unknown> = { organizationId: 'organization-1', providerSubscriptionId: 'sub_1', status: 'trialing', cancelAtPeriodEnd: false };
+    const periodEnd = 1794528000; // 13 November 2026
+    let state: Record<string, unknown> = {};
+    customers.findOneBy.mockResolvedValue({ organizationId: 'organization-1', providerCustomerId: 'cus_ours' });
+    subscriptions.findOneBy.mockResolvedValue(local);
+    subscriptions.save.mockImplementation(async (value) => value);
+    const stripe = { subscriptions: { retrieve: jest.fn(async () => ({ id: 'sub_1', customer: 'cus_ours', created: 10, metadata: {}, items: { data: [{ price: { id: 'price_allowed' }, current_period_end: periodEnd }] }, ...state })) } };
+    (service as unknown as { stripe: () => unknown }).stripe = jest.fn(() => stripe);
+    const sync = async (next: Record<string, unknown>) => {
+      state = next;
+      const notices: Array<{ key: string; date: Date | null }> = [];
+      await (service as unknown as { syncStripeSubscription: (manager: unknown, event: unknown, notices: unknown[]) => Promise<void> })
+        .syncStripeSubscription(manager, { id: 'sub_1', customer: 'cus_ours', metadata: {} }, notices);
+      return notices.map(({ key, date }) => [key, date?.toISOString().slice(0, 10)]);
+    };
+
+    // The customer portal sets cancel_at and leaves cancel_at_period_end false.
+    await expect(sync({ status: 'trialing', cancel_at_period_end: false, cancel_at: periodEnd })).resolves.toEqual([['subscription_cancellation_scheduled', '2026-11-13']]);
+    expect(local.cancelAtPeriodEnd).toBe(true);
+    await expect(sync({ status: 'trialing', cancel_at_period_end: false, cancel_at: periodEnd })).resolves.toEqual([]);
+    await expect(sync({ status: 'trialing', cancel_at_period_end: false, cancel_at: null })).resolves.toEqual([['subscription_cancellation_reverted', '2026-11-13']]);
+    expect(local.cancelAtPeriodEnd).toBe(false);
+    await expect(sync({ status: 'active', cancel_at_period_end: true, cancel_at: periodEnd })).resolves.toEqual([['subscription_cancellation_scheduled', '2026-11-13']]);
+    await expect(sync({ status: 'canceled', cancel_at_period_end: false, cancel_at: periodEnd, ended_at: periodEnd })).resolves.toEqual([['subscription_ended', '2026-11-13']]);
+    await expect(sync({ status: 'canceled', cancel_at_period_end: false, cancel_at: periodEnd, ended_at: periodEnd })).resolves.toEqual([]);
+  });
+
+  it('emails subscription notices to billing members and only logs a failed delivery', async () => {
+    const { service, organizations, members, secureEmail } = setup({ FRONTEND_URL: 'https://app.example.com' });
+    organizations.findOneBy.mockResolvedValue({ id: 'organization-1', name: 'Acme' });
+    members.getRawMany.mockResolvedValue([{ email: 'owner@example.com' }, { email: 'admin@example.com' }]);
+    const send = (service as unknown as { sendNotices: (notices: unknown[]) => Promise<void> }).sendNotices.bind(service);
+
+    await send([{ key: 'subscription_cancellation_scheduled', organizationId: 'organization-1', plan: 'Pro mensual', date: new Date(Date.UTC(2026, 10, 13)) }]);
+    expect(members.andWhere).toHaveBeenCalledWith('membership.role IN (:...roles)', { roles: ['owner', 'admin'] });
+    expect(secureEmail.send.mock.calls.map((call: unknown[]) => call[0])).toEqual(['owner@example.com', 'admin@example.com']);
+    const [, subject, text, html] = secureEmail.send.mock.calls[0] as unknown as [string, string, string, string];
+    expect(subject).toBe('Tu suscripción se cancelará el 13 de noviembre de 2026');
+    expect(text).toContain('La suscripción Pro mensual de Acme se cancelará el 13 de noviembre de 2026');
+    expect(html).toContain('https://app.example.com/billing');
+
+    secureEmail.send.mockRejectedValueOnce(new Error('down'));
+    await expect(send([{ key: 'subscription_ended', organizationId: 'organization-1', plan: 'Pro mensual', date: null }])).resolves.toBeUndefined();
   });
 
   it('replaces a canceled subscription and ignores delayed events from it', async () => {

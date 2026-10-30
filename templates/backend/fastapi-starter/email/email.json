@@ -31,6 +31,31 @@
       "paragraphs": ["Alguien de tu equipo te ha invitado a unirte a su organización. Inicia sesión o crea una cuenta con esta dirección y acepta la invitación con este código."],
       "code": "Invitation token",
       "note": "El código solo se puede usar una vez. Si no esperabas esta invitación, ignora este correo."
+    },
+    "subscription_cancellation_scheduled": {
+      "subject": "Tu suscripción se cancelará el {{date}}",
+      "title": "Has cancelado tu suscripción",
+      "paragraphs": [
+        "La suscripción {{plan}} de {{organization}} se cancelará el {{date}}. Hasta entonces mantienes todo lo que incluye y no se te cobrará nada más.",
+        "Si cambias de idea, puedes reactivarla desde Facturación antes de esa fecha."
+      ],
+      "action": "Ir a Facturación"
+    },
+    "subscription_cancellation_reverted": {
+      "subject": "Tu suscripción sigue activa",
+      "title": "Has reactivado tu suscripción",
+      "paragraphs": ["La suscripción {{plan}} de {{organization}} ya no se cancelará y seguirá renovándose. La próxima renovación es el {{date}}."],
+      "action": "Ir a Facturación"
+    },
+    "subscription_ended": {
+      "subject": "Tu suscripción ha terminado",
+      "title": "Tu suscripción ha terminado",
+      "paragraphs": [
+        "La suscripción {{plan}} de {{organization}} terminó el {{date}} y la organización ha vuelto al plan gratuito.",
+        "Puedes volver a contratar un plan cuando quieras desde Facturación."
+      ],
+      "action": "Ir a Facturación"
     }
-  }
+  },
+  "months": ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
 }

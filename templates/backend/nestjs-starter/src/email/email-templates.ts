@@ -18,7 +18,7 @@ export type EmailContent = {
   note?: string;
 };
 type SharedMessage = { subject: string; title: string; paragraphs: string[]; action?: string; code?: string; note?: string };
-type SharedConfig = { lang: string; accent: string; fragments: Record<'paragraph' | 'action' | 'code' | 'note' | 'footer', string>; messages: Record<string, SharedMessage> };
+type SharedConfig = { lang: string; accent: string; fragments: Record<'paragraph' | 'action' | 'code' | 'note' | 'footer', string>; messages: Record<string, SharedMessage>; months: string[] };
 
 /** Brand settings from PRODUCT_NAME, FRONTEND_URL and EMAIL_ACCENT_COLOR. */
 export function emailBrand(environment: Record<string, string | undefined> = process.env): EmailBrand {
@@ -96,4 +96,9 @@ export function renderMessage(
     code: options.code && message.code ? [message.code, options.code] : undefined,
     note: message.note ? plain(message.note, values) : undefined,
   });
+}
+
+/** A date as the emails write it, for example "13 de noviembre de 2026" (UTC). */
+export function formatLongDate(date: Date): string {
+  return `${date.getUTCDate()} de ${loadAssets().config.months[date.getUTCMonth()]} de ${date.getUTCFullYear()}`;
 }
