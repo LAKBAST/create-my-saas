@@ -7,6 +7,7 @@ import { generateProject } from '../src/generator.js';
 import { extensionTargetFiles, versionSatisfies } from '../src/extensions.js';
 
 const { version: packageVersion } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+const directoryLinkType = process.platform === 'win32' ? 'junction' : 'dir';
 
 function workspace() { return mkdtempSync(join(tmpdir(), 'create-my-saas-extension-')); }
 function writeJson(path, value) { writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8'); }
@@ -80,9 +81,9 @@ test('rejects external overlays linked at the root or an ancestor before generat
     }));
     if (linkedComponent === 'backend') {
       mkdirSync(join(source, 'overlays'));
-      symlinkSync(join(outside, 'backend'), join(source, 'overlays', 'backend'), 'dir');
+      symlinkSync(join(outside, 'backend'), join(source, 'overlays', 'backend'), directoryLinkType);
     } else {
-      symlinkSync(outside, join(source, 'overlays'), 'dir');
+      symlinkSync(outside, join(source, 'overlays'), directoryLinkType);
     }
 
     const destination = join(root, 'generated');
@@ -100,7 +101,7 @@ test('rejects a linked extension source directory before enumerating its overlay
   const source = join(root, 'source');
   mkdirSync(join(source, 'backend'), { recursive: true });
   const linkedSource = join(root, 'linked-source');
-  symlinkSync(source, linkedSource, 'dir');
+  symlinkSync(source, linkedSource, directoryLinkType);
   assert.throws(
     () => extensionTargetFiles({ id: 'community:linked', sourceDirectory: linkedSource }, { overlay: 'backend' }),
     /Extension overlays cannot contain symbolic links: community:linked\/backend\./,

@@ -5,6 +5,10 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Añade `create-my-saas pro list` y `create-my-saas pro add` para consultar
+  licencias e instalar módulos Pro desde la tienda, con selección de versión y
+  stack compatible, simulación y descarga temporal integrada con `upgrade`.
+
 ## [1.13.0] - 2026-10-30
 
 ### Added
