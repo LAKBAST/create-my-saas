@@ -15,25 +15,33 @@ from typing import Any
 from uuid import UUID
 
 import stripe
+import structlog
 from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import Settings, settings
+from src.core.email import send_secure_email
+from src.core.email_templates import format_long_date, render_message
 from src.core.exceptions import AppError
 from src.db.base import utc_now
 from src.modules.audit.service import AuditAction, record_audit_event
-from src.modules.users.model import BillingEntitlement, BillingWebhookEvent, Organization, Subscription, UsageRecord
+from src.modules.users.model import BillingEntitlement, BillingWebhookEvent, Membership, MembershipRole, Organization, Subscription, UsageRecord, User
 
 _ENTITLEMENT_KEY = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{0,99}$")
 _PRICE_CACHE: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 PRICE_CACHE_SECONDS = 86_400
+# Members who manage billing are told when a subscription is set to end, kept or ended.
+_BILLING_ROLES = (MembershipRole.OWNER.value, MembershipRole.ADMIN.value, MembershipRole.BILLING.value)
+logger = structlog.get_logger(__name__)
 
 
 class BillingService:
     def __init__(self, db: AsyncSession, config: Settings = settings):
         self.db = db
         self.config = config
+        # Emails decided while applying a webhook; sent only after it commits.
+        self._notices: list[tuple[str, UUID, dict[str, str]]] = []
 
     async def configuration(self) -> dict[str, Any]:
         plans = self.price_plans()
@@ -204,6 +212,7 @@ class BillingService:
                 await self.db.flush()
                 await self._apply_stripe_event(event)
                 delivery.processed_at = utc_now()
+            await self._send_notices()
             return {"accepted": True, "duplicate": False}
         except IntegrityError:
             await self.db.rollback()
@@ -278,13 +287,47 @@ class BillingService:
         item = (self._value(self._value(stripe_subscription, "items", {}), "data", []) or [{}])[0]
         price_id = self._object_id(self._value(item, "price"))
         plan = self.price_plans().get(price_id or "")
+        # Compared after the update to email a cancellation only when it changes.
+        was_live = getattr(subscription, "status", None) in {"active", "trialing"}
+        was_scheduled = bool(getattr(subscription, "cancel_at_period_end", False))
         subscription.provider, subscription.provider_customer_id = "stripe", customer_id
         subscription.provider_subscription_id, subscription.plan = self._value(stripe_subscription, "id"), plan["name"] if plan else "unknown"
         subscription.status = self._value(stripe_subscription, "status")
         subscription.current_period_start, subscription.current_period_end = self._epoch(self._value(item, "current_period_start")), self._epoch(self._value(item, "current_period_end"))
-        subscription.cancel_at_period_end = bool(self._value(stripe_subscription, "cancel_at_period_end"))
+        # The customer portal may schedule the end with cancel_at, leaving
+        # cancel_at_period_end false; both mean the subscription will not renew.
+        cancel_at = self._epoch(self._value(stripe_subscription, "cancel_at"))
+        subscription.cancel_at_period_end = bool(self._value(stripe_subscription, "cancel_at_period_end")) or cancel_at is not None
         active = subscription.status in {"active", "trialing"} and plan is not None
+        live = subscription.status in {"active", "trialing"}
+        if live and subscription.cancel_at_period_end and not was_scheduled:
+            self._notice("subscription_cancellation_scheduled", organization_id, subscription.plan, cancel_at or subscription.current_period_end)
+        elif live and was_scheduled and not subscription.cancel_at_period_end:
+            self._notice("subscription_cancellation_reverted", organization_id, subscription.plan, subscription.current_period_end)
+        elif was_live and subscription.status == "canceled":
+            self._notice("subscription_ended", organization_id, subscription.plan, self._epoch(self._value(stripe_subscription, "ended_at")) or utc_now())
         await self._replace_entitlements(organization_id, plan["entitlements"] if active else self.free_entitlements(), plan["name"] if active else "free", subscription.current_period_end if active else None)
+
+    def _notice(self, key: str, organization_id: UUID, plan: str, date: datetime | None) -> None:
+        self._notices.append((key, organization_id, {"plan": plan, "date": format_long_date(date) if date else ""}))
+
+    async def _send_notices(self) -> None:
+        notices, self._notices = self._notices, []
+        for key, organization_id, values in notices:
+            # The webhook is already stored: a failed email is logged, not retried.
+            try:
+                organization = (await self.db.execute(select(Organization.name).where(Organization.id == organization_id))).scalar_one_or_none()
+                recipients = (await self.db.execute(
+                    select(User.email).join(Membership, Membership.user_id == User.id).where(
+                        Membership.organization_id == organization_id, Membership.role.in_(_BILLING_ROLES),
+                        User.is_active.is_(True), User.email_verified.is_(True),
+                    )
+                )).scalars().all()
+                message = render_message(key, url=f"{self._frontend_url()}/billing", organization=organization or "", **values)
+                for recipient in recipients:
+                    await send_secure_email(recipient=recipient, subject=message.subject, body=message.text, html=message.html)
+            except Exception:
+                logger.warning("billing_notice_failed", notice=key, organization_id=str(organization_id), exc_info=True)
 
     async def _subscription(self, organization_id: UUID, create: bool) -> Subscription | None:
         subscription = (await self.db.execute(select(Subscription).where(Subscription.organization_id == organization_id))).scalar_one_or_none()

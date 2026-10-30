@@ -6,6 +6,7 @@ so every backend sends the same emails.
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from functools import cache
 from html import escape
 from pathlib import Path
@@ -92,3 +93,9 @@ def render_message(key: str, *, url: str | None = None, code: str | None = None,
         code=(message["code"], code) if code and "code" in message else None,
         note=_plain(message["note"], values) if "note" in message else None,
     )
+
+
+def format_long_date(value: datetime) -> str:
+    """A date as the emails write it, for example "13 de noviembre de 2026"."""
+    months = _assets()[1]["months"]
+    return f"{value.day} de {months[value.month - 1]} de {value.year}"

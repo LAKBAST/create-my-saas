@@ -2,7 +2,7 @@
   "$schema": "../../../docs/template-manifest.schema.json",
   "schemaVersion": 1,
   "id": "backend:fastapi",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "kind": "backend",
   "displayName": "FastAPI starter",
   "description": "Modular FastAPI SaaS API with PostgreSQL, secure browser sessions, organizations, and billing domain models.",

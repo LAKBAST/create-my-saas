@@ -1,16 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import Stripe from 'stripe';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { AppError } from '../common/errors/app.error';
 import { AuditLogService } from '../audit/audit-log.service';
+import { SecureEmailService } from '../auth/secure-email.service';
+import { emailBrand, formatLongDate, renderMessage } from '../email/email-templates';
+import { Membership } from '../organizations/membership.entity';
 import { Organization } from '../organizations/organization.entity';
 import { BillingCustomer } from './billing-customer.entity';
 import { BillingEntitlement } from './billing-entitlement.entity';
 import { BillingWebhookEvent } from './billing-webhook-event.entity';
 import { Subscription } from './subscription.entity';
 import { UsageRecord } from './usage-record.entity';
+import { User } from '../users/user.entity';
 
 type Plan = { name: string; entitlements: Record<string, number | null>; labels: Record<string, string>; priceLabel?: string };
 type PlanPrice = { unitAmount: number; currency: string; interval: Stripe.Price.Recurring.Interval | null; intervalCount: number };
@@ -18,10 +22,13 @@ type PublicPlan = Plan & { priceId: string; price: PlanPrice | null };
 type PortalResult = { configured: boolean; url: string | null; reason?: string };
 type UsageTotal = { metric: string; quantity: number };
 type UsageInput = { organizationId: string; metric: string; quantity: number; idempotencyKey: string; recordedAt?: Date };
+// Emails decided while applying a webhook; sent only after its transaction commits.
+type Notice = { key: string; organizationId: string; plan: string; date: Date | null };
 
 @Injectable()
 export class BillingService {
   private readonly priceCache = new Map<string, { expiresAt: number; price: PlanPrice }>();
+  private readonly logger = new Logger(BillingService.name);
   constructor(
     @InjectRepository(BillingCustomer) private readonly customers: Repository<BillingCustomer>,
     @InjectRepository(Subscription) private readonly subscriptions: Repository<Subscription>,
@@ -31,6 +38,7 @@ export class BillingService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly audit: AuditLogService,
+    private readonly secureEmail: SecureEmailService,
   ) {}
 
   async subscription(organizationId: string): Promise<Subscription> {
@@ -177,16 +185,19 @@ export class BillingService {
     let event: Stripe.Event;
     try { event = this.stripe().webhooks.constructEvent(rawBody, signature, secret, this.config.get<number>('STRIPE_WEBHOOK_TOLERANCE_SECONDS', 300)); }
     catch { throw new AppError('INVALID_WEBHOOK_SIGNATURE', 'Stripe webhook signature is invalid.', 400); }
+    const notices: Notice[] = [];
     try {
-      return await this.dataSource.transaction(async (manager) => {
+      const result = await this.dataSource.transaction(async (manager) => {
         const events = manager.getRepository(BillingWebhookEvent);
         if (await events.findOneBy({ provider: 'stripe', providerEventId: event.id })) return { accepted: true, duplicate: true };
         const delivery = await events.save(events.create({ provider: 'stripe', providerEventId: event.id, processedAt: null }));
-        await this.applyStripeEvent(manager, event);
+        await this.applyStripeEvent(manager, event, notices);
         delivery.processedAt = new Date();
         await events.save(delivery);
         return { accepted: true, duplicate: false };
       });
+      await this.sendNotices(notices);
+      return result;
     } catch (error) {
       if (this.isUniqueViolation(error) && await this.dataSource.manager.getRepository(BillingWebhookEvent).findOneBy({ provider: 'stripe', providerEventId: event.id })) {
         return { accepted: true, duplicate: true };
@@ -195,7 +206,7 @@ export class BillingService {
     }
   }
 
-  private async applyStripeEvent(manager: EntityManager, event: Stripe.Event): Promise<void> {
+  private async applyStripeEvent(manager: EntityManager, event: Stripe.Event, notices: Notice[]): Promise<void> {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const organizationId = this.organizationId(session.metadata?.organization_id ?? session.client_reference_id);
@@ -203,10 +214,10 @@ export class BillingService {
       if (organizationId && customerId) await this.upsertCustomer(manager, organizationId, customerId);
       return;
     }
-    if (event.type.startsWith('customer.subscription.')) await this.syncStripeSubscription(manager, event.data.object as Stripe.Subscription);
+    if (event.type.startsWith('customer.subscription.')) await this.syncStripeSubscription(manager, event.data.object as Stripe.Subscription, notices);
   }
 
-  private async syncStripeSubscription(manager: EntityManager, eventSubscription: Stripe.Subscription): Promise<void> {
+  private async syncStripeSubscription(manager: EntityManager, eventSubscription: Stripe.Subscription, notices: Notice[] = []): Promise<void> {
     const customerId = this.objectId(eventSubscription.customer);
     if (!customerId) throw new AppError('INVALID_BILLING_WEBHOOK', 'Stripe subscription customer is missing.', 400);
     const customers = manager.getRepository(BillingCustomer);
@@ -244,14 +255,28 @@ export class BillingService {
 
     const priceId = stripeSubscription.items.data[0]?.price.id;
     const plan = priceId ? this.pricePlans().get(priceId) : undefined;
+    // Compared after the update to email a cancellation only when it changes.
+    const wasLive = ['active', 'trialing'].includes(subscription?.status ?? '');
+    const wasScheduled = Boolean(subscription?.cancelAtPeriodEnd);
     if (!subscription) subscription = subscriptions.create({ organizationId, provider: 'stripe', plan: 'free', status: 'inactive', providerSubscriptionId: null, currentPeriodStart: null, currentPeriodEnd: null, cancelAtPeriodEnd: false });
     subscription.provider = 'stripe'; subscription.providerSubscriptionId = stripeSubscription.id;
     subscription.seats = stripeSubscription.items.data[0]?.quantity ?? 1;
     subscription.plan = plan?.name ?? 'unknown'; subscription.status = stripeSubscription.status;
     subscription.currentPeriodStart = this.epochToDate(stripeSubscription.items.data[0]?.current_period_start);
     subscription.currentPeriodEnd = this.epochToDate(stripeSubscription.items.data[0]?.current_period_end);
-    subscription.cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
+    // The customer portal may schedule the end with cancel_at, leaving
+    // cancel_at_period_end false; both mean the subscription will not renew.
+    const cancelAt = this.epochToDate(stripeSubscription.cancel_at);
+    subscription.cancelAtPeriodEnd = Boolean(stripeSubscription.cancel_at_period_end) || cancelAt !== null;
     await subscriptions.save(subscription);
+    const live = ['active', 'trialing'].includes(subscription.status);
+    if (live && subscription.cancelAtPeriodEnd && !wasScheduled) {
+      notices.push({ key: 'subscription_cancellation_scheduled', organizationId, plan: subscription.plan, date: cancelAt ?? subscription.currentPeriodEnd });
+    } else if (live && wasScheduled && !subscription.cancelAtPeriodEnd) {
+      notices.push({ key: 'subscription_cancellation_reverted', organizationId, plan: subscription.plan, date: subscription.currentPeriodEnd });
+    } else if (wasLive && subscription.status === 'canceled') {
+      notices.push({ key: 'subscription_ended', organizationId, plan: subscription.plan, date: this.epochToDate(stripeSubscription.ended_at) ?? new Date() });
+    }
     const canUsePlan = ['active', 'trialing'].includes(stripeSubscription.status) && Boolean(plan);
     await this.replaceEntitlements(
       manager,
@@ -260,6 +285,30 @@ export class BillingService {
       canUsePlan ? plan!.name : 'free',
       canUsePlan ? subscription.currentPeriodEnd : null,
     );
+  }
+
+  private async sendNotices(notices: Notice[]): Promise<void> {
+    for (const notice of notices) {
+      // The webhook is already stored: a failed email is logged, not retried.
+      try {
+        const organization = await this.organizations.findOneBy({ id: notice.organizationId });
+        // The members who can manage billing (owners and admins).
+        const recipients = await this.dataSource.getRepository(User).createQueryBuilder('user')
+          .innerJoin(Membership, 'membership', 'membership.userId = user.id')
+          .where('membership.organizationId = :organizationId', { organizationId: notice.organizationId })
+          .andWhere('membership.role IN (:...roles)', { roles: ['owner', 'admin'] })
+          .andWhere('user.isActive = :active AND user.emailVerified = :verified', { active: true, verified: true })
+          .select('user.email', 'email').getRawMany<{ email: string }>();
+        const brand = emailBrand({ ...process.env, FRONTEND_URL: this.config.get<string>('FRONTEND_URL') });
+        const email = renderMessage(brand, notice.key, {
+          url: `${brand.frontendUrl.replace(/\/$/, '')}/billing`,
+          values: { plan: notice.plan, organization: organization?.name ?? '', date: notice.date ? formatLongDate(notice.date) : '' },
+        });
+        for (const { email: recipient } of recipients) await this.secureEmail.send(recipient, email.subject, email.text, email.html);
+      } catch (error) {
+        this.logger.warn(`Billing notice ${notice.key} for organization ${notice.organizationId} failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
 
   private async customerForOrganization(organizationId: string): Promise<BillingCustomer> {

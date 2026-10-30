@@ -5,6 +5,22 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- La facturación con Stripe (FastAPI y NestJS) detecta las cancelaciones
+  programadas desde el portal de cliente, que Stripe puede indicar con
+  `cancel_at` en lugar de `cancel_at_period_end`. Facturación muestra «Se cancela
+  el…» en vez de «Se renueva el…».
+
+### Added
+
+- Correos de suscripción para quien gestiona la facturación de la organización:
+  cancelación programada, cancelación anulada y suscripción terminada. Se envían
+  una sola vez por cambio, después de guardar el webhook; si el envío falla, se
+  registra sin reintentar el webhook.
+- Plantillas: FastAPI 0.2.2, NestJS 0.2.3 y Fastify 0.1.1 (solo los textos de
+  correo compartidos).
+
 ## [1.14.0] - 2026-10-30
 
 ### Added

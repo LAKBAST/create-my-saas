@@ -2,7 +2,7 @@
   "$schema": "../../../docs/template-manifest.schema.json",
   "schemaVersion": 1,
   "id": "backend:fastify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "backend",
   "displayName": "Fastify starter",
   "description": "Fastify TypeScript SaaS API with PostgreSQL-backed browser sessions, account recovery, email verification, Google and GitHub OAuth, CSRF protection, transactional email, and Redis-backed rate limiting.",
