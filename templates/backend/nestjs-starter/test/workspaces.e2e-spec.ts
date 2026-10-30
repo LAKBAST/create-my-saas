@@ -76,6 +76,8 @@ describe('Product models and private personal workspaces', () => {
     config.set('PRODUCT_MODEL', 'mixed');
     const context = await bootstrap(user.header);
     const personalId = context.body.personalWorkspace.id as string;
+    expect((await db.getRepository(Organization).findOneByOrFail({ id: personalId })).createdById).toBe(user.id);
+    expect((await db.getRepository(Organization).findOneByOrFail({ id: team.body.id as string })).createdById).toBe(user.id);
     expect(context.body.teams).toEqual([team.body]);
     expect((await bootstrap(user.header)).body.personalWorkspace.id).toBe(personalId);
     const subscriptions = db.getRepository(Subscription);
@@ -101,7 +103,7 @@ describe('Product models and private personal workspaces', () => {
   it('preserves a legacy team occupying the newly reserved personal slug', async () => {
     const user = await register();
     const organizations = db.getRepository(Organization);
-    const legacy = await organizations.save(organizations.create({ name: 'Legacy team', slug: `personal-${user.id}` }));
+    const legacy = await organizations.save(organizations.create({ name: 'Legacy team', slug: `personal-${user.id}`, createdById: user.id }));
     const memberships = db.getRepository(Membership);
     await memberships.save(memberships.create({ organizationId: legacy.id, userId: user.id, role: 'owner' }));
     config.set('PRODUCT_MODEL', 'mixed');

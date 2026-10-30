@@ -33,7 +33,7 @@ export class OrganizationsService {
    return await this.dataSource.transaction(async (manager) => {
     const organizations = manager.getRepository(Organization);
     const memberships = manager.getRepository(Membership);
-    const organization = await organizations.save(organizations.create({ name, slug: derived }));
+    const organization = await organizations.save(organizations.create({ name, slug: derived, createdById: user.id }));
     await memberships.save(memberships.create({ organizationId: organization.id, userId: user.id, role: 'owner' }));
     return organization;
    });

@@ -17,6 +17,7 @@
     "auth.password-recovery",
     "users.profile",
     "organizations",
+    "organizations.creation-provenance",
     "organizations.rbac",
     "organizations.invitations",
     "audit.organization-actions",

@@ -5,6 +5,16 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- NestJS conserva el creador de organizaciones y espacios personales en
+  `created_by_id`, independientemente de los cambios de propietario. La
+  migración rellena organizaciones existentes con su propietario más antiguo;
+  si faltan propietarios informa del recuento y conserva la columna nullable.
+- FastAPI y NestJS declaran `organizations.creation-provenance` para que las
+  extensiones puedan exigir el dato del creador en ambos backends. FastAPI ya
+  lo guarda con clave foránea a `users` y restricción `NOT NULL`.
+
 ### Fixed
 
 - La portada de Next.js y React Router ya no presenta las organizaciones como

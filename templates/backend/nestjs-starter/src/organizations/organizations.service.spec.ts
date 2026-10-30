@@ -30,7 +30,7 @@ describe('OrganizationsService', () => {
     await expect(service.create(user, 'Acme, Inc.')).resolves.toMatchObject({ id: 'organization-1', slug: 'acme-inc' });
 
     expect(dataSource.transaction).toHaveBeenCalledTimes(1);
-    expect(organizations.save).toHaveBeenCalledWith({ name: 'Acme, Inc.', slug: 'acme-inc' });
+    expect(organizations.save).toHaveBeenCalledWith({ name: 'Acme, Inc.', slug: 'acme-inc', createdById: user.id });
     expect(memberships.save).toHaveBeenCalledWith({ organizationId: 'organization-1', userId: 'user-1', role: 'owner' });
   });
 

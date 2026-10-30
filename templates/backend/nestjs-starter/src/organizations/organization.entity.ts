@@ -7,6 +7,10 @@ export class Organization {
  @PrimaryColumn('uuid') id!: string;
  @Column() name!: string;
  @Column({ unique: true }) slug!: string;
+ // Nullable only for legacy organizations with no owner during backfill.
+ @Column({ name: 'created_by_id', type: 'uuid', nullable: true }) createdById!: string | null;
+ @ManyToOne(() => User, { nullable: true, onDelete: 'NO ACTION' })
+ @JoinColumn({ name: 'created_by_id', foreignKeyConstraintName: 'fk_organizations_creator' }) createdBy!: User | null;
  @Column({ name: 'personal_owner_user_id', type: 'uuid', nullable: true, unique: true }) personalOwnerUserId!: string | null;
  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
  @JoinColumn({ name: 'personal_owner_user_id' }) personalOwner!: User | null;
