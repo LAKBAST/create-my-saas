@@ -9,6 +9,9 @@ import { parseProArguments, runProCommand } from '../src/pro.js';
 import { run } from '../src/cli.js';
 import { generateProject } from '../src/generator.js';
 
+// Generated test projects record this CLI version as their Community version.
+const { version: cliVersion } = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+const escapedCliVersion = cliVersion.replaceAll('.', '\\.');
 const token = 'customer-test-token';
 const selectedVersion = {
   version: '2.2.0',
@@ -32,7 +35,7 @@ async function fakeStore(t, { archive, fail, versionInfo } = {}) {
     } else if (request.url === '/store-api/licences') {
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ licences: [{ id: 'licence-1', product: 'pro:admin-dashboard', status: 'active' }] }));
-    } else if (request.url === '/store-api/licences/licence-1/versions?community=1.13.0') {
+    } else if (request.url === `/store-api/licences/licence-1/versions?community=${cliVersion}`) {
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify(typeof versionInfo === 'function' ? versionInfo() : versionInfo ?? { product: 'pro:admin-dashboard', latest: '2.2.0', recommended: '2.2.0', versions: [selectedVersion] }));
     } else if (request.url === '/store-api/licences/licence-1/download?version=2.2.0') {
@@ -109,7 +112,7 @@ test('pro add uses the licensed compatible module, dry-run skips download, and i
   try {
     const listStatus = await runProCommand(['list', '--token', token], { log: (message) => output.push(message), error: (message) => errors.push(message) });
     assert.equal(listStatus, 0);
-    assert.match(output.at(-1), /recomendada para Community 1\.13\.0: 2\.2\.0/);
+    assert.match(output.at(-1), new RegExp(`recomendada para Community ${escapedCliVersion}: 2\\.2\\.0`));
   } finally {
     process.chdir(previousDirectory);
   }
@@ -177,7 +180,7 @@ test('pro add explains missing Community compatibility and unsupported stacks', 
   const invoke = () => runProCommand(['add', 'admin-dashboard', project, '--dry-run', '--token', token], { log: () => {}, error: (message) => errors.push(message) });
 
   assert.equal(await invoke(), 1);
-  assert.match(errors.join('\n'), /No hay una versión Pro compatible con Community 1\.13\.0\. Requiere Community \^2\.0\.0/);
+  assert.match(errors.join('\n'), new RegExp(`No hay una versión Pro compatible con Community ${escapedCliVersion}\\. Requiere Community \\^2\\.0\\.0`));
   errors.length = 0;
   versionInfo = {
     recommended: '2.2.0',

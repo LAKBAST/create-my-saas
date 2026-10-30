@@ -5,9 +5,22 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Añade `create-my-saas pro list` y `create-my-saas pro add` para consultar
-  licencias e instalar módulos Pro desde la tienda, con selección de versión y
-  stack compatible, simulación y descarga temporal integrada con `upgrade`.
+## [1.14.0] - 2026-10-30
+
+### Added
+
+- `create-my-saas pro list` muestra las licencias Pro del token de cliente y,
+  dentro de un proyecto, la versión recomendada para su versión de Community.
+- `create-my-saas pro add <módulo> [proyecto]` instala un módulo Pro sin
+  descargarlo a mano. Elige la versión recomendada para la `cliVersion` del
+  proyecto (o la de `--version`) y la variante de su backend y frontend, la
+  descarga de la Tienda LAKBAST a una carpeta temporal, la extrae con el `tar`
+  del sistema y la añade con el flujo de `upgrade --feature`. `--dry-run`
+  muestra la licencia, la versión y el módulo sin descargar nada. Como
+  `upgrade`, exige el proyecto en git y sin cambios, salvo con `--allow-dirty`.
+- El token se indica con `CREATE_MY_SAAS_TOKEN` o `--token`; solo viaja en la
+  cabecera de las peticiones y nunca se guarda. `CREATE_MY_SAAS_STORE_URL`
+  permite usar otra tienda.
 
 ## [1.13.0] - 2026-10-30
 
@@ -493,7 +506,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.14.0...HEAD
+[1.14.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.10.0...v1.11.0
