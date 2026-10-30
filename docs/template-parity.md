@@ -19,6 +19,11 @@ Consulta [la guía de administración](./admin-dashboard.md).
 
 ## Contrato de NestJS
 
+FastAPI y NestJS declaran `organizations.creation-provenance`: ambos guardan
+el creador de organizaciones y espacios personales, independientemente del
+propietario actual. FastAPI ya usa `created_by_id` con `NOT NULL` y clave
+foránea a `users`; su manifiesto anuncia ahora esa capacidad existente.
+
 Las organizaciones conservan `createdById` (`created_by_id` en PostgreSQL),
 como el dato de creador de FastAPI. Se asigna al crear un equipo o espacio
 personal y no cambia al transferir la propiedad. La migración
