@@ -21,7 +21,10 @@ Options:
 
 Upgrade options:
   --from <version>         CLI version the project was generated with (needed once for older projects)
-  --extensions-dir <path>  Extension directory the project was generated with (repeatable)
+  --extensions-dir <path>  Extension directory with the module versions to upgrade to (repeatable)
+  --base-extensions-dir <path>  Extension directory with the module versions the project has now (repeatable;
+                           defaults to --extensions-dir)
+  --feature <id>           Add an extension to the project (repeatable)
   --dry-run                Show what would change without writing anything
   --allow-dirty            Upgrade even if the project has uncommitted changes
 
@@ -31,6 +34,8 @@ Examples:
   create-my-saas api-only --backend fastapi
   create-my-saas upgrade --dry-run
   create-my-saas upgrade ./my-saas --from 1.3.3
+  create-my-saas upgrade --feature object-storage-nestjs --extensions-dir ./pro-object-storage-1.2.0
+  create-my-saas upgrade --base-extensions-dir ./pro-object-storage-1.1.0 --extensions-dir ./pro-object-storage-1.2.0
   create-my-saas setup ./my-saas
   create-my-saas doctor ./my-saas
   create-my-saas seed ./my-saas
@@ -123,17 +128,18 @@ export function parseArguments(argumentsList) {
 }
 
 export function parseUpgradeArguments(argumentsList) {
-  const options = { projectDirectory: '.', fromVersion: undefined, extensionsDirectories: [], dryRun: false, allowDirty: false, help: false };
+  const options = { projectDirectory: '.', fromVersion: undefined, extensionsDirectories: [], baseExtensionsDirectories: [], featureIds: [], dryRun: false, allowDirty: false, help: false };
   let project;
   for (let index = 0; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index];
     const [name, inline] = argument.startsWith('--') && argument.includes('=') ? [argument.slice(0, argument.indexOf('=')), argument.slice(argument.indexOf('=') + 1)] : [argument, undefined];
-    if (name === '--from' || name === '--extensions-dir') {
+    if (['--from', '--extensions-dir', '--base-extensions-dir', '--feature'].includes(name)) {
       const value = inline ?? argumentsList[index + 1];
       if (!value || value.startsWith('--')) throw new Error(`Missing value for ${name}.`);
       if (inline === undefined) index += 1;
       if (name === '--from') options.fromVersion = value.replace(/^v/, '');
-      else options.extensionsDirectories.push(value);
+      else if (name === '--feature') options.featureIds.push(value);
+      else options[name === '--extensions-dir' ? 'extensionsDirectories' : 'baseExtensionsDirectories'].push(value);
     } else if (argument === '--dry-run') options.dryRun = true;
     else if (argument === '--allow-dirty') options.allowDirty = true;
     else if (argument === '--help' || argument === '-h') options.help = true;
