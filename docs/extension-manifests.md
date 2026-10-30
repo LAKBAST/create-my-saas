@@ -20,6 +20,13 @@ incluida es `community:astro-billing` (`1.0.0`), con alias `billing`: añade
 facturación a Astro y admite FastAPI o NestJS como backend. Los IDs y versiones
 de las plantillas se detallan en [su guía](./template-manifests.md).
 
+`.create-my-saas.json` guarda el ID y la `version` de cada extensión instalada.
+`create-my-saas upgrade` usa esos datos para añadir extensiones a un proyecto
+existente con `--feature` o cambiarlas de versión con `--base-extensions-dir`;
+consulta [la guía de actualización](./upgrading.md#añadir-o-actualizar-módulos-pro).
+Publica cada versión de una extensión en su propia carpeta para que las dos
+versiones puedan pasarse a la vez.
+
 ## Estructura
 
 Cada extensión contiene `extension.manifest.json` y los archivos declarados:

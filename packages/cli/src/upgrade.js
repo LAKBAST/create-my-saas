@@ -2,11 +2,14 @@
 // with a three-way merge per file. The base is the project regenerated with the
 // version it came from, so the user's edits survive while template changes
 // arrive. The project must be a clean git checkout so every change is reviewable.
+// The same merge adds Pro modules (--feature) or moves them to new versions: the
+// base keeps the recorded module versions and the current generation the new ones.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { defaultExtensionsDirectory } from './catalog.js';
+import { loadExtensions } from './extensions.js';
 import { generateProject } from './generator.js';
 import { fileDigest, MANIFEST_FILE, normalizedFileContents, readManifest } from './manifest.js';
 
@@ -25,6 +28,7 @@ export function readProjectManifest(projectDirectory) {
     backendId: shortId(manifest.templates.backend),
     frontendId: shortId(manifest.templates.frontend),
     featureIds: manifest.features,
+    extensions: manifest.extensions.map(({ id, version }) => ({ id, version })),
     ...(manifest.productModel === undefined ? {} : { productModel: manifest.productModel }),
     unmanaged: manifest.unmanaged,
   };
@@ -82,6 +86,60 @@ function matchLineEndings(text, like) {
   return Buffer.from(text.toString('utf8').replace(/\r?\n/g, '\r\n'), 'utf8');
 }
 
+/** Maps every extension ID and alias found in the directories to its manifest. */
+function extensionLookup(directories) {
+  const lookup = new Map();
+  for (const extension of directories.flatMap((directory) => loadExtensions(directory))) {
+    for (const identifier of [extension.id, ...(extension.aliases ?? [])]) lookup.set(identifier, extension);
+  }
+  return lookup;
+}
+
+/**
+ * Checks the extension directories against the recorded modules before anything
+ * is generated: the base must reproduce the recorded versions exactly, otherwise
+ * the merge would treat the module's own changes as user edits. Returns the
+ * feature list for the current generation.
+ */
+function planModules(manifest, { featureIds, extensionsDirectories, baseExtensionsDirectories }) {
+  const bundled = extensionLookup([defaultExtensionsDirectory]);
+  // Bundled modules come with each CLI version; only the user's directories are checked.
+  const external = manifest.extensions.filter(({ id }) => !bundled.has(id));
+  const current = extensionLookup(extensionsDirectories);
+  const separateBase = baseExtensionsDirectories.length > 0;
+  const base = separateBase ? extensionLookup(baseExtensionsDirectories) : current;
+  const baseOption = separateBase ? '--base-extensions-dir' : '--extensions-dir';
+  for (const { id, version } of external) {
+    const found = base.get(id)?.version;
+    if (found === version || (version === null && found !== undefined)) continue;
+    if (separateBase || found === undefined) throw new Error(`El proyecto usa ${id}@${version}${found ? ` y ${baseOption} trae ${found}` : ''}; pasa su carpeta con ${baseOption}.`);
+    throw new Error(`El proyecto usa ${id}@${version} y --extensions-dir trae ${found}. Para cambiar de versión pasa la carpeta de ${version} con --base-extensions-dir y la de ${found} con --extensions-dir.`);
+  }
+  const missing = external.find(({ id }) => !current.has(id));
+  if (missing) throw new Error(`Falta ${missing.id} en --extensions-dir; pasa la carpeta con la versión a la que quieres actualizar.`);
+  const available = new Map([...bundled, ...current]);
+  const added = [];
+  for (const featureId of new Set(featureIds)) {
+    const extension = available.get(featureId);
+    if (!extension) throw new Error(`Módulo desconocido "${featureId}". Disponibles: ${[...available.keys()].join(', ') || 'ninguno'}. ¿Has pasado su carpeta con --extensions-dir?`);
+    const recorded = manifest.extensions.find(({ id }) => id === extension.id);
+    if (recorded || manifest.featureIds.includes(featureId) || added.some((id) => available.get(id) === extension)) {
+      throw new Error(`El proyecto ya usa ${extension.id}${recorded?.version ? `@${recorded.version}` : ''}. Para cambiar de versión pasa la carpeta actual con --base-extensions-dir y la nueva con --extensions-dir.`);
+    }
+    added.push(featureId);
+  }
+  return [...manifest.featureIds, ...added];
+}
+
+/** Module changes between the recorded extensions and the new generation. */
+function moduleChanges(before, after) {
+  const versions = (extensions) => new Map(extensions.map(({ id, version }) => [id, version ?? '?']));
+  const [from, to] = [versions(before), versions(after)];
+  return [...new Set([...from.keys(), ...to.keys()])].sort()
+    .filter((id) => from.get(id) !== to.get(id))
+    .map((id) => ({ id, ...(from.has(id) ? { from: from.get(id) } : {}), ...(to.has(id) ? { to: to.get(id) } : {}) }));
+}
+
 /**
  * Plans (and unless dryRun, applies) the upgrade. Each entry has a `path` and an
  * `action`: updated, added, removed, merged, conflict, kept, skipped.
@@ -90,9 +148,13 @@ export function upgradeProject({
   projectDirectory,
   fromVersion,
   extensionsDirectories = [],
+  // Directories with the module versions the project has now; defaults to extensionsDirectories.
+  baseExtensionsDirectories = [],
+  // Extensions to add to the project.
+  featureIds = [],
   dryRun = false,
   allowDirty = false,
-  generateBase = generateWithPublishedCli,
+  generateBase,
   // Each CLI version brings its own bundled extensions; only the user's directories are shared.
   generateCurrent = (options) => generateProject({ ...options, extensionsDirectories: [defaultExtensionsDirectory, ...options.extensionsDirectories] }),
 }) {
@@ -102,6 +164,9 @@ export function upgradeProject({
   const baseVersion = fromVersion ?? manifest.cliVersion;
   if (!baseVersion) throw new Error(`This project was generated before ${MANIFEST_FILE} recorded the CLI version. Pass the version it came from with --from <version>.`);
   if (!manifest.backendId && !manifest.frontendId) throw new Error(`${MANIFEST_FILE} does not record any template.`);
+  const currentFeatureIds = planModules(manifest, { featureIds, extensionsDirectories, baseExtensionsDirectories });
+  // Upgrading only modules keeps the CLI version: this CLI is then the base generator too.
+  const generateBaseProject = generateBase ?? (baseVersion === cliVersion ? generateCurrent : generateWithPublishedCli);
 
   const git = gitClean(project);
   if (!allowDirty && !dryRun) {
@@ -114,8 +179,10 @@ export function upgradeProject({
     const selection = { backendId: manifest.backendId, frontendId: manifest.frontendId, featureIds: manifest.featureIds, ...(manifest.productModel === undefined ? {} : { productModel: manifest.productModel }) };
     const baseDirectory = join(workspace, 'base');
     const currentDirectory = join(workspace, 'current');
-    generateBase({ version: baseVersion, destination: baseDirectory, ...selection, extensionsDirectories });
-    generateCurrent({ destination: currentDirectory, ...selection, extensionsDirectories });
+    generateBaseProject({ version: baseVersion, destination: baseDirectory, ...selection, extensionsDirectories: baseExtensionsDirectories.length ? baseExtensionsDirectories : extensionsDirectories });
+    generateCurrent({ destination: currentDirectory, ...selection, featureIds: currentFeatureIds, extensionsDirectories });
+    const next = existsSync(join(currentDirectory, MANIFEST_FILE)) ? JSON.parse(readFileSync(join(currentDirectory, MANIFEST_FILE), 'utf8')) : {};
+    const modules = moduleChanges(manifest.extensions, next.extensions ?? []);
 
     const unmanaged = new Set(manifest.unmanaged);
     const baseFiles = new Set(listFiles(baseDirectory));
@@ -157,11 +224,10 @@ export function upgradeProject({
         if (entry.sidecar) writeFileSync(`${target}.upgrade-new`, entry.sidecar);
       }
       // The new generation's manifest becomes the base of the next upgrade.
-      const next = existsSync(join(currentDirectory, MANIFEST_FILE)) ? JSON.parse(readFileSync(join(currentDirectory, MANIFEST_FILE), 'utf8')) : {};
       next.unmanaged = [...unmanaged].sort();
       writeFileSync(join(project, MANIFEST_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8');
     }
-    return { fromVersion: baseVersion, toVersion: cliVersion, plan: plan.map(({ content, sidecar, ...entry }) => entry) };
+    return { fromVersion: baseVersion, toVersion: cliVersion, modules, plan: plan.map(({ content, sidecar, ...entry }) => entry) };
   } finally { rmSync(workspace, { recursive: true, force: true }); }
 }
 
@@ -170,8 +236,11 @@ const labels = {
   conflict: 'Con conflictos (resuélvelos antes de hacer commit)', kept: 'Conservados', skipped: 'No gestionados',
 };
 
-export function formatUpgradeSummary({ fromVersion, toVersion, plan }, { dryRun = false } = {}) {
+const moduleLabel = ({ id, from, to }) => (from === undefined ? `+ ${id}@${to}` : to === undefined ? `- ${id}@${from}` : `${id} ${from} → ${to}`);
+
+export function formatUpgradeSummary({ fromVersion, toVersion, modules = [], plan }, { dryRun = false } = {}) {
   const lines = [`create-my-saas ${fromVersion} → ${toVersion}${dryRun ? ' (simulación, no se ha escrito nada)' : ''}`];
+  if (modules.length) lines.push(`Módulos: ${modules.map(moduleLabel).join(', ')}`);
   if (plan.length === 0) return [...lines, 'El proyecto ya está al día.'].join('\n');
   for (const action of Object.keys(labels)) {
     const entries = plan.filter((entry) => entry.action === action);

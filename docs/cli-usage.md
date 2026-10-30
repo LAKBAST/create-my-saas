@@ -107,6 +107,10 @@ entorno de ejemplo, configura secretos, URL de PostgreSQL y proveedores que
 uses; consulta el README de cada starter para los detalles propios del runtime.
 
 Para actualizar una aplicación existente, consulta [la guía de actualización](./upgrading.md).
+`upgrade` también añade módulos Pro a un proyecto existente (`--feature` con
+`--extensions-dir`) o los cambia de versión (`--base-extensions-dir` con la
+versión actual y `--extensions-dir` con la nueva); consulta
+[Añadir o actualizar módulos Pro](./upgrading.md#añadir-o-actualizar-módulos-pro).
 
 ## Referencias de los starters
 

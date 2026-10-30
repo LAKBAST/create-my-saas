@@ -5,6 +5,19 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `create-my-saas upgrade --feature <id>` añade módulos Pro (o cualquier
+  extensión) a un proyecto existente con la fusión a tres bandas habitual: los
+  archivos nuevos se añaden y los registros generados y `.env.example` se
+  fusionan con los cambios del usuario.
+- `create-my-saas upgrade --base-extensions-dir <ruta>` cambia la versión de un
+  módulo: la base se genera con la versión que tiene el proyecto y
+  `--extensions-dir` aporta la nueva. Antes de generar, la CLI comprueba las
+  versiones guardadas en `.create-my-saas.json` e indica qué carpeta falta si no
+  coinciden. Si la versión de la CLI no cambia, la base se genera localmente sin
+  descargar nada, y el resumen lista los módulos añadidos o actualizados.
+
 ## [1.12.0] - 2026-10-30
 
 ### Added
