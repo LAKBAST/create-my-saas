@@ -229,10 +229,10 @@ test('generates selected templates and omits local artifacts', (t) => {
 
   const metadata = JSON.parse(readFileSync(join(destination, '.create-my-saas.json'), 'utf8'));
   assert.deepEqual(metadata.templates.backend, {
-    id: 'backend:fastapi', version: '0.2.0', source: 'backend/fastapi-starter',
+    id: 'backend:fastapi', version: '0.2.1', source: 'backend/fastapi-starter',
   });
   assert.deepEqual(metadata.templates.frontend, {
-    id: 'frontend:nextjs', version: '0.2.0', source: 'frontend/nextjs-starter',
+    id: 'frontend:nextjs', version: '0.2.1', source: 'frontend/nextjs-starter',
   });
   assert.deepEqual(readdirSync(workspace), ['demo']);
 });

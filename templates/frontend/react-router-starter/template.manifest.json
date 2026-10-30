@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "frontend:react-router",
   "kind": "frontend",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "React Router Framework starter",
   "description": "A React Router Framework Mode frontend with browser sessions, protected routes, and a same-origin API proxy.",
   "runtime": {
