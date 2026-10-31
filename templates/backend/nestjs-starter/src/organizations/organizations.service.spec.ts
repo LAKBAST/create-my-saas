@@ -7,6 +7,10 @@ import { Membership } from './membership.entity';
 import { Organization } from './organization.entity';
 import { OrganizationsService } from './organizations.service';
 
+// Generated projects may install invitation hooks. This suite exercises the
+// Community service with repository mocks that do not implement their queries.
+jest.mock('../extensions/invitations.generated', () => ({ extensionInvitationHooks: [] }));
+
 describe('OrganizationsService', () => {
   const user = { id: 'user-1', email: 'owner@example.com' } as User;
 

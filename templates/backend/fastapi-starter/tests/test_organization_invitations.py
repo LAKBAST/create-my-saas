@@ -49,6 +49,13 @@ class RecordingSession:
 
 
 class OrganizationInvitationTests(unittest.TestCase):
+    def setUp(self):
+        # Generated projects may install invitation hooks. These statement-level
+        # tests exercise the Community path without extension queries.
+        hooks = patch.object(invitations, "EXTENSION_INVITATION_HOOKS", [])
+        hooks.start()
+        self.addCleanup(hooks.stop)
+
     def test_creating_an_invitation_uses_the_active_invitation_unique_index(self):
         invitation_id = uuid4()
         session = RecordingSession([invitation_id, None])
