@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from main import app
 from src.core.config import settings
 from src.core.exceptions import AppError
+from src.db.base import utc_now
 from src.db.database import get_db
 from src.modules.auth.security.tokens import get_current_user
 from src.modules.billing.router import CreateCheckout
@@ -345,3 +346,45 @@ class BillingContractTests(unittest.TestCase):
             asyncio.run(service._apply_stripe_event(event("customer.subscription.created", subscription)))
         self.assertEqual([(row.organization_id, row.plan, row.status) for row in created], [(organization_id, "pro", "active")])
         service._replace_entitlements.assert_awaited_once()
+
+    def test_webhook_syncs_stripe_quantity_to_snapshot_seats(self):
+        organization_id = uuid4()
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_price_plans='{"price_allowed":{"name":"pro","entitlements":{"api_calls":100}}}')
+        created = []
+
+        def deliver(event_type, items):
+            subscription = {
+                "object": "subscription", "id": "sub_1", "customer": "cus_ours", "status": "active",
+                "metadata": {"organization_id": str(organization_id)}, "items": {"object": "list", "data": items},
+            }
+            local = created[0] if created else None
+            db = AsyncMock()
+            db.add = created.append
+            db.execute.side_effect = [
+                SimpleNamespace(scalar_one_or_none=lambda: local), SimpleNamespace(), SimpleNamespace(scalar_one_or_none=lambda: local),
+                # BillingService.snapshot: subscription, entitlements and usage.
+                SimpleNamespace(scalar_one_or_none=lambda: created[0]), SimpleNamespace(scalars=lambda: []), [],
+            ]
+            service = BillingService(db, config)
+            service._configure_stripe = lambda: None
+            service._replace_entitlements = AsyncMock()
+            event = stripe.Event.construct_from({"id": "evt_test", "object": "event", "type": event_type, "data": {"object": subscription}}, "sk_test")
+            with patch("src.modules.billing.service.stripe.Subscription.retrieve", return_value=stripe.Subscription.construct_from(subscription, "sk_test")):
+                asyncio.run(service._apply_stripe_event(event))
+            return asyncio.run(service.snapshot(organization_id))["seats"]
+
+        def item(**quantity):
+            return {"object": "subscription_item", "price": {"object": "price", "id": "price_allowed"},
+                    "current_period_start": 1793318400, "current_period_end": 1794528000, **quantity}
+
+        self.assertEqual(deliver("customer.subscription.created", [item(quantity=2)]), 2)
+        self.assertEqual(deliver("customer.subscription.updated", [item(quantity=3)]), 3)
+        self.assertEqual(len(created), 1)
+
+        # Without a usable quantity the subscription has one seat, not the previous count.
+        for label, items in [("missing", [item()]), ("no items", []), ("null", [item(quantity=None)]), ("zero", [item(quantity=0)]),
+                             ("negative", [item(quantity=-2)]), ("boolean", [item(quantity=True)]), ("text", [item(quantity="3")])]:
+            with self.subTest(label):
+                created[0].seats, created[0].updated_at = 3, utc_now()
+                self.assertEqual(deliver("customer.subscription.updated", items), 1)
