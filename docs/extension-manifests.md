@@ -97,6 +97,15 @@ prefijos HTTP que la CLI añade a la configuración del gateway generado.
 
 ## Puntos de integración
 
+`integrations.fastapi.invitationHooks` y `integrations.nestjs.invitationHooks`
+admiten referencias `ruta:función` a comprobaciones de invitación. Cada función
+recibe `(action, db/manager, organization_id, email, user_id)`, donde `action`
+es `create` o `accept`. Se ejecutan en la transacción de Community, después de
+bloquear la fila de la organización y antes de crear o aceptar la invitación.
+Pueden lanzar un error para rechazar la operación. Sin hooks registrados no se
+añade bloqueo ni consulta. Los hooks deben evitar efectos externos hasta que
+la transacción confirme.
+
 `integrations.fastapi` registra imports de routers, ajustes de entorno con
 longitud mínima y acciones de auditoría permitidas. La CLI combina las entradas
 en el registro de integración de la base, sin reemplazar `main.py`, el módulo de

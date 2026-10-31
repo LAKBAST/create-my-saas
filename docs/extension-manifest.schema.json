@@ -44,6 +44,7 @@
           "additionalProperties": false,
           "properties": {
             "routers": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[a-zA-Z_][a-zA-Z0-9_]*$" } },
+            "invitationHooks": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-zA-Z_][a-zA-Z0-9_.]*:[a-zA-Z_][a-zA-Z0-9_]*$" } },
             "settings": { "type": "array", "uniqueItems": true, "items": { "type": "object", "additionalProperties": false, "required": ["name", "default", "minLength"], "properties": { "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" }, "default": { "type": "string" }, "minLength": { "type": "integer", "minimum": 0 } } } },
             "auditActions": { "type": "array", "uniqueItems": true, "items": { "type": "object", "additionalProperties": false, "required": ["name", "metadata"], "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9_-]*(?:\\.[a-z][a-z0-9_-]*)*$" }, "metadata": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_]*$" } } } } }
           }
@@ -52,6 +53,7 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "invitationHooks": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^src/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$" } },
             "modules": {
               "type": "array",
               "uniqueItems": true,

@@ -12,6 +12,7 @@ import { Organization } from './organization.entity';
 import { SecureEmailService } from '../auth/secure-email.service';
 import { emailBrand, renderMessage } from '../email/email-templates';
 import { AuditLogService } from '../audit/audit-log.service';
+import { extensionInvitationHooks } from '../extensions/invitations.generated';
 
 @Injectable()
 export class OrganizationsService {
@@ -66,6 +67,10 @@ export class OrganizationsService {
   let created: Invitation;
   try {
    created = await this.dataSource.transaction(async (manager) => {
+    if (extensionInvitationHooks.length) {
+     await this.lockOrganization(manager.getRepository(Organization), organizationId);
+     for (const hook of extensionInvitationHooks) await hook('create', manager, organizationId, normalizedEmail, actorUserId);
+    }
     const invitations = manager.getRepository(Invitation);
     const query = invitations.createQueryBuilder('invitation')
      .where('invitation.organization_id = :organizationId AND invitation.email = :email AND invitation.accepted_at IS NULL', { organizationId, email: normalizedEmail });
@@ -89,6 +94,10 @@ export class OrganizationsService {
   } catch (error) {
    if (!this.isUniqueViolation(error)) throw error;
    created = await this.dataSource.transaction(async (manager) => {
+    if (extensionInvitationHooks.length) {
+     await this.lockOrganization(manager.getRepository(Organization), organizationId);
+     for (const hook of extensionInvitationHooks) await hook('create', manager, organizationId, normalizedEmail, actorUserId);
+    }
     const invitations = manager.getRepository(Invitation);
     const query = invitations.createQueryBuilder('invitation')
      .where('invitation.organization_id = :organizationId AND invitation.email = :email AND invitation.accepted_at IS NULL', { organizationId, email: normalizedEmail });
@@ -115,6 +124,13 @@ export class OrganizationsService {
   return this.dataSource.transaction(async (manager) => {
    const invitations = manager.getRepository(Invitation);
    const memberships = manager.getRepository(Membership);
+   if (extensionInvitationHooks.length) {
+    const candidate = await invitations.findOneBy({ tokenHash: this.hash(token) });
+    if (candidate && !candidate.acceptedAt && candidate.email === email && candidate.expiresAt > new Date()) {
+     await this.lockOrganization(manager.getRepository(Organization), candidate.organizationId);
+     for (const hook of extensionInvitationHooks) await hook('accept', manager, candidate.organizationId, email, user.id);
+    }
+   }
    const query = invitations.createQueryBuilder('invitation').where('invitation.token_hash = :tokenHash', { tokenHash: this.hash(token) });
    if (this.dataSource.options.type !== 'sqljs') query.setLock('pessimistic_write');
    const invitation = await query.getOne();

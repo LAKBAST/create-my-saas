@@ -9,9 +9,10 @@ from src.core.email import send_secure_email
 from src.core.email_templates import render_message
 from src.core.exceptions import AppError
 from src.core.config import settings
+from src.core.extensions import EXTENSION_INVITATION_HOOKS, run_invitation_hooks
 from src.modules.audit.service import AuditAction, record_audit_event
 from src.modules.auth.security.tokens import opaque_token, token_hash, utc_now
-from src.modules.organizations.access import require_role
+from src.modules.organizations.access import lock_organization, require_role
 from src.modules.organizations.schemas import AcceptInvite, InviteCreate
 from src.modules.users.model import Invitation, Membership, MembershipRole, Organization, User
 
@@ -37,6 +38,9 @@ async def invite(
         )
 
     email = str(payload.email).lower()
+    if EXTENSION_INVITATION_HOOKS:
+        await lock_organization(org_id, db)
+        await run_invitation_hooks("create", db, org_id, email, user.id)
     now = utc_now()
     raw_token = opaque_token()
     values = {
@@ -130,6 +134,19 @@ async def accept_invitation(
         raise AppError("Teams are disabled for this product.", code="TEAMS_DISABLED", status_code=403)
     now = utc_now()
     invitation_hash = token_hash(payload.token)
+    if EXTENSION_INVITATION_HOOKS:
+        candidate = (await db.execute(
+            select(Invitation.organization_id).where(
+                Invitation.token_hash == invitation_hash,
+                Invitation.accepted_at.is_(None),
+                Invitation.cancelled_at.is_(None),
+                Invitation.expires_at > now,
+                Invitation.email == user.email,
+            )
+        )).scalar_one_or_none()
+        if candidate is not None:
+            await lock_organization(candidate, db)
+            await run_invitation_hooks("accept", db, candidate, user.email, user.id)
     accepted = (
         await db.execute(
             update(Invitation)
