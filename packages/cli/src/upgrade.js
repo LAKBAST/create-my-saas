@@ -140,6 +140,30 @@ function moduleChanges(before, after) {
     .map((id) => ({ id, ...(from.has(id) ? { from: from.get(id) } : {}), ...(to.has(id) ? { to: to.get(id) } : {}) }));
 }
 
+/** Template versions that change between the recorded manifest and the new generation. */
+function templateChanges(before = {}, after = {}) {
+  return ['backend', 'frontend']
+    .filter((kind) => before[kind] && after[kind] && before[kind].version !== after[kind].version)
+    .map((kind) => ({ id: after[kind].id, from: before[kind].version, to: after[kind].version }));
+}
+
+// A removed or kept file asks nothing of the user; every other action leaves the new content in place.
+const arrivingActions = new Set(['updated', 'added', 'merged', 'conflict']);
+
+/** What the user still has to run or review for the files this upgrade brings. */
+export function nextSteps(plan) {
+  const paths = plan.filter((entry) => arrivingActions.has(entry.action)).map((entry) => entry.path);
+  const steps = [];
+  for (const directory of ['backend', 'frontend']) {
+    if (paths.some((path) => path === `${directory}/pyproject.toml` || path === `${directory}/uv.lock`)) steps.push(`Instala las dependencias: cd ${directory} && uv sync`);
+    if (paths.some((path) => path === `${directory}/package.json` || path === `${directory}/pnpm-lock.yaml`)) steps.push(`Instala las dependencias: cd ${directory} && pnpm install`);
+  }
+  for (const path of paths.filter((item) => item.endsWith('.env.example'))) steps.push(`Revisa ${path} y copia las variables nuevas a tu .env`);
+  if (paths.some((path) => path.startsWith('backend/alembic/versions/'))) steps.push('Aplica las migraciones: cd backend && uv run alembic upgrade heads');
+  if (paths.some((path) => path.startsWith('backend/') && path.includes('/migrations/'))) steps.push('Aplica las migraciones: cd backend && pnpm migration:run');
+  return steps;
+}
+
 /**
  * Plans (and unless dryRun, applies) the upgrade. Each entry has a `path` and an
  * `action`: updated, added, removed, merged, conflict, kept, skipped.
@@ -183,6 +207,7 @@ export function upgradeProject({
     generateCurrent({ destination: currentDirectory, ...selection, featureIds: currentFeatureIds, extensionsDirectories });
     const next = existsSync(join(currentDirectory, MANIFEST_FILE)) ? JSON.parse(readFileSync(join(currentDirectory, MANIFEST_FILE), 'utf8')) : {};
     const modules = moduleChanges(manifest.extensions, next.extensions ?? []);
+    const templates = templateChanges(readManifest(project).templates, next.templates);
 
     const unmanaged = new Set(manifest.unmanaged);
     const baseFiles = new Set(listFiles(baseDirectory));
@@ -227,7 +252,7 @@ export function upgradeProject({
       next.unmanaged = [...unmanaged].sort();
       writeFileSync(join(project, MANIFEST_FILE), `${JSON.stringify(next, null, 2)}\n`, 'utf8');
     }
-    return { fromVersion: baseVersion, toVersion: cliVersion, modules, plan: plan.map(({ content, sidecar, ...entry }) => entry) };
+    return { fromVersion: baseVersion, toVersion: cliVersion, templates, modules, plan: plan.map(({ content, sidecar, ...entry }) => entry) };
   } finally { rmSync(workspace, { recursive: true, force: true }); }
 }
 
@@ -238,8 +263,9 @@ const labels = {
 
 const moduleLabel = ({ id, from, to }) => (from === undefined ? `+ ${id}@${to}` : to === undefined ? `- ${id}@${from}` : `${id} ${from} → ${to}`);
 
-export function formatUpgradeSummary({ fromVersion, toVersion, modules = [], plan }, { dryRun = false } = {}) {
+export function formatUpgradeSummary({ fromVersion, toVersion, templates = [], modules = [], plan }, { dryRun = false } = {}) {
   const lines = [`create-my-saas ${fromVersion} → ${toVersion}${dryRun ? ' (simulación, no se ha escrito nada)' : ''}`];
+  if (templates.length) lines.push(`Plantillas: ${templates.map(moduleLabel).join(', ')}`);
   if (modules.length) lines.push(`Módulos: ${modules.map(moduleLabel).join(', ')}`);
   if (plan.length === 0) return [...lines, 'El proyecto ya está al día.'].join('\n');
   for (const action of Object.keys(labels)) {
@@ -249,6 +275,8 @@ export function formatUpgradeSummary({ fromVersion, toVersion, modules = [], pla
   if (plan.some((entry) => entry.action === 'conflict')) {
     lines.push('', 'Busca las marcas <<<<<<< en los archivos con conflictos; los binarios dejan la versión nueva en <archivo>.upgrade-new.');
   }
+  const steps = nextSteps(plan);
+  if (steps.length) lines.push('', dryRun ? 'Después de actualizar tendrás que:' : 'Ahora tienes que:', ...steps.map((step) => `  - ${step}`));
   if (!dryRun) lines.push('', 'Revisa los cambios con git diff y haz commit cuando estés conforme.');
   return lines.join('\n');
 }

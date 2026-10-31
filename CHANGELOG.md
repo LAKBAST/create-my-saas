@@ -5,6 +5,13 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `create-my-saas upgrade` y `pro add` indican las versiones de plantilla que
+  cambian y los pasos que quedan según los archivos que llegan: instalar
+  dependencias, revisar `.env.example` y aplicar migraciones. `--dry-run` los
+  muestra por adelantado.
+
 ## [1.15.0] - 2026-10-30
 
 ### Fixed

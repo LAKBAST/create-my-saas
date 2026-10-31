@@ -18,6 +18,11 @@ npm) y con la actual, y compara cada archivo con tu copia:
   se borran solo si no los has modificado;
 - tus archivos propios no se tocan.
 
+El resumen indica de qué versión a cuál pasan la CLI, las plantillas y los
+módulos, y qué tienes que hacer después según los archivos que llegan: instalar
+dependencias, revisar variables nuevas de `.env.example` y aplicar migraciones.
+`--dry-run` muestra lo mismo sin escribir nada.
+
 Revisa el resultado con `git diff` y haz commit. Los proyectos creados antes de
 que `.create-my-saas.json` guardara la versión de la CLI necesitan indicarla una
 vez con `--from <versión>`. Las rutas de `unmanaged` en ese archivo no se
