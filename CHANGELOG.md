@@ -5,6 +5,15 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-01
+
+### Added
+
+- Las plantillas FastAPI y NestJS admiten hooks declarativos para comprobar
+  invitaciones al crearlas o aceptarlas. Se ejecutan dentro de la transacción
+  con la fila de la organización bloqueada; sin extensiones, el comportamiento
+  de Community no cambia.
+
 ## [1.16.0] - 2026-10-31
 
 ### Added

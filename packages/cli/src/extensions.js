@@ -59,8 +59,9 @@ function validIntegrations(value) {
   if (!isObject(value) || Object.keys(value).some((key) => !['fastapi', 'nestjs', 'frontendRoutes'].includes(key))) return false;
   const fastapi = value.fastapi;
   if (fastapi !== undefined) {
-    if (!isObject(fastapi) || Object.keys(fastapi).some((key) => !['routers', 'settings', 'auditActions'].includes(key))) return false;
+    if (!isObject(fastapi) || Object.keys(fastapi).some((key) => !['routers', 'settings', 'auditActions', 'invitationHooks'].includes(key))) return false;
     if (fastapi.routers !== undefined && !uniqueStrings(fastapi.routers, importReferencePattern)) return false;
+    if (fastapi.invitationHooks !== undefined && !uniqueStrings(fastapi.invitationHooks, importReferencePattern)) return false;
     if (fastapi.settings !== undefined && !validIntegrationSettings(fastapi.settings)) return false;
     if (fastapi.auditActions !== undefined && (!Array.isArray(fastapi.auditActions)
       || !fastapi.auditActions.every((action) => isObject(action)
@@ -71,8 +72,8 @@ function validIntegrations(value) {
   }
   const nestjs = value.nestjs;
   if (nestjs !== undefined) {
-    if (!isObject(nestjs) || Object.keys(nestjs).some((key) => !['modules', 'entities', 'migrations', 'auditActions'].includes(key))) return false;
-    for (const key of ['modules', 'entities', 'migrations']) {
+    if (!isObject(nestjs) || Object.keys(nestjs).some((key) => !['modules', 'entities', 'migrations', 'auditActions', 'invitationHooks'].includes(key))) return false;
+    for (const key of ['modules', 'entities', 'migrations', 'invitationHooks']) {
       if (nestjs[key] !== undefined && (!uniqueStrings(nestjs[key], /^src\/[A-Za-z0-9_-]+(?:[/.][A-Za-z0-9_-]+)*:[A-Za-z_][A-Za-z0-9_]*$/)
         || nestjs[key].some((reference) => /\.(?:ts|js):/.test(reference)))) return false;
     }
