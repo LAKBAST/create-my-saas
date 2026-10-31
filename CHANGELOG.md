@@ -5,6 +5,8 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-10-31
+
 ### Added
 
 - `create-my-saas upgrade` y `pro add` indican las versiones de plantilla que
@@ -540,7 +542,8 @@ Primera versión estable pública de Community.
 - Validación de manifiestos y pruebas de generación para las combinaciones de
   plantillas y extensiones compatibles.
 
-[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/LAKBAST/create-my-saas/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/LAKBAST/create-my-saas/compare/v1.12.0...v1.13.0
