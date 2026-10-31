@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { parseUpgradeArguments, run } from '../src/cli.js';
 import { generateProject } from '../src/generator.js';
-import { formatUpgradeSummary, readProjectManifest, upgradeProject } from '../src/upgrade.js';
+import { formatUpgradeSummary, nextSteps, readProjectManifest, upgradeProject } from '../src/upgrade.js';
 
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -109,6 +109,51 @@ test('upgrade updates untouched files, merges edits and reports conflicts', (t) 
   assert.equal(readProjectManifest(project).cliVersion, result.toVersion, 'the next upgrade starts from this version');
   assert.match(formatUpgradeSummary(result), /Con conflictos[^\n]*\(1\):\n {2}backend\/conflict\.js/);
 });
+
+test('the summary names the template versions that change', (t) => {
+  const { project, options } = setup(t);
+  commitAll(project);
+  const manifest = JSON.parse(readFileSync(join(project, '.create-my-saas.json'), 'utf8'));
+  writeJson(join(project, '.create-my-saas.json'), { ...manifest, templates: { ...manifest.templates, backend: { ...manifest.templates.backend, version: '0.9.0' } } });
+  const result = upgradeProject({ ...options, dryRun: true });
+  assert.deepEqual(result.templates, [{ id: 'backend:test-backend', from: '0.9.0', to: '1.0.0' }]);
+  assert.match(formatUpgradeSummary(result, { dryRun: true }), /Plantillas: backend:test-backend 0\.9\.0 → 1\.0\.0/);
+});
+
+test('next steps follow the files that arrive, not the ones that do not', () => {
+  const plan = (...entries) => entries.map(([path, action]) => ({ path, action }));
+  assert.deepEqual(nextSteps(plan(['backend/server.js', 'updated'])), []);
+  assert.deepEqual(nextSteps(plan(
+    ['backend/uv.lock', 'updated'],
+    ['frontend/package.json', 'merged'],
+    ['backend/.env.example', 'merged'],
+    ['backend/alembic/versions/20261031_0300_add.py', 'added'],
+  )), [
+    'Instala las dependencias: cd backend && uv sync',
+    'Instala las dependencias: cd frontend && pnpm install',
+    'Revisa backend/.env.example y copia las variables nuevas a tu .env',
+    'Aplica las migraciones: cd backend && uv run alembic upgrade heads',
+  ]);
+  assert.deepEqual(nextSteps(plan(['backend/src/database/migrations/1-add.ts', 'added'])), ['Aplica las migraciones: cd backend && pnpm migration:run']);
+  // A conflict in the lockfile still needs the install once it is resolved.
+  assert.deepEqual(nextSteps(plan(['backend/pnpm-lock.yaml', 'conflict'])), ['Instala las dependencias: cd backend && pnpm install']);
+  assert.deepEqual(nextSteps(plan(['backend/alembic/versions/old.py', 'removed'], ['backend/package.json', 'kept'], ['backend/.env.example', 'skipped'])), []);
+  const summary = formatUpgradeSummary({ fromVersion: '1.0.0', toVersion: '1.1.0', plan: plan(['backend/uv.lock', 'updated']) }, { dryRun: true });
+  assert.match(summary, /Después de actualizar tendrás que:\n {2}- Instala las dependencias: cd backend && uv sync/);
+});
+
+for (const productModel of ['individual', 'teams', 'mixed']) {
+  test(`upgrade regenerates a ${productModel} project with its product model`, (t) => {
+    const { project, options } = setup(t);
+    commitAll(project);
+    const manifest = JSON.parse(readFileSync(join(project, '.create-my-saas.json'), 'utf8'));
+    writeJson(join(project, '.create-my-saas.json'), { ...manifest, productModel });
+    const seen = [];
+    const record = (generate) => ({ productModel: model, ...selection }) => { seen.push(model); return generate(selection); };
+    upgradeProject({ ...options, dryRun: true, generateBase: record(options.generateBase), generateCurrent: record(options.generateCurrent) });
+    assert.deepEqual(seen, [productModel, productModel], 'both generations keep the model');
+  });
+}
 
 test('dry run plans without writing and a second upgrade has nothing to do', (t) => {
   const { project, options } = setup(t);
