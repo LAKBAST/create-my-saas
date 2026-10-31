@@ -12,6 +12,15 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   dependencias, revisar `.env.example` y aplicar migraciones. `--dry-run` los
   muestra por adelantado.
 
+### Fixed
+
+- La facturación con Stripe de FastAPI guarda las plazas contratadas: cada webhook
+  de suscripción toma `quantity` de Stripe, y la suscripción y el panel de
+  administración dejan de mostrar siempre una plaza. Sin una cantidad válida se
+  usa una plaza, como en NestJS. Las suscripciones existentes se corrigen al
+  recibir su siguiente webhook.
+- Plantillas: FastAPI 0.2.3.
+
 ## [1.15.0] - 2026-10-30
 
 ### Fixed

@@ -293,6 +293,7 @@ class BillingService:
         subscription.provider, subscription.provider_customer_id = "stripe", customer_id
         subscription.provider_subscription_id, subscription.plan = self._value(stripe_subscription, "id"), plan["name"] if plan else "unknown"
         subscription.status = self._value(stripe_subscription, "status")
+        subscription.seats = self._seats(self._value(item, "quantity"))
         subscription.current_period_start, subscription.current_period_end = self._epoch(self._value(item, "current_period_start")), self._epoch(self._value(item, "current_period_end"))
         # The customer portal may schedule the end with cancel_at, leaving
         # cancel_at_period_end false; both mean the subscription will not renew.
@@ -429,6 +430,10 @@ class BillingService:
     def _organization_id(value: Any) -> UUID | None:
         try: return UUID(str(value))
         except (TypeError, ValueError): return None
+    @staticmethod
+    def _seats(quantity: Any) -> int:
+        # Metered prices have no quantity; one seat is the model default and matches NestJS.
+        return quantity if isinstance(quantity, int) and not isinstance(quantity, bool) and quantity >= 1 else 1
     @staticmethod
     def _epoch(value: Any) -> datetime | None: return datetime.fromtimestamp(value, tz=timezone.utc) if isinstance(value, int) else None
     @staticmethod
