@@ -7,7 +7,7 @@ La CLI no necesita instalarse: se ejecuta con `npx`, que descarga la última
 versión publicada en npm.
 
 ```sh
-npx @soymanolo/create-my-saas@latest --help
+npx @lakbast/create-my-saas@latest --help
 ```
 
 ## Requisitos
@@ -26,7 +26,7 @@ que indica el `README.md` de `backend/` en el proyecto generado.
 Para ver las plantillas y extensiones disponibles en la versión que vas a usar:
 
 ```sh
-npx @soymanolo/create-my-saas@latest --list
+npx @lakbast/create-my-saas@latest --list
 ```
 
 ## Instalación global (opcional)
@@ -34,7 +34,7 @@ npx @soymanolo/create-my-saas@latest --list
 Si prefieres tener el comando siempre disponible:
 
 ```sh
-npm install --global @soymanolo/create-my-saas
+npm install --global @lakbast/create-my-saas
 create-my-saas --help
 ```
 

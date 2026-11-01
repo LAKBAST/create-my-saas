@@ -22,10 +22,10 @@ que Fastify no incluye.
 ejemplo, FastAPI con Next.js, o Fastify con Astro sin la extensión de billing.
 
 ```sh
-npx @soymanolo/create-my-saas --list
-npx @soymanolo/create-my-saas mi-saas --backend fastapi --frontend nextjs
+npx @lakbast/create-my-saas --list
+npx @lakbast/create-my-saas mi-saas --backend fastapi --frontend nextjs
 # Alternativa ligera, en otro destino:
-npx @soymanolo/create-my-saas mi-sitio --backend fastify --frontend astro
+npx @lakbast/create-my-saas mi-sitio --backend fastify --frontend astro
 ```
 
 ## El directorio de destino ya existe
@@ -41,9 +41,9 @@ no sobrescribir archivos ([generator.js](../packages/cli/src/generator.js)).
 generado, utiliza `upgrade`, no vuelvas a generarlo encima.
 
 ```sh
-npx @soymanolo/create-my-saas mi-saas-nuevo --backend fastapi --frontend nextjs
+npx @lakbast/create-my-saas mi-saas-nuevo --backend fastapi --frontend nextjs
 # Para revisar una actualización del proyecto existente:
-npx @soymanolo/create-my-saas upgrade ./mi-saas --dry-run
+npx @lakbast/create-my-saas upgrade ./mi-saas --dry-run
 ```
 
 ## No se ha seleccionado backend ni frontend
@@ -58,7 +58,7 @@ Error: Select at least one template with --backend or --frontend.
 **Solución:** añade al menos una de las dos opciones. Puedes generar una API sola.
 
 ```sh
-npx @soymanolo/create-my-saas mi-api --backend fastapi
+npx @lakbast/create-my-saas mi-api --backend fastapi
 ```
 
 ## Upgrade encuentra cambios sin guardar en Git
@@ -77,9 +77,9 @@ del upgrade; su recuperación también puede requerir resolver conflictos.
 
 ```sh
 git status --short
-npx @soymanolo/create-my-saas upgrade --dry-run
+npx @lakbast/create-my-saas upgrade --dry-run
 git stash push -u -m "Trabajo previo a la actualización"
-npx @soymanolo/create-my-saas upgrade
+npx @lakbast/create-my-saas upgrade
 git diff
 ```
 
@@ -139,8 +139,8 @@ algún fallo y muestra `Local project needs attention.`.
 corrígelos con tu editor.
 
 ```sh
-npx @soymanolo/create-my-saas setup .
-npx @soymanolo/create-my-saas doctor . --no-services
+npx @lakbast/create-my-saas setup .
+npx @lakbast/create-my-saas doctor . --no-services
 ```
 
 ## Doctor detecta una clave local insegura
@@ -157,7 +157,7 @@ Etiqueta: "FIX Local SECRET_KEY is configured".
 node -e "console.log(require('node:crypto').randomBytes(48).toString('base64url'))"
 notepad backend/.env
 notepad deployment/.env
-npx @soymanolo/create-my-saas doctor . --no-services
+npx @lakbast/create-my-saas doctor . --no-services
 ```
 
 ## Doctor detecta un entorno o modelo de producto incorrecto
@@ -181,7 +181,7 @@ Compose. No cambies el entorno de un despliegue real para satisfacer `doctor`.
 Get-Content .create-my-saas.json
 notepad backend/.env
 notepad deployment/.env
-npx @soymanolo/create-my-saas doctor . --no-services
+npx @lakbast/create-my-saas doctor . --no-services
 ```
 
 ## Doctor detecta una URL de PostgreSQL o Redis ausente o inválida
@@ -205,7 +205,7 @@ instalación difiere.
 
 ```powershell
 notepad backend/.env
-npx @soymanolo/create-my-saas doctor . --no-services
+npx @lakbast/create-my-saas doctor . --no-services
 ```
 
 ## Doctor no puede conectar con PostgreSQL o Redis
@@ -227,7 +227,7 @@ configuración local creada por `setup` y vuelve a comprobarlos.
 cd deployment
 docker compose -f compose.yaml -f compose.dev.yaml --env-file .env up -d postgres redis
 cd ..
-npx @soymanolo/create-my-saas doctor .
+npx @lakbast/create-my-saas doctor .
 ```
 
 Si siguen fallando, revisa host y puerto en `backend/.env`. Un resultado `OK`
@@ -255,7 +255,7 @@ El proxy se comprueba sólo si se seleccionó backend.
 
 ```powershell
 notepad frontend/.env
-npx @soymanolo/create-my-saas doctor . --no-services
+npx @lakbast/create-my-saas doctor . --no-services
 ```
 
 ## El backend rechaza Redis sin TLS en staging o production

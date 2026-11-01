@@ -3,7 +3,7 @@
 Instala y ejecuta la versión publicada con `npx`:
 
 ```sh
-npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
+npx @lakbast/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
 ```
 
 Para desarrollar la CLI desde este checkout:

@@ -46,7 +46,7 @@ const compatibility = [
 	{ name: 'Object storage', versions: ['1.2', '1.2', '1.1', '1.0', '1.0'] },
 	{ name: 'Observability', versions: ['1.3', '1.3', '1.2', '1.1', '1.0'] },
 ];
-const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
+const command = 'npx @lakbast/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
 ---
 
 <Base title="Pro" description="create-my-saas Pro: módulos comerciales de producción para tu SaaS, con soporte prioritario. Desde 29 € al mes, IVA incluido.">
@@ -147,7 +147,7 @@ const command = 'npx @soymanolo/create-my-saas@latest my-saas --backend fastapi 
 				<tbody>{compatibility.map((row) => <tr><th scope="row">{row.name}</th>{row.versions.map((version, index) => <td data-label={`Community ${communities[index]}`}>{version}</td>)}</tr>)}</tbody>
 			</table>
 		</div>
-		<p class="note pro-compat-note">Desde Community 1.11, los módulos NestJS se instalan juntos sin sustituir los registros de la plantilla. Con la suscripción activa puedes descargar cualquier versión desde la Tienda LAKBAST: guarda allí tu versión de Community y te recomendará la que le corresponde. También puedes actualizar tu proyecto con <code>npx @soymanolo/create-my-saas@latest upgrade</code> y pasar a la primera columna. Pro se comprueba a partir de Community 1.5.</p>
+		<p class="note pro-compat-note">Desde Community 1.11, los módulos NestJS se instalan juntos sin sustituir los registros de la plantilla. Con la suscripción activa puedes descargar cualquier versión desde la Tienda LAKBAST: guarda allí tu versión de Community y te recomendará la que le corresponde. También puedes actualizar tu proyecto con <code>npx @lakbast/create-my-saas@latest upgrade</code> y pasar a la primera columna. Pro se comprueba a partir de Community 1.5.</p>
 	</section>
 
 	<section data-pagefind-body class="shell section">
