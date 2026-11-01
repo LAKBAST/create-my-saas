@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
+import sitemap from '@astrojs/sitemap';
 
 // El sitio se publica en la raíz del dominio propio; las variables permiten
 // adaptar el origen y la ruta base para otros despliegues.
@@ -10,6 +11,7 @@ export default defineConfig({
 	site,
 	base,
 	trailingSlash: 'always',
+	integrations: [sitemap()],
 	markdown: {
 		// Cada token lleva su color claro y oscuro; global.css elige según el tema.
 		shikiConfig: {
