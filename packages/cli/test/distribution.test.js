@@ -34,7 +34,8 @@ test('the published package contains the executable and template catalog', () =>
     rmSync(cacheDirectory, { recursive: true, force: true });
   }
   const packageOutput = JSON.parse(output);
-  const packageDetails = Array.isArray(packageOutput) ? packageOutput[0] : packageOutput;
+  // npm 11 returns an array of packages; npm 12 an object keyed by package name.
+  const [packageDetails] = Object.values(packageOutput);
   const packedPaths = new Set(packageDetails.files.map(({ path }) => path));
 
   assert.equal(packageDetails.name, '@lakbast/create-my-saas');
