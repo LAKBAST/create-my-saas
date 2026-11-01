@@ -47,9 +47,15 @@ function listFiles(root) {
   return files.filter((file) => file !== MANIFEST_FILE);
 }
 
+/** The npm package that holds a CLI version: up to 1.16 it was published under the @soymanolo scope. */
+export function publishedPackageName(version) {
+  const [major, minor] = version.split('.').map(Number);
+  return major === 1 && minor <= 16 ? '@soymanolo/create-my-saas' : '@lakbast/create-my-saas';
+}
+
 /** Generates the base project with a published CLI version through npm. */
 export function generateWithPublishedCli({ version, destination, backendId, frontendId, featureIds, extensionsDirectories, productModel }) {
-  const args = ['exec', '--yes', '--package', `@soymanolo/create-my-saas@${version}`, '--', 'create-my-saas', destination];
+  const args = ['exec', '--yes', '--package', `${publishedPackageName(version)}@${version}`, '--', 'create-my-saas', destination];
   if (backendId) args.push('--backend', backendId);
   if (frontendId) args.push('--frontend', frontendId);
   if (productModel !== undefined) args.push('--product-model', productModel);

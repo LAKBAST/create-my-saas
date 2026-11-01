@@ -20,16 +20,16 @@ body:
       label: Cómo reproducirlo
       description: Comandos exactos, empezando por el que genera el proyecto.
       placeholder: |
-        npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend nextjs
+        npx @lakbast/create-my-saas@latest my-saas --backend fastapi --frontend nextjs
         cd my-saas
-        npx @soymanolo/create-my-saas@latest setup
+        npx @lakbast/create-my-saas@latest setup
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: Versión de la CLI
-      description: La que aparece en `.create-my-saas.json` o en `npm view @soymanolo/create-my-saas version`.
+      description: La que aparece en `.create-my-saas.json` o en `npm view @lakbast/create-my-saas version`.
       placeholder: "1.9.0"
     validations:
       required: true

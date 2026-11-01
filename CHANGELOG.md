@@ -1,7 +1,9 @@
 # Changelog
 
-Todos los cambios relevantes de `@soymanolo/create-my-saas` se documentan en
-este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
+Todos los cambios relevantes de `@lakbast/create-my-saas` se documentan en
+este archivo. Hasta `1.16.0` el paquete se publicó como
+`@soymanolo/create-my-saas`. El proyecto sigue
+[Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
@@ -13,6 +15,12 @@ este archivo. El proyecto sigue [Semantic Versioning](https://semver.org/).
   invitaciones al crearlas o aceptarlas. Se ejecutan dentro de la transacción
   con la fila de la organización bloqueada; sin extensiones, el comportamiento
   de Community no cambia.
+
+### Changed
+
+- El paquete pasa a publicarse como `@lakbast/create-my-saas`. `upgrade` sigue
+  funcionando en proyectos generados con versiones anteriores, porque descarga
+  su base de `@soymanolo/create-my-saas`.
 
 ## [1.16.0] - 2026-10-31
 

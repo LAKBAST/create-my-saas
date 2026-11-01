@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { parseUpgradeArguments, run } from '../src/cli.js';
 import { generateProject } from '../src/generator.js';
-import { formatUpgradeSummary, nextSteps, readProjectManifest, upgradeProject } from '../src/upgrade.js';
+import { formatUpgradeSummary, nextSteps, publishedPackageName, readProjectManifest, upgradeProject } from '../src/upgrade.js';
 
 function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
@@ -108,6 +108,13 @@ test('upgrade updates untouched files, merges edits and reports conflicts', (t) 
   assert.equal(readFileSync(file('mine.js'), 'utf8'), 'not from the template\n');
   assert.equal(readProjectManifest(project).cliVersion, result.toVersion, 'the next upgrade starts from this version');
   assert.match(formatUpgradeSummary(result), /Con conflictos[^\n]*\(1\):\n {2}backend\/conflict\.js/);
+});
+
+test('the base project comes from the package that published its version', () => {
+  assert.equal(publishedPackageName('1.0.0'), '@soymanolo/create-my-saas');
+  assert.equal(publishedPackageName('1.16.0'), '@soymanolo/create-my-saas');
+  assert.equal(publishedPackageName('1.17.0'), '@lakbast/create-my-saas');
+  assert.equal(publishedPackageName('2.0.0'), '@lakbast/create-my-saas');
 });
 
 test('the summary names the template versions that change', (t) => {
