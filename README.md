@@ -10,10 +10,10 @@ registra la selección; cada starter sigue siendo independiente y sustituible.
 ## Instalación y uso
 
 Requiere Node.js 20 o posterior. Ejecuta la versión publicada en
-[npm](https://www.npmjs.com/package/@soymanolo/create-my-saas):
+[npm](https://www.npmjs.com/package/@lakbast/create-my-saas):
 
 ```sh
-npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
+npx @lakbast/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
 ```
 
 Continúa con [la configuración local, los datos demo y los ejemplos de uso](docs/cli-usage.md)

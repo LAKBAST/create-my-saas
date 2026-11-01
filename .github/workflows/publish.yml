@@ -66,10 +66,10 @@ jobs:
             }
           ' "$npm_version"
       - name: Confirm the bootstrap version was published manually
-        if: github.ref_name == 'v1.0.0'
-        run: test "$(npm view @soymanolo/create-my-saas@1.0.0 version)" = "1.0.0"
+        if: github.ref_name == 'v1.17.0'
+        run: test "$(npm view @lakbast/create-my-saas@1.17.0 version)" = "1.17.0"
       - name: Publish the public package through npm trusted publishing
-        if: github.ref_name != 'v1.0.0'
+        if: github.ref_name != 'v1.17.0'
         run: npm publish
       - name: Build release description from the changelog
         shell: bash
