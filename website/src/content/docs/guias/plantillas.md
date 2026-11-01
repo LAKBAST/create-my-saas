@@ -38,16 +38,16 @@ antes de escribir archivos:
 
 ```sh
 # Stack completo
-npx @soymanolo/create-my-saas@latest my-saas --backend fastapi --frontend react-router
+npx @lakbast/create-my-saas@latest my-saas --backend fastapi --frontend react-router
 
 # Sitio Astro con facturación
-npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend astro --feature billing
+npx @lakbast/create-my-saas@latest my-saas --backend nestjs --frontend astro --feature billing
 
 # Solo la API
-npx @soymanolo/create-my-saas@latest api-only --backend fastapi
+npx @lakbast/create-my-saas@latest api-only --backend fastapi
 
 # Solo el sitio público
-npx @soymanolo/create-my-saas@latest public-site --frontend astro
+npx @lakbast/create-my-saas@latest public-site --frontend astro
 ```
 
 Para el detalle de qué cubre cada plantilla, consulta la

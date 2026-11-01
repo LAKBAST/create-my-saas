@@ -10,7 +10,7 @@ instalados y Docker en marcha.
 ## 1. Genera el proyecto
 
 ```sh
-npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
+npx @lakbast/create-my-saas@latest my-saas --backend nestjs --frontend nextjs
 cd my-saas
 ```
 
@@ -21,7 +21,7 @@ sobrescribe un directorio que ya exista.
 ## 2. Crea la configuración local
 
 ```sh
-npx @soymanolo/create-my-saas@latest setup
+npx @lakbast/create-my-saas@latest setup
 ```
 
 `setup` crea `backend/.env`, `frontend/.env` y `deployment/.env` con un
@@ -40,7 +40,7 @@ cd ..
 Comprueba que todo está en su sitio:
 
 ```sh
-npx @soymanolo/create-my-saas@latest doctor
+npx @lakbast/create-my-saas@latest doctor
 ```
 
 `doctor` revisa la configuración y que los puertos de PostgreSQL y Redis
@@ -66,7 +66,7 @@ crear una organización e invitar a otros usuarios.
 Con la API en marcha, desde otra terminal en la raíz del proyecto:
 
 ```sh
-npx @soymanolo/create-my-saas@latest seed
+npx @lakbast/create-my-saas@latest seed
 ```
 
 Crea `demo-owner@example.com` y `demo-member@example.com` y un equipo

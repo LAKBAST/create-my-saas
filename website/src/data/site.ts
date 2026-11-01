@@ -5,9 +5,9 @@ export const site = {
 	repo: 'https://github.com/LAKBAST/create-my-saas',
 	org: 'https://github.com/LAKBAST',
 	lakbast: 'https://lakbast.com',
-	npm: 'https://www.npmjs.com/package/@soymanolo/create-my-saas',
+	npm: 'https://www.npmjs.com/package/@lakbast/create-my-saas',
 	store: 'https://tienda.lakbast.com/store',
-	command: 'npx @soymanolo/create-my-saas@latest my-saas --backend nestjs --frontend nextjs',
+	command: 'npx @lakbast/create-my-saas@latest my-saas --backend nestjs --frontend nextjs',
 };
 
 // Índice de la documentación. Cada slug es la ruta de un Markdown en

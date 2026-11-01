@@ -3,8 +3,8 @@
 Desde la carpeta del proyecto, con el repositorio de git sin cambios pendientes:
 
 ```sh
-npx @soymanolo/create-my-saas@latest upgrade --dry-run   # qué cambiaría
-npx @soymanolo/create-my-saas@latest upgrade
+npx @lakbast/create-my-saas@latest upgrade --dry-run   # qué cambiaría
+npx @lakbast/create-my-saas@latest upgrade
 ```
 
 La CLI regenera el proyecto con la versión de la que viene (descargándola de
@@ -58,7 +58,7 @@ Para añadir un módulo, pasa su ID con `--feature` (repetible) y su carpeta con
 `--extensions-dir`:
 
 ```sh
-npx @soymanolo/create-my-saas upgrade --feature object-storage-nestjs --extensions-dir ./pro-object-storage-1.2.0
+npx @lakbast/create-my-saas upgrade --feature object-storage-nestjs --extensions-dir ./pro-object-storage-1.2.0
 ```
 
 Sus archivos aparecen como añadidos y los registros generados (por ejemplo
@@ -71,7 +71,7 @@ proyecto con `--base-extensions-dir` y la de la versión nueva con
 `--extensions-dir` (ambas repetibles):
 
 ```sh
-npx @soymanolo/create-my-saas upgrade --base-extensions-dir ./pro-object-storage-1.1.0 --extensions-dir ./pro-object-storage-1.2.0
+npx @lakbast/create-my-saas upgrade --base-extensions-dir ./pro-object-storage-1.1.0 --extensions-dir ./pro-object-storage-1.2.0
 ```
 
 Sin `--base-extensions-dir`, las carpetas de `--extensions-dir` sirven para las
