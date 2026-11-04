@@ -1,46 +1,56 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import { docsNav, site, url } from '../data/site';
+import { docsNav, docUrl, site } from '../data/site';
+import { langs, lp, ui } from '../data/i18n';
 
+// Cada página se publica en español en /<ruta>/ y su traducción en /en/<ruta en inglés>/.
 export async function getStaticPaths() {
 	const entries = await getCollection('docs');
 	const byId = new Map(entries.map((entry) => [entry.id, entry]));
-	const order = docsNav.flatMap((group) => group.items.map((id) => ({ id, group: group.label })));
-	for (const { id } of order) {
-		if (!byId.has(id)) throw new Error(`El índice cita "${id}", pero no existe src/content/docs/${id}.md`);
-	}
-	return order.map(({ id, group }, index) => ({
-		params: { slug: id },
-		props: {
-			entry: byId.get(id)!,
-			group,
-			prev: order[index - 1] && byId.get(order[index - 1].id),
-			next: order[index + 1] && byId.get(order[index + 1].id),
-			nav: docsNav.map((navGroup) => ({
-				label: navGroup.label,
-				items: navGroup.items.map((itemId) => ({ id: itemId, title: byId.get(itemId)!.data.title })),
-			})),
-		},
-	}));
+	return langs.flatMap((lang) => {
+		const other = langs.find((code) => code !== lang)!;
+		const id = (page: (typeof docsNav)[number]['items'][number]) => lp(lang, page[lang]);
+		const order = docsNav.flatMap((group) => group.items.map((page) => ({ page, group: group.label[lang] })));
+		for (const { page } of order) {
+			if (!byId.has(id(page))) throw new Error(`El índice cita "${id(page)}", pero no existe src/content/docs/${id(page)}.md`);
+		}
+		const link = (page: (typeof order)[number]['page']) => ({ href: docUrl(lang, page), title: byId.get(id(page))!.data.title });
+		return order.map(({ page, group }, index) => ({
+			params: { slug: id(page) },
+			props: {
+				lang,
+				entry: byId.get(id(page))!,
+				group,
+				alternate: lp(other, `${page[other]}/`),
+				prev: order[index - 1] && link(order[index - 1].page),
+				next: order[index + 1] && link(order[index + 1].page),
+				nav: docsNav.map((navGroup) => ({
+					label: navGroup.label[lang],
+					items: navGroup.items.map((item) => ({ ...link(item), current: item === page })),
+				})),
+			},
+		}));
+	});
 }
 
-const { entry, group, prev, next, nav } = Astro.props;
+const { lang, entry, group, alternate, prev, next, nav } = Astro.props;
+const t = ui[lang];
 const { Content, headings } = await render(entry);
 const toc = headings.filter((heading) => heading.depth === 2 || heading.depth === 3);
 const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.filePath}`;
 ---
 
-<Base title={entry.data.title} description={entry.data.description}>
+<Base title={entry.data.title} description={entry.data.description} alternate={alternate}>
 	<div class="shell docs">
-		<aside class="docs-sidebar" aria-label="Documentación">
+		<aside class="docs-sidebar" aria-label={t.docs}>
 			<nav class="docs-nav-groups">
 				{nav.map((navGroup) => (
 					<div class="docs-nav-group">
 						<span>{navGroup.label}</span>
 						<ul>
 							{navGroup.items.map((item) => (
-								<li><a href={url(`${item.id}/`)} aria-current={item.id === entry.id ? 'page' : undefined}>{item.title}</a></li>
+								<li><a href={item.href} aria-current={item.current ? 'page' : undefined}>{item.title}</a></li>
 							))}
 						</ul>
 					</div>
@@ -55,12 +65,12 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 						<small>{group}</small>
 						<span>{entry.data.title}</span>
 					</span>
-					<span class="docs-nav-mobile-action">Índice <span class="plus-icon" aria-hidden="true"></span></span>
+					<span class="docs-nav-mobile-action">{t.index} <span class="plus-icon" aria-hidden="true"></span></span>
 				</summary>
 				<div class="docs-nav-mobile-panel">
 				{toc.length > 0 && (
 					<div class="docs-nav-group docs-nav-toc">
-						<span>En esta página</span>
+						<span>{t.onThisPage}</span>
 						<ul>
 							{toc.filter((heading) => heading.depth === 2).map((heading) => (
 								<li><a href={`#${heading.slug}`}>{heading.text}</a></li>
@@ -68,13 +78,13 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 						</ul>
 					</div>
 				)}
-				<nav class="docs-nav-groups" aria-label="Documentación">
+				<nav class="docs-nav-groups" aria-label={t.docs}>
 					{nav.map((navGroup) => (
 						<div class="docs-nav-group">
 							<span>{navGroup.label}</span>
 							<ul>
 								{navGroup.items.map((item) => (
-									<li><a href={url(`${item.id}/`)} aria-current={item.id === entry.id ? 'page' : undefined}>{item.title}</a></li>
+									<li><a href={item.href} aria-current={item.current ? 'page' : undefined}>{item.title}</a></li>
 								))}
 							</ul>
 						</div>
@@ -95,21 +105,21 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 
 			<a class="docs-edit" href={editUrl} target="_blank" rel="noopener">
 				<div>
-					<strong>¿Ves algo mejorable en esta página?</strong>
-					<span>Propón un cambio directamente en GitHub.</span>
+					<strong>{t.editTitle}</strong>
+					<span>{t.editText}</span>
 				</div>
 				<span class="arrow" aria-hidden="true">↗</span>
 			</a>
 
-			<nav class="docs-pager" aria-label="Paginación">
-				{prev && <a class="prev" href={url(`${prev.id}/`)}><small>← Anterior</small><span>{prev.data.title}</span></a>}
-				{next && <a class="next" href={url(`${next.id}/`)}><small>Siguiente →</small><span>{next.data.title}</span></a>}
+			<nav class="docs-pager" aria-label={t.pagination}>
+				{prev && <a class="prev" href={prev.href}><small>{t.prev}</small><span>{prev.title}</span></a>}
+				{next && <a class="next" href={next.href}><small>{t.next}</small><span>{next.title}</span></a>}
 			</nav>
 		</article>
 
 		{toc.length > 0 && (
-			<aside class="docs-toc" aria-label="En esta página">
-				<span>En esta página</span>
+			<aside class="docs-toc" aria-label={t.onThisPage}>
+				<span>{t.onThisPage}</span>
 				<ul>
 					{toc.map((heading) => (
 						<li><a class={`depth-${heading.depth}`} href={`#${heading.slug}`}>{heading.text}</a></li>
@@ -121,6 +131,8 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 </Base>
 
 <script>
+	import { ui, type Lang } from '../data/i18n';
+
 	// Las tablas anchas se desplazan dentro de su caja en lugar de desbordar la
 	// página. Cada celda guarda el nombre de su columna para que, en móvil, las
 	// filas se lean como fichas.
@@ -150,7 +162,7 @@ const editUrl = entry.data.editUrl ?? `${site.repo}/edit/main/website/${entry.fi
 		anchor.className = 'heading-anchor';
 		anchor.href = `#${heading.id}`;
 		anchor.textContent = '#';
-		anchor.setAttribute('aria-label', 'Enlace a esta sección');
+		anchor.setAttribute('aria-label', (ui[document.documentElement.lang as Lang] ?? ui.es).sectionLink);
 		heading.append(anchor);
 	}
 

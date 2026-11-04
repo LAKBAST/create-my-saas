@@ -1,0 +1,288 @@
+---
+import Base from '../layouts/Base.astro';
+import SplitText from './SplitText.astro';
+import { docLinks, docUrl, site } from '../data/site';
+import { lp, type Lang } from '../data/i18n';
+
+interface Props {
+	lang: Lang;
+}
+
+const { lang } = Astro.props;
+
+// Módulos de create-my-saas Pro y combinaciones de plantillas que admite cada uno.
+// El texto de cada módulo va en el mismo orden en `content[lang].modules`.
+const modules = [
+	{ name: 'Admin dashboard', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'API keys', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'Background jobs', stacks: ['FastAPI', 'NestJS', 'Fastify'] },
+	{ name: { es: 'Billing avanzado', en: 'Advanced billing' }, stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'Commerce', stacks: ['FastAPI + Next.js'] },
+	{ name: 'Object storage', stacks: ['FastAPI + Next.js', 'NestJS + Next.js'] },
+	{ name: 'Observability', stacks: ['FastAPI', 'NestJS'] },
+].map((module) => ({ ...module, name: typeof module.name === 'string' ? module.name : module.name[lang] }));
+
+// Versión de cada módulo que funciona con cada Community. Las plantillas de
+// Community 1.10 son 0.2 (Astro 0.3) y en versiones 0.x el rango ^0.1.0 no
+// acepta 0.2.0, así que cada salto de plantillas tiene su versión de módulo.
+const compatibility = [
+	['2.2', '2.1', '2.1', '2.0', '1.0'],
+	['1.4', '1.4', '1.3', '1.2', '1.1'],
+	['1.3', '1.3', '1.2', '1.1', '1.0'],
+	['1.2', '1.2', '1.1', '1.0', '1.0'],
+	['1.2', '1.2', '1.2', '1.1', '1.0'],
+	['1.2', '1.2', '1.1', '1.0', '1.0'],
+	['1.3', '1.3', '1.2', '1.1', '1.0'],
+];
+const command = 'npx @lakbast/create-my-saas@latest my-saas --backend fastapi --frontend nextjs --extensions-dir ./pro-api-keys --feature api-keys';
+
+const content = {
+	es: {
+		description: 'create-my-saas Pro: módulos comerciales de producción para tu SaaS, con soporte prioritario. Desde 29 € al mes, IVA incluido.',
+		eyebrow: 'create-my-saas Pro · por LAKBAST',
+		title: ['Lo que tu SaaS necesita', 'cuando crece.'],
+		lead: 'Siete módulos de producción sobre Community: claves API, tareas en segundo plano, facturación por uso, almacenamiento, observabilidad y más. Todos incluidos en una suscripción.',
+		store: 'Ver en la Tienda LAKBAST',
+		community: 'Empezar gratis con Community',
+		modulesEyebrow: '01 / Módulos',
+		modulesTitle: 'Siete módulos, una suscripción.',
+		modulesIntro: 'Cada módulo es una extensión independiente con su manifiesto, su guía y sus pruebas. Instalas solo los que necesitas.',
+		stacksLabel: 'Combinaciones admitidas',
+		modules: [
+			'Consola de operación sobre el panel de administración de Community: roles de staff, suspensión de usuarios, sesiones, facturación de solo lectura y auditoría.',
+			'Claves API por organización con permisos read, write y delete, rotación y registro de auditoría.',
+			'Tareas en segundo plano sobre Redis con reintentos, programación, tareas periódicas y un worker independiente.',
+			'Límites por plan, cuotas aplicadas, medición de uso y cobro por uso con Stripe sobre la facturación de Community.',
+			'Varios productos con suscripción propia, pedidos y entrega duradera de accesos.',
+			'Archivos por organización en almacenamiento compatible con S3, con subidas y descargas firmadas y control de acceso.',
+			'Logs JSON con datos sensibles ocultos, trazas y métricas con OpenTelemetry, endpoint de Prometheus protegido y sondas de salud.',
+		],
+		pricingEyebrow: '02 / Precios',
+		pricingTitle: 'Precios finales, IVA incluido.',
+		pricingIntro: 'La suscripción incluye todos los módulos y el soporte prioritario. Pruébala 14 días gratis.',
+		plansLabel: 'Planes',
+		swipe: 'Desliza →',
+		plans: [
+			{ meta: 'Suscripción', name: 'Pro mensual', price: '29 €/mes', text: 'Los siete módulos y soporte prioritario. 14 días gratis.' },
+			{ meta: 'Suscripción', name: 'Pro anual', price: '290 €/año', text: 'Lo mismo que el plan mensual, con dos meses de ahorro. 14 días gratis.' },
+			{ meta: 'Pago único', name: 'Puesta en marcha', price: '199 €', text: 'Te ayudamos a desplegar tu primer SaaS.' },
+		],
+		storeNote: ['La compra, la facturación y la descarga de los módulos se hacen en la', 'Tienda LAKBAST'],
+		editionsEyebrow: '03 / Community y Pro',
+		editionsTitle: 'Pro se suma a Community, no lo sustituye.',
+		editions: [
+			{ name: 'Community', meta: 'Gratis · licencia MIT', items: ['CLI y las seis plantillas', 'Autenticación, organizaciones y permisos', 'Facturación con Stripe', 'Panel global de administración', 'Despliegue con Docker Compose y preset de Coolify', 'Actualizaciones con upgrade'] },
+			{ name: 'Pro', meta: 'Suscripción · licencia comercial', items: ['Todo lo de Community', 'Los siete módulos Pro', 'Todas las versiones publicadas de cada módulo', 'Paquetes verificados con sumas de comprobación', 'Soporte prioritario'] },
+		],
+		copy: 'Copiar',
+		compatEyebrow: '04 / Compatibilidad',
+		compatTitle: 'Qué versión de cada módulo va con tu Community.',
+		compatIntro: ['Cada versión de Pro sigue a las plantillas de una versión de Community. Comprueba la tuya en', 'de'],
+		module: 'Módulo',
+		communities: ['1.12 o posterior', '1.11', '1.10', '1.8 – 1.9', '1.5 – 1.7'],
+		compatNote: ['Desde Community 1.11, los módulos NestJS se instalan juntos sin sustituir los registros de la plantilla. Con la suscripción activa puedes descargar cualquier versión desde la Tienda LAKBAST: guarda allí tu versión de Community y te recomendará la que le corresponde. También puedes actualizar tu proyecto con', 'y pasar a la primera columna. Pro se comprueba a partir de Community 1.5.'],
+		faqEyebrow: '05 / Preguntas',
+		faqTitle: 'Lo que conviene saber antes de suscribirte.',
+		faqs: [
+			{ q: '¿Community sigue siendo gratis?', a: 'Sí. La CLI y las plantillas son MIT y están completas por sí mismas: Pro añade módulos, no desbloquea funciones recortadas de Community.' },
+			{ q: '¿Cómo se instala un módulo?', a: 'Desde la Tienda descargas el paquete del módulo, con su manifiesto y sus sumas de comprobación. Al generar el proyecto lo indicas a la CLI con --extensions-dir y --feature, y la CLI comprueba que encaje con el backend y el frontend elegidos. Desde Community 1.13 también puedes añadirlo a un proyecto existente con upgrade --feature.' },
+			{ q: '¿Qué versión de cada módulo me descargo?', a: 'La que quieras: mientras la suscripción esté activa tienes todas las versiones publicadas. La Tienda te recomienda la más reciente compatible con tu versión de Community, y para cambiar de versión en tu proyecto usas upgrade con --base-extensions-dir y --extensions-dir.' },
+			{ q: '¿Funciona con cualquier combinación de plantillas?', a: 'Cada módulo indica arriba las combinaciones que admite. La mayoría funcionan con FastAPI o NestJS y Next.js; la CLI rechaza las combinaciones que un módulo no admite antes de escribir ningún archivo.' },
+			{ q: '¿Puedo usar Pro en un producto comercial?', a: 'Sí, puedes construir y vender tu SaaS con los módulos. Lo que no permite la licencia es redistribuir, revender o publicar los módulos ni sus paquetes.' },
+			{ q: '¿Los precios incluyen IVA?', a: 'Sí, todos los precios son finales con IVA incluido. La suscripción se renueva cada mes o cada año y se gestiona desde la propia Tienda.' },
+		],
+		ctaEyebrow: 'Empieza hoy',
+		ctaTitle: 'Genera con Community. Crece con Pro.',
+		ctaStart: 'Ir al quick start',
+	},
+	en: {
+		description: 'create-my-saas Pro: commercial production modules for your SaaS, with priority support. From €29 a month, VAT included.',
+		eyebrow: 'create-my-saas Pro · by LAKBAST',
+		title: ['What your SaaS needs', 'as it grows.'],
+		lead: 'Seven production modules on top of Community: API keys, background jobs, usage-based billing, storage, observability and more. All included in one subscription.',
+		store: 'See it in the LAKBAST Store',
+		community: 'Start free with Community',
+		modulesEyebrow: '01 / Modules',
+		modulesTitle: 'Seven modules, one subscription.',
+		modulesIntro: 'Each module is an independent extension with its own manifest, guide and tests. You install only the ones you need.',
+		stacksLabel: 'Supported combinations',
+		modules: [
+			'Operations console on top of the Community admin dashboard: staff roles, user suspension, sessions, read-only billing and auditing.',
+			'Per-organization API keys with read, write and delete permissions, rotation and an audit log.',
+			'Redis-backed background jobs with retries, scheduling, periodic tasks and a separate worker.',
+			'Plan limits, enforced quotas, usage metering and usage-based billing with Stripe on top of Community billing.',
+			'Multiple products with their own subscriptions, orders and durable access delivery.',
+			'Per-organization files in S3-compatible storage, with signed uploads and downloads and access control.',
+			'JSON logs with sensitive data redacted, traces and metrics with OpenTelemetry, a protected Prometheus endpoint and health probes.',
+		],
+		pricingEyebrow: '02 / Pricing',
+		pricingTitle: 'Final prices, VAT included.',
+		pricingIntro: 'The subscription includes every module and priority support. Try it free for 14 days.',
+		plansLabel: 'Plans',
+		swipe: 'Swipe →',
+		plans: [
+			{ meta: 'Subscription', name: 'Pro monthly', price: '€29/month', text: 'All seven modules and priority support. 14 days free.' },
+			{ meta: 'Subscription', name: 'Pro yearly', price: '€290/year', text: 'The same as the monthly plan, with two months free. 14 days free.' },
+			{ meta: 'One-off payment', name: 'Onboarding', price: '€199', text: 'We help you deploy your first SaaS.' },
+		],
+		storeNote: ['Purchases, invoicing and module downloads happen in the', 'LAKBAST Store'],
+		editionsEyebrow: '03 / Community and Pro',
+		editionsTitle: 'Pro adds to Community, it does not replace it.',
+		editions: [
+			{ name: 'Community', meta: 'Free · MIT license', items: ['The CLI and all six templates', 'Authentication, organizations and permissions', 'Stripe billing', 'Global admin dashboard', 'Deployment with Docker Compose and a Coolify preset', 'Upgrades with upgrade'] },
+			{ name: 'Pro', meta: 'Subscription · commercial license', items: ['Everything in Community', 'The seven Pro modules', 'Every published version of each module', 'Packages verified with checksums', 'Priority support'] },
+		],
+		copy: 'Copy',
+		compatEyebrow: '04 / Compatibility',
+		compatTitle: 'Which version of each module goes with your Community.',
+		compatIntro: ['Each Pro version follows the templates of one Community version. Check yours in', 'in'],
+		module: 'Module',
+		communities: ['1.12 or later', '1.11', '1.10', '1.8 – 1.9', '1.5 – 1.7'],
+		compatNote: ['Since Community 1.11, NestJS modules install together without replacing the template’s registries. With an active subscription you can download any version from the LAKBAST Store: save your Community version there and it will recommend the matching one. You can also upgrade your project with', 'and move to the first column. Pro is tested from Community 1.5 onwards.'],
+		faqEyebrow: '05 / Questions',
+		faqTitle: 'What to know before you subscribe.',
+		faqs: [
+			{ q: 'Is Community still free?', a: 'Yes. The CLI and the templates are MIT and complete on their own: Pro adds modules, it does not unlock features cut from Community.' },
+			{ q: 'How do I install a module?', a: 'From the Store you download the module package, with its manifest and checksums. When generating the project you pass it to the CLI with --extensions-dir and --feature, and the CLI checks that it fits the chosen backend and frontend. Since Community 1.13 you can also add it to an existing project with upgrade --feature.' },
+			{ q: 'Which version of each module do I download?', a: 'Whichever you want: while your subscription is active you have every published version. The Store recommends the latest one compatible with your Community version, and to change versions in your project you use upgrade with --base-extensions-dir and --extensions-dir.' },
+			{ q: 'Does it work with any template combination?', a: 'Each module lists above the combinations it supports. Most work with FastAPI or NestJS and Next.js; the CLI rejects combinations a module does not support before writing any file.' },
+			{ q: 'Can I use Pro in a commercial product?', a: 'Yes, you can build and sell your SaaS with the modules. What the license does not allow is redistributing, reselling or publishing the modules or their packages.' },
+			{ q: 'Do prices include VAT?', a: 'Yes, all prices are final with VAT included. The subscription renews every month or every year and is managed from the Store itself.' },
+		],
+		ctaEyebrow: 'Start today',
+		ctaTitle: 'Generate with Community. Grow with Pro.',
+		ctaStart: 'Go to the quick start',
+	},
+}[lang];
+
+const quickStart = docUrl(lang, docLinks.quickStart);
+const [first, second] = content.title;
+---
+
+<Base title="Pro" description={content.description} alternate={lp(lang === 'es' ? 'en' : 'es', 'pro/')}>
+	<section data-pagefind-body class="shell hero">
+		<span class="eyebrow" data-pagefind-meta="group:Pro">{content.eyebrow}</span>
+		<div class="hero-grid">
+			<h1 data-pagefind-meta="title:create-my-saas Pro"><SplitText text={first} /> <em><SplitText text={second} start={first.split(' ').length} /></em></h1>
+			<div class="hero-side">
+				<p class="lead">{content.lead}</p>
+				<div class="hero-actions">
+					<a class="button" href={site.store}>{content.store} <span aria-hidden="true">↗</span></a>
+					<a class="arrow-link" href={quickStart}>{content.community} <span aria-hidden="true">→</span></a>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<section data-pagefind-body class="shell section" style="margin-top: clamp(64px, 7vw, 96px)">
+		<div class="section-head">
+			<span class="eyebrow">{content.modulesEyebrow}</span>
+			<div>
+				<h2>{content.modulesTitle}</h2>
+				<p class="section-intro">{content.modulesIntro}</p>
+			</div>
+		</div>
+		<div class="feature-list">
+			{modules.map((module, index) => (
+				<article class="feature-row">
+					<span class="feature-num">{String(index + 1).padStart(2, '0')}</span>
+					<h3>{module.name}</h3>
+					<div class="pro-module">
+						<p>{content.modules[index]}</p>
+						<ul class="pro-stacks" aria-label={content.stacksLabel}>{module.stacks.map((stack) => <li>{stack}</li>)}</ul>
+					</div>
+				</article>
+			))}
+		</div>
+	</section>
+
+	<div class="dark-panel">
+		<section data-pagefind-body class="shell section">
+			<div class="section-head">
+				<span class="eyebrow">{content.pricingEyebrow}</span>
+				<div>
+					<h2>{content.pricingTitle}</h2>
+					<p class="section-intro">{content.pricingIntro}</p>
+				</div>
+			</div>
+			<p class="stack-label">{content.plansLabel} <span class="swipe-hint" aria-hidden="true">{content.swipe}</span></p>
+			<div class="stack-grid">
+				{content.plans.map((plan) => (
+					<a class="stack-card" href={site.store}>
+						<span class="meta">{plan.meta}</span>
+						<div><h3>{plan.name}</h3><p>{plan.text}</p></div>
+						<strong class="pro-price">{plan.price}</strong>
+					</a>
+				))}
+			</div>
+			<p class="note">{content.storeNote[0]} <a href={site.store}>{content.storeNote[1]}</a>.</p>
+		</section>
+	</div>
+
+	<section data-pagefind-body class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">{content.editionsEyebrow}</span>
+			<div>
+				<h2>{content.editionsTitle}</h2>
+			</div>
+		</div>
+		<div class="pro-editions">
+			{content.editions.map((edition) => (
+				<article>
+					<span class="meta">{edition.meta}</span>
+					<h3>{edition.name}</h3>
+					<ul>{edition.items.map((item) => <li>{item}</li>)}</ul>
+				</article>
+			))}
+		</div>
+		<div class="pro-command">
+			<div class="command">
+				<code><b aria-hidden="true">$</b>{command}</code>
+				<button class="copy-button" type="button" data-copy={command}>{content.copy}</button>
+			</div>
+		</div>
+	</section>
+
+	<section data-pagefind-body class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">{content.compatEyebrow}</span>
+			<div>
+				<h2>{content.compatTitle}</h2>
+				<p class="section-intro">{content.compatIntro[0]} <code>cliVersion</code> {content.compatIntro[1]} <code>.create-my-saas.json</code>.</p>
+			</div>
+		</div>
+		<div class="pro-compat">
+			<table>
+				<thead><tr><th scope="col">{content.module}</th>{content.communities.map((community) => <th scope="col">Community {community}</th>)}</tr></thead>
+				<tbody>{modules.map((module, row) => <tr><th scope="row">{module.name}</th>{compatibility[row].map((version, index) => <td data-label={`Community ${content.communities[index]}`}>{version}</td>)}</tr>)}</tbody>
+			</table>
+		</div>
+		<p class="note pro-compat-note">{content.compatNote[0]} <code>npx @lakbast/create-my-saas@latest upgrade</code> {content.compatNote[1]}</p>
+	</section>
+
+	<section data-pagefind-body class="shell section">
+		<div class="section-head">
+			<span class="eyebrow">{content.faqEyebrow}</span>
+			<div>
+				<h2>{content.faqTitle}</h2>
+			</div>
+		</div>
+		<div class="pro-faq">
+			{content.faqs.map((faq) => (
+				<details>
+					<summary>{faq.q}<span class="plus-icon" aria-hidden="true"></span></summary>
+					<p>{faq.a}</p>
+				</details>
+			))}
+		</div>
+	</section>
+
+	<section data-pagefind-body class="shell section cta">
+		<span class="eyebrow">{content.ctaEyebrow}</span>
+		<h2>{content.ctaTitle}</h2>
+		<div class="hero-actions">
+			<a class="button" href={site.store}>{content.store} <span aria-hidden="true">↗</span></a>
+			<a class="arrow-link" href={quickStart}>{content.ctaStart} <span aria-hidden="true">→</span></a>
+		</div>
+	</section>
+</Base>

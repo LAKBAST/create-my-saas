@@ -1,20 +1,45 @@
 ---
 import Base from '../layouts/Base.astro';
-import { url } from '../data/site';
+import { docLinks, docUrl, url } from '../data/site';
+
+// GitHub Pages sirve este único 404.html para cualquier ruta, así que la versión
+// en inglés se muestra en el navegador cuando la ruta empieza por /en/.
+const en = url('en/');
 ---
 
 <Base title="Página no encontrada">
-	<section class="shell hero">
+	<section class="shell hero" data-not-found="es">
 		<span class="eyebrow">Error 404</span>
 		<div class="hero-grid">
 			<h1>Esta página <em>no existe.</em></h1>
 			<div class="hero-side">
 				<p class="lead">Puede que la hayamos movido al reorganizar la documentación.</p>
 				<div class="hero-actions">
-					<a class="button" href={url('empezar/introduccion/')}>Ir a la documentación <span aria-hidden="true">→</span></a>
+					<a class="button" href={docUrl('es', docLinks.home)}>Ir a la documentación <span aria-hidden="true">→</span></a>
 					<a class="arrow-link" href={url()}>Inicio <span aria-hidden="true">→</span></a>
 				</div>
 			</div>
 		</div>
 	</section>
+	<section class="shell hero" data-not-found="en" lang="en" hidden>
+		<span class="eyebrow">Error 404</span>
+		<div class="hero-grid">
+			<h1>This page <em>doesn’t exist.</em></h1>
+			<div class="hero-side">
+				<p class="lead">We may have moved it while reorganizing the docs.</p>
+				<div class="hero-actions">
+					<a class="button" href={docUrl('en', docLinks.home)}>Go to the docs <span aria-hidden="true">→</span></a>
+					<a class="arrow-link" href={en}>Home <span aria-hidden="true">→</span></a>
+				</div>
+			</div>
+		</div>
+	</section>
 </Base>
+
+<script is:inline define:vars={{ en }}>
+	if (location.pathname.startsWith(en)) {
+		document.querySelector('[data-not-found="es"]').hidden = true;
+		document.querySelector('[data-not-found="en"]').hidden = false;
+		document.title = 'Page not found — create-my-saas';
+	}
+</script>

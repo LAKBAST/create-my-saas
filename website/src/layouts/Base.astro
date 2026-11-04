@@ -2,26 +2,43 @@
 import '../styles/global.css';
 import LogoSprite from '../components/LogoSprite.astro';
 import Search from '../components/Search.astro';
-import { site, url } from '../data/site';
+import { docLinks, docUrl, site, url } from '../data/site';
+import { htmlLang, langFromPath, langs, lp, ogLocale, ui } from '../data/i18n';
 import interTight from '@fontsource-variable/inter-tight/files/inter-tight-latin-wght-normal.woff2?url';
 
 interface Props {
 	title: string;
 	description?: string;
+	/** La misma página en el otro idioma, sin el prefijo de despliegue. Por defecto, su portada. */
+	alternate?: string;
 }
 
-const { title, description = site.description } = Astro.props;
-const fullTitle = title === site.name ? `${site.name} — Genera tu SaaS desde la terminal` : `${title} — ${site.name}`;
-const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const current = Astro.url.pathname;
-const docsHome = url('empezar/introduccion/');
+const lang = langFromPath(current);
+const other = langs.find((code) => code !== lang)!;
+const t = ui[lang];
+const { title, description = t.description, alternate = lp(other) } = Astro.props;
+const fullTitle = title === site.name ? `${site.name} — ${t.tagline}` : `${title} — ${site.name}`;
+const canonical = new URL(current, Astro.site).toString();
+const alternateHref = url(alternate);
+// hreflang solo cuando la página tiene traducción; el 404 no la tiene.
+const alternates = Astro.props.alternate === undefined ? [] : [
+	{ lang, href: canonical },
+	{ lang: other, href: new URL(alternateHref, Astro.site).toString() },
+	{ lang: 'x-default', href: lang === 'es' ? canonical : new URL(alternateHref, Astro.site).toString() },
+];
+const home = url(lp(lang));
+const proHref = url(lp(lang, 'pro/'));
+const docsHome = docUrl(lang, docLinks.home);
+const quickStart = docUrl(lang, docLinks.quickStart);
 const nav = [
-	{ href: docsHome, label: 'Documentación', active: current !== url() && !current.includes('/quick-start/') && current !== url('pro/') },
-	{ href: url('empezar/quick-start/'), label: 'Quick start', active: current.includes('/quick-start/') },
-	{ href: url('pro/'), label: 'Pro', active: current === url('pro/') },
+	{ href: docsHome, label: t.docs, active: current !== home && current !== quickStart && current !== proHref },
+	{ href: quickStart, label: 'Quick start', active: current === quickStart },
+	{ href: proHref, label: 'Pro', active: current === proHref },
 	{ href: site.repo, label: 'GitHub', external: true },
 	{ href: site.npm, label: 'npm', external: true },
 ];
+const themeText = { dark: t.dark, light: t.light, themeDark: t.themeDark, themeLight: t.themeLight };
 // Inter Tight servida desde la propia web, con una alternativa local ajustada
 // a sus medidas para que el cambio de fuente no mueva el texto.
 const fontFaces = `@font-face{font-family:"Inter Tight";font-style:normal;font-weight:100 900;font-display:swap;src:url(${interTight}) format("woff2")}@font-face{font-family:"Inter Tight Fallback";src:local("Arial"),local("Helvetica"),local("Roboto");size-adjust:96%;ascent-override:101%;descent-override:25%;line-gap-override:0%}`;
@@ -29,7 +46,7 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={htmlLang[lang]}>
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -39,13 +56,15 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 		<style is:inline set:html={fontFaces}></style>
 		<meta name="description" content={description} />
 		<link rel="canonical" href={canonical} />
+		{alternates.map((item) => <link rel="alternate" hreflang={item.lang} href={item.href} />)}
 		<link id="site-favicon" rel="icon" type="image/svg+xml" href={favicons.light} />
 		<meta property="og:type" content="website" />
 		<meta property="og:site_name" content={site.name} />
 		<meta property="og:title" content={fullTitle} />
 		<meta property="og:description" content={description} />
 		<meta property="og:url" content={canonical} />
-		<script is:inline define:vars={{ favicons }}>
+		<meta property="og:locale" content={ogLocale[lang]} />
+		<script is:inline define:vars={{ favicons, themeText }}>
 			(() => {
 				document.documentElement.classList.add('js');
 				const key = 'create-my-saas-theme';
@@ -65,8 +84,8 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 					const toggle = document.querySelector('[data-theme-toggle]');
 					if (toggle) {
 						toggle.setAttribute('aria-pressed', String(theme === 'dark'));
-						toggle.setAttribute('aria-label', theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro');
-						toggle.querySelector('.theme-toggle-label').textContent = theme === 'dark' ? 'Claro' : 'Oscuro';
+						toggle.setAttribute('aria-label', theme === 'dark' ? themeText.themeLight : themeText.themeDark);
+						toggle.querySelector('.theme-toggle-label').textContent = theme === 'dark' ? themeText.light : themeText.dark;
 					}
 				};
 				applyTheme(savedTheme() || (systemTheme.matches ? 'dark' : 'light'));
@@ -102,33 +121,34 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 	</head>
 	<body>
 		<LogoSprite />
-		<a class="skip-link" href="#contenido">Saltar al contenido</a>
+		<a class="skip-link" href="#contenido">{t.skip}</a>
 		<header class="site-header">
 			<div class="shell header-inner">
-				<a class="brand" href={url()} aria-label="create-my-saas, por LAKBAST — inicio">
+				<a class="brand" href={home} aria-label={t.home}>
 					<span class="brand-name">create-my-saas</span>
 					<span class="brand-org" aria-hidden="true">
-						por <svg class="logo" viewBox="0 0 1441 309" width="1441" height="309" focusable="false"><use href="#lakbast-logo" /></svg>
+						{t.by} <svg class="logo" viewBox="0 0 1441 309" width="1441" height="309" focusable="false"><use href="#lakbast-logo" /></svg>
 					</span>
 				</a>
-				<nav class="desktop-nav" aria-label="Navegación principal">
+				<nav class="desktop-nav" aria-label={t.mainNav}>
 					{nav.map((item) => (
 						<a href={item.href} aria-current={item.active ? 'page' : undefined} {...(item.external ? { target: '_blank', rel: 'noopener' } : {})}>{item.label}</a>
 					))}
 				</nav>
 				<div class="header-actions">
-					<Search />
-					<button class="theme-toggle" type="button" data-theme-toggle aria-label="Activar modo oscuro" aria-pressed="false">
+					<Search lang={lang} />
+					<a class="lang-switch" href={alternateHref} hreflang={htmlLang[other]} lang={htmlLang[other]} aria-label={t.switchLang}>{t.switchLabel}</a>
+					<button class="theme-toggle" type="button" data-theme-toggle aria-label={t.themeDark} aria-pressed="false">
 						<span class="theme-toggle-icon" aria-hidden="true"></span>
-						<span class="theme-toggle-label">Oscuro</span>
+						<span class="theme-toggle-label">{t.dark}</span>
 					</button>
 					<details class="mobile-menu" data-mobile-menu>
-						<summary aria-label="Abrir menú">
-							<span class="menu-label" aria-hidden="true"><span>Menú</span><span>Cerrar</span></span>
+						<summary aria-label={t.menuOpen}>
+							<span class="menu-label" aria-hidden="true"><span>{t.menu}</span><span>{t.close}</span></span>
 							<span class="menu-icon" aria-hidden="true"></span>
 						</summary>
 						<div class="mobile-menu-panel">
-							<nav aria-label="Navegación móvil">
+							<nav aria-label={t.mobileNav}>
 								{nav.map((item, index) => (
 									<a href={item.href} style={`--i:${index}`} {...(item.external ? { target: '_blank', rel: 'noopener' } : {})}>
 										<span class="mobile-menu-num" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
@@ -138,7 +158,7 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 								))}
 							</nav>
 							<div class="mobile-menu-foot">
-								<span class="eyebrow">Un proyecto de</span>
+								<span class="eyebrow">{t.projectBy}</span>
 								<a href={site.lakbast}>lakbast.com</a>
 							</div>
 						</div>
@@ -153,30 +173,31 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 			<div class="shell footer-top">
 				<div>
 					<span class="footer-name">create-my-saas</span>
-					<p>CLI open source para generar la base de un producto SaaS a partir de plantillas versionadas. Licencia MIT.</p>
-					<a class="footer-by" href={site.lakbast} aria-label="Un proyecto de LAKBAST">
-						Un proyecto de
+					<p>{t.footerText}</p>
+					<a class="footer-by" href={site.lakbast} aria-label={`${t.projectBy} LAKBAST`}>
+						{t.projectBy}
 						<svg class="logo" viewBox="0 0 1441 309" width="1441" height="309" aria-hidden="true" focusable="false"><use href="#lakbast-logo" /></svg>
 					</a>
 				</div>
 				<div class="footer-links">
-					<a href={docsHome}>Documentación</a>
-					<a href={url('empezar/quick-start/')}>Quick start</a>
-					<a href={url('referencia/cli-usage/')}>Referencia de la CLI</a>
-					<a href={url('guias/plantillas/')}>Plantillas</a>
-					<a href={url('pro/')}>Pro</a>
+					<a href={docsHome}>{t.docs}</a>
+					<a href={quickStart}>Quick start</a>
+					<a href={docUrl(lang, docLinks.cli)}>{t.cliReference}</a>
+					<a href={docUrl(lang, docLinks.templates)}>{t.templates}</a>
+					<a href={proHref}>Pro</a>
 				</div>
 				<div class="footer-links">
 					<a href={site.repo}>GitHub</a>
 					<a href={site.npm}>npm</a>
 					<a href={`${site.repo}/blob/main/CHANGELOG.md`}>Changelog</a>
-					<a href={`${site.repo}/issues/new/choose`}>Reportar un problema</a>
-					<a href={url('referencia/contributing/')}>Cómo contribuir</a>
+					<a href={`${site.repo}/issues/new/choose`}>{t.reportIssue}</a>
+					<a href={docUrl(lang, docLinks.contributing)}>{t.contribute}</a>
 				</div>
 			</div>
-			<div class="shell footer-bottom"><span>© {new Date().getFullYear()} LAKBAST</span><span>Licencia MIT</span></div>
+			<div class="shell footer-bottom"><span>© {new Date().getFullYear()} LAKBAST</span><span>{t.license}</span></div>
 		</footer>
 		<script>
+			import { ui, type Lang } from '../data/i18n';
 			import { initReveal } from '../lib/reveal';
 			import { initMobileMenu } from '../lib/mobile-menu';
 			import { initStickyHeader } from '../lib/sticky-header';
@@ -184,11 +205,12 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 			initStickyHeader();
 			initReveal();
 			// Botones de copiar: el del comando de la portada y uno por bloque de código.
+			const t = ui[document.documentElement.lang as Lang] ?? ui.es;
 			for (const pre of document.querySelectorAll<HTMLElement>('.prose pre')) {
 				const button = document.createElement('button');
 				button.type = 'button';
 				button.className = 'copy-code';
-				button.textContent = 'Copiar';
+				button.textContent = t.copy;
 				button.dataset.copy = '';
 				pre.append(button);
 			}
@@ -199,7 +221,7 @@ const favicons = { light: url('favicon_claro.svg'), dark: url('favicon_oscuro.sv
 				try {
 					await navigator.clipboard.writeText(source.trim());
 					const label = button.textContent;
-					button.textContent = 'Copiado';
+					button.textContent = t.copied;
 					setTimeout(() => { button.textContent = label; }, 1600);
 				} catch { /* Sin permiso de portapapeles, el texto sigue seleccionable. */ }
 			});

@@ -76,8 +76,10 @@ la CI los lanza solo para las plantillas afectadas por el cambio.
   y cómo lo has probado.
 - Si el cambio es visible para quien usa la CLI o los proyectos generados, añade
   una entrada en la sección `[Unreleased]` de [`CHANGELOG.md`](./CHANGELOG.md).
-- La documentación de la web sale de `docs/`. Edita siempre `docs/*.md`, no las
-  copias de `website/src/content/docs/referencia/`, que se generan al compilar.
+- La documentación de la web sale de `docs/`. Edita siempre `docs/*.md` y su
+  traducción al inglés en `docs/en/*.md`, nunca las copias de
+  `website/src/content/docs/`, que se generan al compilar. La web no compila si
+  falta la traducción de alguna página.
 - En tu primer PR, la CI espera a que una persona del equipo la apruebe antes de
   ejecutarse.
 
