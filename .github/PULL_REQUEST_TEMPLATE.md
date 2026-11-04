@@ -19,6 +19,6 @@
 
 - [ ] El PR resuelve una sola cosa y sigue la [guía de contribución](https://createmysaas.dev/referencia/contributing/).
 - [ ] Si cambia el contrato HTTP, los backends y frontends afectados mantienen la equivalencia y `docs/template-parity.md` está al día.
-- [ ] La documentación de `docs/` refleja el cambio.
+- [ ] La documentación de `docs/` y su traducción en `docs/en/` reflejan el cambio.
 - [ ] Si el cambio es visible para quien usa la CLI, hay una entrada en `[Unreleased]` de `CHANGELOG.md`.
 - [ ] No incluye secretos, archivos `.env` reales ni artefactos generados.

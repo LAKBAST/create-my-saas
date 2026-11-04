@@ -2,6 +2,7 @@ node_modules/
 dist/
 .astro/
 
-# Generado por scripts/sync-docs.mjs a partir de ../docs
+# Generado por scripts/sync-docs.mjs a partir de ../docs y ../docs/en
 src/content/docs/referencia/*
+src/content/docs/en/reference/
 public/schemas/

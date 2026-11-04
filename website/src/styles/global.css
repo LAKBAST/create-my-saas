@@ -97,6 +97,8 @@ button, a, summary { -webkit-tap-highlight-color: transparent; }
 .desktop-nav a:hover, .desktop-nav a[aria-current] { background-size: 100% 1px; }
 .header-actions { display: flex; align-items: center; gap: 24px; border-left: 1px solid var(--line); padding-left: 24px; }
 .theme-toggle { display: inline-flex; flex: 0 0 86px; align-items: center; gap: 9px; border: 0; padding: 10px 0; background: transparent; color: var(--ink); cursor: pointer; font-size: 12px; font-weight: 700; letter-spacing: .03em; }
+.lang-switch { padding: 10px 0; color: var(--ink); font-size: 12px; font-weight: 700; letter-spacing: .03em; text-decoration: none; }
+.lang-switch:hover { text-decoration: underline; text-underline-offset: 5px; }
 .theme-toggle-icon { display: block; flex: 0 0 16px; width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 50%; background: linear-gradient(90deg, currentColor 50%, transparent 50%); }
 @media (prefers-reduced-motion: no-preference) { .theme-toggle-icon { transition: transform .6s cubic-bezier(.6, 0, .2, 1); } }
 :root[data-theme="dark"] .theme-toggle-icon { transform: rotate(180deg); }
