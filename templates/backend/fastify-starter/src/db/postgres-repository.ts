@@ -118,15 +118,41 @@ export class PostgresSessionRepository implements SessionRepository {
     await this.sql`update users set email_verified = true where id = ${userId}`;
   }
 
-  async createSession(input: StoredSession): Promise<void> {
-    await this.sql`
-      insert into browser_sessions (
-        id, user_id, access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at
-      ) values (
-        ${input.id}, ${input.userId}, ${input.accessTokenHash}, ${input.refreshTokenHash},
-        ${input.accessExpiresAt}, ${input.refreshExpiresAt}
-      )
-    `;
+  async secureUnverifiedOAuthUser(userId: string): Promise<void> {
+    await this.sql.begin(async (transaction) => {
+      const changed = await transaction`
+        update users set password_hash = null, email_verified = true
+        where id = ${userId} and email_verified = false returning id
+      `;
+      if (changed.length) {
+        await transaction`
+          update browser_sessions set revoked_at = now()
+          where user_id = ${userId} and revoked_at is null
+        `;
+      }
+    });
+  }
+
+  async createSession(input: StoredSession, expectedPasswordHash?: string): Promise<boolean> {
+    return this.sql.begin(async (transaction) => {
+      if (expectedPasswordHash !== undefined) {
+        // OAuth updates this same row before revoking sessions. Hold its lock
+        // until insertion commits, so no stale password login escapes revocation.
+        const users = await transaction<UserRow[]>`
+          select id, password_hash, is_active from users where id = ${input.userId} for update
+        `;
+        if (!users[0]?.is_active || users[0].password_hash !== expectedPasswordHash) return false;
+      }
+      await transaction`
+        insert into browser_sessions (
+          id, user_id, access_token_hash, refresh_token_hash, access_expires_at, refresh_expires_at
+        ) values (
+          ${input.id}, ${input.userId}, ${input.accessTokenHash}, ${input.refreshTokenHash},
+          ${input.accessExpiresAt}, ${input.refreshExpiresAt}
+        )
+      `;
+      return true;
+    });
   }
 
   async findActiveSessionByAccessHash(accessTokenHash: string): Promise<StoredSession | undefined> {
@@ -164,6 +190,16 @@ export class PostgresSessionRepository implements SessionRepository {
     refreshExpiresAt: Date;
   }): Promise<StoredSession | undefined> {
     return this.sql.begin(async (transaction) => {
+      const candidates = await transaction<{ user_id: string }[]>`
+        select user_id from browser_sessions where id = ${input.previousSessionId}
+      `;
+      if (!candidates[0]) return undefined;
+      // Lock in the same order as OAuth: user first, then sessions. Keep the
+      // lock through insertion so invalidation also sees the replacement.
+      const users = await transaction<{ id: string }[]>`
+        select id from users where id = ${candidates[0].user_id} and is_active = true for update
+      `;
+      if (!users[0]) return undefined;
       const previous = await transaction<SessionRow[]>`
         update browser_sessions set revoked_at = now()
         where id = ${input.previousSessionId} and revoked_at is null and refresh_expires_at > now()
