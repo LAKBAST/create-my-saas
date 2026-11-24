@@ -50,14 +50,20 @@ class AuthService:
 
     async def login(self, payload: UserLogin) -> tuple[User, tuple[dict, str]] | None:
         user = await self.users.get_user_by_email(str(payload.email))
+        password_hash = user.password_hash if user else None
         if (
             not user
             or not user.is_active
-            or not user.password_hash
-            or not verify_password(payload.password, user.password_hash)
+            or not password_hash
+            or not verify_password(payload.password, password_hash)
         ):
             return None
 
+        # Share OAuth's user-row lock through session insertion and commit.
+        user = await self.users.get_user_by_id_for_update(user.id)
+        if not user or not user.is_active or user.password_hash != password_hash:
+            await self.db.rollback()
+            return None
         return user, await self.issue_session(user)
 
     async def login_oauth(self, provider: str, profile) -> tuple[dict, str]:
@@ -150,13 +156,27 @@ class AuthService:
         )
 
     async def _complete_oauth_session(self, user: User) -> tuple[dict, str]:
-        if not user.is_active:
+        # Refresh ORM state after acquiring the lock; another callback may have
+        # already verified this user while this request was linking the account.
+        user = await self.users.get_user_by_id_for_update(user.id)
+        if not user or not user.is_active:
             raise AppError(
                 "The user account is inactive.",
                 code="USER_INACTIVE",
                 status_code=403,
             )
         if not user.email_verified:
+            # A password chosen before ownership was proven is untrusted.
+            # Revoke its sessions in the same transaction as verification.
+            user.password_hash = None
+            await self.db.execute(
+                update(RefreshToken)
+                .where(
+                    RefreshToken.user_id == user.id,
+                    RefreshToken.revoked_at.is_(None),
+                )
+                .values(revoked_at=utc_now())
+            )
             user.email_verified = True
             await self.users.save(user)
         await ensure_personal_workspace(user, self.db)
@@ -191,10 +211,22 @@ class AuthService:
         return self._session_response(user), raw_token
 
     async def refresh(self, raw_token: str) -> tuple[dict, str] | None:
+        token_digest = token_hash(raw_token)
+        result = await self.db.execute(
+            select(RefreshToken.user_id).where(RefreshToken.token_hash == token_digest)
+        )
+        user_id = result.scalar_one_or_none()
+        if not user_id:
+            return None
+        # Lock the user before any token writes, just like OAuth invalidation.
+        # Hold it until the replacement commits; recheck the token after waiting.
+        user = await self.users.get_user_by_id_for_update(user_id)
+        if not user or not user.is_active:
+            await self.db.commit()
+            return None
         # The conditional update is the single-use claim. Only its winner issues
         # a new token.
         now = utc_now()
-        token_digest = token_hash(raw_token)
         result = await self.db.execute(
             update(RefreshToken)
             .where(
@@ -208,11 +240,6 @@ class AuthService:
         claimed_user_id = result.scalar_one_or_none()
         if not claimed_user_id:
             await self._handle_unclaimable_refresh_token(token_digest, now)
-            return None
-
-        user = await self.users.get_user_by_id(claimed_user_id)
-        if not user or not user.is_active:
-            await self.db.commit()
             return None
 
         next_raw_token, next_refresh_token = self._new_session(user)

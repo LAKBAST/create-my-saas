@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 from datetime import timedelta
@@ -6,6 +7,7 @@ from types import SimpleNamespace
 
 import jwt
 from fastapi.testclient import TestClient
+from sqlalchemy.sql.dml import Update
 
 from src.core import middleware as middleware_module
 from src.core.config import settings
@@ -13,9 +15,10 @@ from src.db.database import get_db
 from main import app
 from src.modules.auth.dependencies import get_user_repository
 from src.modules.auth.security.tokens import utc_now
-from src.modules.users.model import OAuthAccount, User
+from src.modules.users.model import OAuthAccount, RefreshToken, User
 from src.modules.auth.service import AuthService
 from src.modules.users.model import TokenPurpose
+from src.modules.users.schemas import UserLogin
 
 
 class InMemorySession:
@@ -28,6 +31,9 @@ class InMemorySession:
         self.records.append(record)
 
     async def commit(self):
+        pass
+
+    async def rollback(self):
         pass
 
     async def execute(self, _statement):
@@ -60,6 +66,9 @@ class InMemoryUserRepository:
     async def get_user_by_id(self, user_id) -> User | None:
         return self.users_by_id.get(str(user_id))
 
+    async def get_user_by_id_for_update(self, user_id) -> User | None:
+        return await self.get_user_by_id(user_id)
+
     async def save(self, user: User) -> User:
         self.users_by_email[user.email] = user
         self.users_by_id[str(user.id)] = user
@@ -70,6 +79,7 @@ class OAuthIdentitySession:
     """Exercises provider-subject linking without a database server."""
     def __init__(self):
         self.accounts: list[OAuthAccount] = []
+        self.sessions: list[RefreshToken] = []
         self.pending: list[object] = []
 
     def add(self, record):
@@ -77,6 +87,7 @@ class OAuthIdentitySession:
 
     async def commit(self):
         self.accounts.extend(record for record in self.pending if isinstance(record, OAuthAccount))
+        self.sessions.extend(record for record in self.pending if isinstance(record, RefreshToken))
         self.pending.clear()
 
     async def rollback(self):
@@ -84,6 +95,21 @@ class OAuthIdentitySession:
 
     async def execute(self, statement):
         params = statement.compile().params
+        if not isinstance(statement, Update) and "token_hash_1" in params:
+            token = next((item for item in self.sessions if item.token_hash == params["token_hash_1"]), None)
+            value = token if statement.column_descriptions[0]["expr"] is RefreshToken else token.user_id if token else None
+            return SimpleNamespace(scalar_one_or_none=lambda: value)
+        if isinstance(statement, Update) and statement.table.name == "refresh_tokens":
+            user_id = params.get("user_id_1")
+            digest = params.get("token_hash_1")
+            claimed = None
+            for token in self.sessions:
+                if token.revoked_at is None and (
+                    token.user_id == user_id if user_id else token.token_hash == digest
+                ):
+                    token.revoked_at = params["revoked_at"]
+                    claimed = token.user_id
+            return SimpleNamespace(scalar_one_or_none=lambda: claimed)
         provider = next((value for key, value in params.items() if "provider" in key), None)
         subject = next((value for key, value in params.items() if "provider_account_id" in key), None)
         account = next((item for item in self.accounts if item.provider == provider and item.provider_account_id == subject), None)
@@ -293,3 +319,57 @@ class AuthenticationApiTests(unittest.TestCase):
         conflicting = SimpleNamespace(email="other@example.com", name="Other", provider_account_id="google-subject-1")
         with self.assertRaisesRegex(Exception, "linked to a different user"):
             __import__("asyncio").run(service.login_oauth("google", conflicting))
+
+    def test_oauth_removes_only_unverified_passwords_and_prior_sessions(self):
+        async def scenario(verified):
+            session = OAuthIdentitySession()
+            service = AuthService(session, self.users)
+            self.assertEqual(self.register(email=f"oauth-{verified}@example.com").status_code, 201)
+            email = f"oauth-{verified}@example.com"
+            user = await self.users.get_user_by_email(email)
+            user.email_verified = verified
+            password_hash = user.password_hash
+            credentials = UserLogin(email=email, password=self.registration["password"])
+            first_login = await service.login(credentials)
+            second_login = await service.login(credentials)
+            self.assertIsNotNone(first_login)
+            self.assertIsNotNone(second_login)
+            _, (_, first) = first_login
+            _, (_, second) = second_login
+            previous = list(session.sessions)
+            other = await self.users.create_user(User(email=f"other-{verified}@example.com", name="Other"))
+            await service.issue_session(other)
+            profile = SimpleNamespace(email=email, name="Person", provider_account_id=f"subject-{verified}")
+
+            # OAuth wins while a verified password login is waiting for the row lock.
+            ready, resume = asyncio.Event(), asyncio.Event()
+            locked_read = self.users.get_user_by_id_for_update
+
+            async def delayed_locked_read(user_id):
+                ready.set()
+                await resume.wait()
+                return await locked_read(user_id)
+
+            with patch.object(self.users, "get_user_by_id_for_update", side_effect=delayed_locked_read):
+                pending_login = asyncio.create_task(service.login(credentials))
+                await ready.wait()
+            response, oauth_refresh = await service.login_oauth("google", profile)
+            resume.set()
+            concurrent_login = await pending_login
+            self.assertEqual(concurrent_login is not None, verified)
+
+            self.assertTrue(user.email_verified)
+            self.assertEqual(user.password_hash, password_hash if verified else None)
+            self.assertTrue(all((token.revoked_at is None) == verified for token in previous))
+            self.assertTrue(all(token.revoked_at is None for token in session.sessions if token not in previous))
+            self.assertEqual(len(session.sessions), 5 if verified else 4)
+            self.assertTrue(oauth_refresh)
+            self.assertNotIn("password_hash", response["user"])
+            self.assertEqual(self.login(email=email).status_code, 200 if verified else 401)
+            if not verified:
+                self.assertIsNone(await service.refresh(first))
+                self.assertIsNone(await service.refresh(second))
+
+        for verified in (False, True):
+            with self.subTest(email_verified=verified):
+                __import__("asyncio").run(scenario(verified))

@@ -11,6 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { AuthService } from '../src/auth/auth.service';
 import { OAuthAccount } from '../src/auth/oauth-account.entity';
 import { OAuthState } from '../src/auth/oauth-state.entity';
+import { RefreshSession } from '../src/auth/refresh-session.entity';
 import { UsersService } from '../src/users/users.service';
 import { User } from '../src/users/user.entity';
 import { BillingCustomer } from '../src/billing/billing-customer.entity';
@@ -311,6 +312,59 @@ describe('AppController (e2e)', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  (process.env.POSTGRES_INTEGRATION_TESTS === '1' ? it : it.skip)('revokes an uncommitted refresh replacement when OAuth verifies its owner', async () => {
+    const auth = app.get(AuthService);
+    const database = app.get(DataSource);
+    const credentials = { email: 'oauth-refresh-race@example.com', password: 'password123', name: 'Race' };
+    await auth.register(credentials);
+    const original = await auth.login(credentials);
+    const user = await database.getRepository(User).findOneByOrFail({ email: credentials.email });
+    let ready!: () => void;
+    let release!: () => void;
+    const paused = new Promise<void>((resolve) => { ready = resolve; });
+    const resume = new Promise<void>((resolve) => { release = resolve; });
+    const runner = database.createQueryRunner();
+    const commit = runner.commitTransaction.bind(runner);
+    jest.spyOn(runner, 'commitTransaction').mockImplementation(async () => {
+      ready();
+      await resume;
+      await commit();
+    });
+    const runnerSpy = jest.spyOn(database, 'createQueryRunner').mockReturnValueOnce(runner);
+    const rotation = auth.refresh(original.refreshToken);
+    const completion = auth as unknown as {
+      completeOAuthAuthentication: (user: User) => ReturnType<AuthService['login']>;
+    };
+    let linking: ReturnType<AuthService['login']> | undefined;
+    let outcomes: Awaited<ReturnType<AuthService['login']>>[] = [];
+    try {
+      await Promise.race([paused, rotation.then(() => { throw new Error('Rotation did not pause before commit.'); })]);
+      linking = completion.completeOAuthAuthentication(user);
+      // Wait for actual lock contention, not a timing-based guess about SQL.
+      const deadline = Date.now() + 5000;
+      for (;;) {
+        const rows = await database.query(`SELECT 1 FROM pg_stat_activity
+          WHERE datname = current_database() AND wait_event_type = 'Lock'
+          AND (query LIKE 'UPDATE "users"%' OR query LIKE 'UPDATE "refresh_sessions"%')`);
+        if (rows.length) break;
+        if (Date.now() > deadline) throw new Error('OAuth did not wait for the pending rotation.');
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    } finally {
+      release();
+      runnerSpy.mockRestore();
+      outcomes = await Promise.all([rotation, ...(linking ? [linking] : [])]);
+    }
+    const sessions = database.getRepository(RefreshSession);
+    const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+    const replacement = await sessions.findOneByOrFail({ tokenHash: hash(outcomes[0].refreshToken) });
+    expect(replacement.revokedAt).not.toBeNull();
+    const oauthSession = await sessions.findOneByOrFail({ tokenHash: hash(outcomes[1].refreshToken) });
+    expect(oauthSession.revokedAt).toBeNull();
+    await expect(auth.login(credentials)).rejects.toMatchObject({ statusCode: 401 });
+    await expect(auth.refresh(outcomes[0].refreshToken)).rejects.toMatchObject({ statusCode: 401 });
+  }, 15_000);
 
   it('atomically rotates a refresh credential under concurrent replay attempts', async () => {
     const credentials = { email: 'refresh-race@example.com', password: 'password123', name: 'Refresh race' };

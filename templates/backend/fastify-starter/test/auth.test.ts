@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { createApp } from '../src/app.js';
 import { exchangeOAuthProfile } from '../src/auth/oauth.js';
+import { AuthService } from '../src/auth/service.js';
 import { loadConfig, type Config } from '../src/config.js';
 import { EmailDeliveryError, SecureEmailSender, type EmailSender } from '../src/email.js';
 import type { OneTimeTokenKind, SessionRepository, StoredOAuthAccount, StoredOAuthState, StoredOneTimeToken, StoredSession, StoredUser } from '../src/types.js';
@@ -26,7 +27,20 @@ class InMemorySessions implements SessionRepository {
   async findUserById(id: string) { return this.users.get(id); }
   async updateUserPassword(userId: string, passwordHash: string) { const user = this.users.get(userId); if (user) user.passwordHash = passwordHash; }
   async setEmailVerified(userId: string) { const user = this.users.get(userId); if (user) user.emailVerified = true; }
-  async createSession(session: StoredSession) { this.sessions.set(session.id, session); }
+  async secureUnverifiedOAuthUser(userId: string) {
+    const user = this.users.get(userId);
+    if (user && !user.emailVerified) {
+      user.passwordHash = null;
+      await this.revokeSessionsForUser(userId);
+      user.emailVerified = true;
+    }
+  }
+  async createSession(session: StoredSession, expectedPasswordHash?: string) {
+    const user = this.users.get(session.userId);
+    if (expectedPasswordHash !== undefined && (!user?.isActive || user.passwordHash !== expectedPasswordHash)) return false;
+    this.sessions.set(session.id, session);
+    return true;
+  }
   async findActiveSessionByAccessHash(accessTokenHash: string) {
     return [...this.sessions.values()].find((session) => session.accessTokenHash === accessTokenHash && !session.revokedAt && session.accessExpiresAt > new Date());
   }
@@ -386,6 +400,66 @@ test('password recovery and email verification use opaque, single-use tokens', a
     await app.close();
   }
 });
+
+for (const verified of [false, true]) {
+  test(`OAuth linking protects an existing account (emailVerified=${verified})`, async () => {
+    const repository = new InMemorySessions();
+    const auth = new AuthService({
+      ...config, OAUTH_ENABLED: true, OAUTH_GOOGLE_CLIENT_ID: 'client',
+      OAUTH_GOOGLE_CLIENT_SECRET: 'secret', OAUTH_GOOGLE_REDIRECT_URI: 'https://api.test/callback',
+    }, repository, { send: async () => {} });
+    const user = await auth.register({ email: 'person@example.com', name: 'Person', password: 'password123' });
+    user.emailVerified = verified;
+    const passwordHash = user.passwordHash;
+    const previous = [await auth.login(user.email, 'password123'), await auth.login(user.email, 'password123')];
+    const other = await auth.register({ email: 'other@example.com', name: 'Other', password: 'password123' });
+    await auth.login(other.email, 'password123');
+    // Suspend a password login after verification but before its locked insert.
+    let resumeLogin!: () => void;
+    let loginReady!: () => void;
+    const ready = new Promise<void>((resolve) => { loginReady = resolve; });
+    const resume = new Promise<void>((resolve) => { resumeLogin = resolve; });
+    const createSession = repository.createSession.bind(repository);
+    repository.createSession = async (session, expectedHash) => {
+      if (expectedHash !== undefined) {
+        loginReady();
+        await resume;
+      }
+      return createSession(session, expectedHash);
+    };
+    const pendingLogin = auth.login(user.email, 'password123');
+    await ready;
+    const start = await auth.createOAuthStart('google');
+    const state = new URL(start.authorizationUrl).searchParams.get('state')!;
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = (async (_input, init) => ({
+        ok: true, json: async () => init?.method === 'POST'
+          ? { access_token: 'provider-token' }
+          : { sub: 'subject', email: user.email, email_verified: true, name: user.name },
+      })) as typeof fetch;
+      const oauth = await auth.completeOAuth('google', 'code', state);
+      resumeLogin();
+      if (verified) await pendingLogin;
+      else await assert.rejects(pendingLogin, { statusCode: 401, code: 'INVALID_CREDENTIALS' });
+      assert.equal(user.emailVerified, true);
+      assert.equal(user.passwordHash, verified ? passwordHash : null);
+      const sessions = [...repository.sessions.values()];
+      assert.equal(sessions.filter((session) => session.userId === user.id && !session.revokedAt).length, verified ? 4 : 1);
+      assert.ok(sessions.find((session) => session.userId === other.id && !session.revokedAt));
+      assert.equal((await auth.currentUser(`Bearer ${oauth.accessToken}`)).id, user.id);
+      if (verified) {
+        await auth.login(user.email, 'password123');
+        for (const session of previous) await auth.refresh(session.refreshToken);
+      } else {
+        await assert.rejects(() => auth.login(user.email, 'password123'), { statusCode: 401, code: 'INVALID_CREDENTIALS' });
+        for (const session of previous) await assert.rejects(() => auth.refresh(session.refreshToken), { statusCode: 401 });
+      }
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+}
 
 test('OAuth persists a stable provider account, exchanges PKCE, and rejects state or identity conflicts', async () => {
   const repository = new InMemorySessions();

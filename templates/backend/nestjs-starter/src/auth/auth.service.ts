@@ -52,24 +52,45 @@ export class AuthService {
 
   async login(dto: LoginDto, metadata: RequestMetadata = {}): Promise<BrowserAuthenticationResult> {
     const user = await this.usersService.findByEmail(dto.email, true);
-    if (!user || !user.passwordHash || !(await argon2.verify(user.passwordHash, dto.password))) throw new AppError('INVALID_CREDENTIALS', 'The email or password is incorrect.', 401);
+    const passwordHash = user?.passwordHash;
+    if (!user || !passwordHash || !(await argon2.verify(passwordHash, dto.password))) throw new AppError('INVALID_CREDENTIALS', 'The email or password is incorrect.', 401);
     if (!user.isActive) throw new AppError('USER_INACTIVE', 'The user account is inactive.', 403);
-    return this.createAuthentication(user, metadata);
+    return this.dataSource.transaction(async (manager) => {
+      // OAuth's credential update takes the same row lock. Keep it through
+      // session insertion so a login verified against the old hash cannot win later.
+      const current = await manager.getRepository(User).findOne({
+        where: { id: user.id },
+        select: { id: true, passwordHash: true, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!current?.isActive || current.passwordHash !== passwordHash) {
+        throw new AppError('INVALID_CREDENTIALS', 'The email or password is incorrect.', 401);
+      }
+      return this.createAuthentication(user, metadata, manager.getRepository(RefreshSession));
+    });
   }
 
   async refresh(refreshToken: string, metadata: RequestMetadata = {}): Promise<BrowserAuthenticationResult> {
     const outcome = await this.dataSource.transaction(async (manager) => {
       const sessions = manager.getRepository(RefreshSession);
+      const tokenHash = this.hashToken(refreshToken);
+      const candidate = await sessions.findOneBy({ tokenHash });
+      if (!candidate) return { kind: 'invalid' as const };
+      // OAuth locks this user before revoking sessions. Take that lock first
+      // and keep it through rotation commit, then reread the token's state.
+      const user = await manager.getRepository(User).findOne({
+        where: { id: candidate.userId, isActive: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!user) return { kind: 'invalid' as const };
       const now = new Date();
-      const session = await sessions.findOneBy({ tokenHash: this.hashToken(refreshToken) });
+      const session = await sessions.findOneBy({ tokenHash });
       if (!session || session.expiresAt <= now) return { kind: 'invalid' as const };
       if (session.revokedAt) {
         if (session.replacedById) await sessions.update({ userId: session.userId, revokedAt: IsNull() }, { revokedAt: now });
         return { kind: session.replacedById ? 'reused' as const : 'invalid' as const };
       }
 
-      const user = await manager.getRepository(User).findOneBy({ id: session.userId, isActive: true });
-      if (!user) return { kind: 'invalid' as const };
       const nextRaw = this.newOpaqueToken();
       const replacement = await sessions.save(sessions.create({
         id: this.sessionIdFromToken(nextRaw), userId: user.id, tokenHash: this.hashToken(nextRaw),
@@ -189,13 +210,28 @@ export class AuthService {
 
   private async completeOAuthAuthentication(user: User): Promise<BrowserAuthenticationResult> {
     if (!user.isActive) throw new AppError('USER_INACTIVE', 'The user account is inactive.', 403);
-    if (!user.emailVerified) { user.emailVerified = true; await this.usersService.save(user); }
+    if (!user.emailVerified) {
+      // Credentials established before email ownership was proven are untrusted.
+      await this.dataSource.transaction(async (manager) => {
+        const changed = await manager.getRepository(User).update(
+          { id: user.id, emailVerified: false },
+          { passwordHash: null, emailVerified: true },
+        );
+        if (changed.affected) {
+          await manager.getRepository(RefreshSession).update(
+            { userId: user.id, revokedAt: IsNull() }, { revokedAt: new Date() },
+          );
+        }
+      });
+      user.passwordHash = null;
+      user.emailVerified = true;
+    }
     return this.createAuthentication(user, {});
   }
 
-  private async createAuthentication(user: User, metadata: RequestMetadata): Promise<BrowserAuthenticationResult> {
+  private async createAuthentication(user: User, metadata: RequestMetadata, sessions = this.sessions): Promise<BrowserAuthenticationResult> {
     const refreshToken = this.newOpaqueToken();
-    await this.sessions.save(this.sessions.create({ id: this.sessionIdFromToken(refreshToken), userId: user.id, tokenHash: this.hashToken(refreshToken), expiresAt: new Date(Date.now() + this.config.get<number>('REFRESH_TOKEN_EXPIRE_DAYS', 30) * 86_400_000), revokedAt: null, replacedById: null, ipAddress: metadata.ip ?? null, userAgent: metadata.userAgent ?? null }));
+    await sessions.save(sessions.create({ id: this.sessionIdFromToken(refreshToken), userId: user.id, tokenHash: this.hashToken(refreshToken), expiresAt: new Date(Date.now() + this.config.get<number>('REFRESH_TOKEN_EXPIRE_DAYS', 30) * 86_400_000), revokedAt: null, replacedById: null, ipAddress: metadata.ip ?? null, userAgent: metadata.userAgent ?? null }));
     return { authentication: { accessToken: await this.jwtService.signAsync({ sub: user.id, type: 'access', jti: randomBytes(16).toString('hex') }), user: UserPublicDto.fromEntity(user) }, refreshToken };
   }
   private oauthConfig(provider: string): { clientId: string; clientSecret: string; authorizationUrl: string; tokenUrl: string; userInfoUrl: string; redirectUri: string; scopes: string } | null {

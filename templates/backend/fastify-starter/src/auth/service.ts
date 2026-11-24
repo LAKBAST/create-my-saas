@@ -39,10 +39,11 @@ export class AuthService {
 
   async login(email: string, password: string): Promise<{ user: StoredUser } & SessionTokens> {
     const user = await this.repository.findUserByEmail(email.toLowerCase());
-    if (!user || !user.isActive || !user.passwordHash || !(await argon2.verify(user.passwordHash, password))) {
+    const passwordHash = user?.passwordHash;
+    if (!user || !user.isActive || !passwordHash || !(await argon2.verify(passwordHash, password))) {
       throw new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
     }
-    return { user, ...await this.issueSession(user) };
+    return { user, ...await this.issueSession(user, passwordHash) };
   }
 
   async refresh(previousToken: string | undefined): Promise<{ user: StoredUser } & SessionTokens> {
@@ -172,11 +173,11 @@ export class AuthService {
 
   private async completeOAuthSession(user: StoredUser): Promise<SessionTokens> {
     if (!user.isActive) throw new AppError(403, 'USER_INACTIVE', 'The user account is inactive.');
-    if (!user.emailVerified) await this.repository.setEmailVerified(user.id);
+    if (!user.emailVerified) await this.repository.secureUnverifiedOAuthUser(user.id);
     return this.issueSession(user);
   }
 
-  private async issueSession(user: StoredUser): Promise<SessionTokens> {
+  private async issueSession(user: StoredUser, expectedPasswordHash?: string): Promise<SessionTokens> {
     const accessToken = opaqueToken();
     const refreshToken = opaqueToken();
     const session: StoredSession = {
@@ -188,7 +189,9 @@ export class AuthService {
       refreshExpiresAt: new Date(Date.now() + this.refreshMaxAge * 1_000),
       revokedAt: null,
     };
-    await this.repository.createSession(session);
+    if (!(await this.repository.createSession(session, expectedPasswordHash))) {
+      throw new AppError(401, 'INVALID_CREDENTIALS', 'The email or password is incorrect.');
+    }
     return { accessToken, refreshToken };
   }
 

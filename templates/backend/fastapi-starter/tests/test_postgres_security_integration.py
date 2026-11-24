@@ -161,6 +161,69 @@ class PostgresSecurityIntegrationTests(unittest.IsolatedAsyncioTestCase):
         _, replacement = successful[0]
         self.assertIsNone(await self._refresh(replacement))
 
+    async def test_oauth_revokes_a_refresh_replacement_with_an_uncommitted_rotation(self):
+        user = await self._create_user("oauth-refresh-race@example.com", verified=False)
+        async with SessionLocal() as db:
+            _, original = await AuthService(db, UserRepository(db)).issue_session(user)
+
+        ready, release = asyncio.Event(), asyncio.Event()
+        oauth_started = asyncio.Event()
+        oauth_pid = None
+
+        async def rotate():
+            async with SessionLocal() as db:
+                commit = db.commit
+
+                async def delayed_commit():
+                    ready.set()
+                    await release.wait()
+                    await commit()
+
+                with patch.object(db, "commit", side_effect=delayed_commit):
+                    return await AuthService(db, UserRepository(db)).refresh(original)
+
+        async def link():
+            nonlocal oauth_pid
+            async with SessionLocal() as db:
+                oauth_pid = await db.scalar(text("SELECT pg_backend_pid()"))
+                oauth_started.set()
+                return await AuthService(db, UserRepository(db)).login_oauth("google", SimpleNamespace(
+                    email=user.email, name=user.name, provider_account_id="race-subject",
+                ))
+
+        async def wait_for_block():
+            await oauth_started.wait()
+            async with SessionLocal() as db:
+                while not await db.scalar(text("SELECT cardinality(pg_blocking_pids(:pid)) > 0"), {"pid": oauth_pid}):
+                    await asyncio.sleep(0.01)
+
+        rotation = asyncio.create_task(rotate())
+        linking = None
+        try:
+            await asyncio.wait_for(ready.wait(), 5)
+            linking = asyncio.create_task(link())
+            # OAuth must begin invalidation before the rotation is committed.
+            await asyncio.wait_for(wait_for_block(), 5)
+        finally:
+            release.set()
+            outcomes = await asyncio.gather(rotation, *([linking] if linking else []), return_exceptions=True)
+        for outcome in outcomes:
+            if isinstance(outcome, BaseException):
+                raise outcome
+        _, replacement = outcomes[0]
+        _, oauth_token = outcomes[1]
+        async with SessionLocal() as db:
+            from src.modules.users.model import RefreshToken
+            tokens = (await db.execute(select(RefreshToken).where(RefreshToken.user_id == user.id))).scalars().all()
+            by_hash = {token.token_hash: token for token in tokens}
+            self.assertIsNotNone(by_hash[token_hash(original)].revoked_at)
+            self.assertIsNotNone(by_hash[token_hash(replacement)].revoked_at)
+            self.assertIsNone(by_hash[token_hash(oauth_token)].revoked_at)
+            current = await db.get(User, user.id)
+            self.assertTrue(current.email_verified)
+            self.assertIsNone(current.password_hash)
+        self.assertIsNone(await self._refresh(replacement))
+
     async def test_oauth_state_uses_real_postgres_claiming_and_s256_pkce(self):
         enabled_settings = Settings(**{**oauth.settings.__dict__, "oauth_enabled": True})
         provider_calls: list[tuple[str, dict[str, str] | None]] = []

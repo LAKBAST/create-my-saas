@@ -28,6 +28,15 @@ class UserRepository:
     async def get_user_by_id(self, user_id: UUID | str) -> User | None:
         return await self.db.get(User, user_id)
 
+    async def get_user_by_id_for_update(self, user_id: UUID | str) -> User | None:
+        result = await self.db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        return result.scalar_one_or_none()
+
     async def save(self, user: User) -> User:
         await self.db.commit()
         await self.db.refresh(user)

@@ -54,7 +54,10 @@ export interface SessionRepository {
   findUserById(id: string): Promise<StoredUser | undefined>;
   updateUserPassword(userId: string, passwordHash: string): Promise<void>;
   setEmailVerified(userId: string): Promise<void>;
-  createSession(session: StoredSession): Promise<void>;
+  /** Atomically clear untrusted credentials and sessions before OAuth verification. */
+  secureUnverifiedOAuthUser(userId: string): Promise<void>;
+  /** Recheck password credentials under the OAuth user-row lock before inserting. */
+  createSession(session: StoredSession, expectedPasswordHash?: string): Promise<boolean>;
   findActiveSessionByAccessHash(accessTokenHash: string): Promise<StoredSession | undefined>;
   findActiveSessionByRefreshHash(refreshTokenHash: string): Promise<StoredSession | undefined>;
   /** Finds a session by refresh token whether or not it is still active (reuse detection). */
