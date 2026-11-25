@@ -42,7 +42,7 @@ class AuthService:
             User(
                 email=email,
                 name=payload.name,
-                password_hash=hash_password(payload.password),
+                password_hash=await hash_password(payload.password),
             )
         )
         await ensure_personal_workspace(user, self.db)
@@ -54,7 +54,7 @@ class AuthService:
             not user
             or not user.is_active
             or not user.password_hash
-            or not verify_password(payload.password, user.password_hash)
+            or not await verify_password(payload.password, user.password_hash)
         ):
             return None
 

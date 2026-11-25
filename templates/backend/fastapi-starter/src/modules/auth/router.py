@@ -197,7 +197,7 @@ async def confirm_password_reset(
             status_code=400,
         )
 
-    user.password_hash = hash_password(payload.new_password)
+    user.password_hash = await hash_password(payload.new_password)
     await users.save(user)
     await auth.revoke_all(user.id)
     return Response(status_code=204)
@@ -246,7 +246,7 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
     users: UserRepository = Depends(get_user_repository),
 ):
-    if not current_user.password_hash or not verify_password(
+    if not current_user.password_hash or not await verify_password(
         payload.current_password,
         current_user.password_hash,
     ):
@@ -256,7 +256,7 @@ async def change_password(
             status_code=401,
         )
 
-    current_user.password_hash = hash_password(payload.new_password)
+    current_user.password_hash = await hash_password(payload.new_password)
     await users.save(current_user)
     await get_auth_service(db, users).revoke_all(current_user.id)
     return Response(status_code=204)

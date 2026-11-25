@@ -41,7 +41,7 @@ async def change_password(
     db: AsyncSession,
     users: UserRepository,
 ) -> None:
-    if not current_user.password_hash or not verify_password(
+    if not current_user.password_hash or not await verify_password(
         payload.current_password,
         current_user.password_hash,
     ):
@@ -50,7 +50,7 @@ async def change_password(
             code="INVALID_CREDENTIALS",
             status_code=401,
         )
-    current_user.password_hash = hash_password(payload.new_password)
+    current_user.password_hash = await hash_password(payload.new_password)
     await users.save(current_user)
     await AuthService(db, users).revoke_all(current_user.id)
 
@@ -167,7 +167,7 @@ async def confirm_password_reset(
             code="INVALID_RESET_TOKEN",
             status_code=400,
         )
-    user.password_hash = hash_password(payload.new_password)
+    user.password_hash = await hash_password(payload.new_password)
     await users.save(user)
     await auth.revoke_all(user.id)
 
