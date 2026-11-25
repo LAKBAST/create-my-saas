@@ -233,7 +233,7 @@ class PostgresSecurityIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 UserRepository(db),
             )
             stored = await UserRepository(db).get_user_by_id(user.id)
-            self.assertTrue(verify_password("new-password2", stored.password_hash or ""))
+            self.assertTrue(await verify_password("new-password2", stored.password_hash or ""))
             self.assertIsNone(
                 await AuthService(db, UserRepository(db)).consume_one_time_token(
                     reset_token, TokenPurpose.PASSWORD_RESET
