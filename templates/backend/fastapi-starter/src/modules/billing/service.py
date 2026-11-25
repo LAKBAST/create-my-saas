@@ -108,7 +108,8 @@ class BillingService:
         self._configure_stripe()
         customer_id = subscription.provider_customer_id or await self._create_customer(organization_id, subscription)
         try:
-            session = stripe.checkout.Session.create(
+            session = await asyncio.to_thread(
+                stripe.checkout.Session.create,
                 mode="subscription", customer=customer_id, client_reference_id=str(organization_id), line_items=[{"price": price_id, "quantity": quantity}],
                 success_url=f"{self._frontend_url()}/billing?organizationId={organization_id}&checkout=success&session_id={{CHECKOUT_SESSION_ID}}",
                 cancel_url=f"{self._frontend_url()}/billing?organizationId={organization_id}&checkout=cancelled",
@@ -141,7 +142,7 @@ class BillingService:
         if self.config.stripe_portal_configuration_id:
             params["configuration"] = self.config.stripe_portal_configuration_id
         try:
-            session = stripe.billing_portal.Session.create(**params)
+            session = await asyncio.to_thread(stripe.billing_portal.Session.create, **params)
         except stripe.StripeError as error:
             raise AppError("The billing provider could not create the portal.", code="BILLING_PROVIDER_ERROR", status_code=502) from error
         record_audit_event(
@@ -167,7 +168,7 @@ class BillingService:
         if self.can_report_usage() and subscription and subscription.provider == "stripe" and subscription.provider_customer_id:
             try:
                 self._configure_stripe()
-                stripe.billing.MeterEvent.create(event_name=self.config.stripe_usage_event_name, identifier=idempotency_key,
+                await asyncio.to_thread(stripe.billing.MeterEvent.create, event_name=self.config.stripe_usage_event_name, identifier=idempotency_key,
                     timestamp=int((recorded_at or utc_now()).timestamp()), payload={"stripe_customer_id": subscription.provider_customer_id, "value": str(quantity)})
                 reported = True
             except stripe.StripeError as error:
@@ -257,8 +258,8 @@ class BillingService:
         # Event timestamps can tie; the current Stripe object is the source of truth.
         try:
             self._configure_stripe()
-            stripe_subscription = stripe.Subscription.retrieve(subscription_id)
-            previous = (stripe.Subscription.retrieve(subscription.provider_subscription_id)
+            stripe_subscription = await asyncio.to_thread(stripe.Subscription.retrieve, subscription_id)
+            previous = (await asyncio.to_thread(stripe.Subscription.retrieve, subscription.provider_subscription_id)
                         if subscription and subscription.provider_subscription_id != subscription_id and subscription.provider_subscription_id else None)
         except stripe.StripeError as error:
             raise AppError("The billing provider could not retrieve the subscription.", code="BILLING_PROVIDER_ERROR", status_code=502) from error
@@ -345,7 +346,7 @@ class BillingService:
         if not organization:
             raise AppError("Organization was not found.", code="ORGANIZATION_NOT_FOUND", status_code=404)
         try:
-            customer = stripe.Customer.create(name=organization.name, metadata={"organization_id": str(organization_id)}, idempotency_key=f"billing-customer:{organization_id}")
+            customer = await asyncio.to_thread(stripe.Customer.create, name=organization.name, metadata={"organization_id": str(organization_id)}, idempotency_key=f"billing-customer:{organization_id}")
         except stripe.StripeError as error:
             raise AppError("The billing provider could not create a customer.", code="BILLING_PROVIDER_ERROR", status_code=502) from error
         subscription.provider, subscription.provider_customer_id = "stripe", customer.id

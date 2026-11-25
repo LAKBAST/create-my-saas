@@ -1,7 +1,7 @@
 import unittest
 import asyncio
 import json
-from threading import Barrier
+from threading import Barrier, Event
 from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
@@ -188,6 +188,76 @@ class BillingContractTests(unittest.TestCase):
         portal_event = db.added[-1]
         self.assertEqual(portal_event.metadata_, {"provider": "stripe"})
         self.assertNotIn("bps_secret", repr(portal_event.__dict__))
+
+    def test_slow_stripe_calls_leave_event_loop_responsive_and_preserve_errors(self):
+        config = replace(settings, stripe_secret_key="sk_test", stripe_webhook_secret="whsec_test",
+                         stripe_usage_event_name="api_calls",
+                         stripe_price_plans='{"price_allowed":{"name":"pro","entitlements":{}}}')
+        targets = {
+            "checkout": "checkout.Session.create",
+            "portal": "billing_portal.Session.create",
+            "usage": "billing.MeterEvent.create",
+            "customer": "Customer.create",
+            "subscription": "Subscription.retrieve",
+            "previous_subscription": "Subscription.retrieve",
+        }
+
+        async def exercise(operation, target):
+            organization_id, actor_id = uuid4(), uuid4()
+            subscription = SimpleNamespace(organization_id=organization_id, provider="stripe",
+                                           provider_customer_id="cus_test", provider_subscription_id="sub_old")
+            db = AsyncMock()
+            db.get.return_value = SimpleNamespace(name="Example")
+            db.execute.return_value = SimpleNamespace(
+                scalar_one_or_none=lambda: None if operation == "usage" else subscription,
+            )
+            service = BillingService(db, config)
+            service._subscription = AsyncMock(return_value=subscription)
+            incoming = {"id": "sub_new", "customer": "cus_test"}
+            operations = {
+                "checkout": lambda: service.checkout(organization_id, "price_allowed", 1, actor_id),
+                "portal": lambda: service.portal(organization_id, actor_id),
+                "usage": lambda: service.record_usage(organization_id, "api_calls", 1, "usage_test"),
+                "customer": lambda: service._create_customer(organization_id, subscription),
+                "subscription": lambda: service._sync_subscription(incoming),
+                "previous_subscription": lambda: service._sync_subscription(incoming),
+            }
+            started, release = Event(), Event()
+            provider_error = stripe.StripeError("Simulated provider outage")
+
+            def slow_provider(*args, **kwargs):
+                if operation == "previous_subscription" and args[0] == "sub_new":
+                    return incoming
+                started.set()
+                # A blocking call on the event loop cannot be released by the
+                # concurrent coroutine below and fails this bounded wait.
+                if not release.wait(timeout=5):
+                    raise AssertionError("Stripe blocked the event loop")
+                raise provider_error
+
+            with patch(f"src.modules.billing.service.stripe.{target}", side_effect=slow_provider) as provider:
+                task = asyncio.create_task(operations[operation]())
+                try:
+                    async with asyncio.timeout(3):
+                        while not started.is_set():
+                            await asyncio.sleep(0.001)
+                    # This coroutine runs while the provider is still waiting.
+                    self.assertFalse(task.done())
+                finally:
+                    release.set()
+                    with self.assertRaises(AppError) as error:
+                        await task
+                self.assertEqual(error.exception.code, "BILLING_PROVIDER_ERROR")
+                self.assertEqual(error.exception.status_code, 502)
+                self.assertIs(error.exception.__cause__, provider_error)
+                if operation == "previous_subscription":
+                    self.assertEqual([call.args for call in provider.call_args_list], [("sub_new",), ("sub_old",)])
+                else:
+                    provider.assert_called_once()
+
+        for operation, target in targets.items():
+            with self.subTest(operation=operation):
+                asyncio.run(exercise(operation, target))
 
     def test_subscription_replacement_rejects_foreign_or_active_and_ignores_old_events(self):
         organization_id = uuid4()
